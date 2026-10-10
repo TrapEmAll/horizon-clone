@@ -75,7 +75,7 @@ from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable, PowerShellNativeRuntimeProvider
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
-from work.account_codec import AccountCodec
+from work.account_codec import AccountCodec, AccountKeyProviderUnavailable
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
@@ -1403,6 +1403,30 @@ class ContainerInspectionTests(unittest.TestCase):
     def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
         with self.assertRaises(NativeSaveUnavailable):
             AccountCodec(NativeSaveBinding()).decrypt(b"opaque", b"dev-key", 32)
+
+    def test_account_codec_accepts_explicit_nonpersistent_key_provider(self):
+        class SaveProvider:
+            def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
+                output_buffer[:input_length] = input_buffer[:input_length]
+                output_length.value = input_length
+                return 0
+
+            def rts_save_encrypt(self, input_buffer, output_buffer, input_length, key):
+                output_buffer[:input_length] = input_buffer[:input_length]
+                return 0
+
+        class KeyProvider:
+            def get_account_key(self, operation, payload_sha256):
+                self.request = (operation, payload_sha256)
+                return b"dev-key"
+
+        provider = KeyProvider()
+        codec = AccountCodec(NativeSaveBinding(SaveProvider()))
+        self.assertEqual(codec.decrypt_with_key_provider(b"opaque", provider, 32), b"opaque")
+        self.assertEqual(provider.request[0], "decrypt")
+        self.assertEqual(len(provider.request[1]), 64)
+        with self.assertRaises(AccountKeyProviderUnavailable):
+            codec.decrypt_with_key_provider(b"opaque", None, 32)
 
         class Provider:
             def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
