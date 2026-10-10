@@ -775,7 +775,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(achievement.achievement["image_id"], 3)
         self.assertEqual(achievement.achievement["gamerscore"], 10)
         self.assertEqual(achievement.achievement["flags"], 0x12)
+        self.assertEqual(achievement.achievement["unlock_time_filetime"], 0x01DB50E713A9BC80)
         self.assertEqual(achievement.achievement["name"], "100K Club")
+        changed = mutate_xdbf_achievement(
+            read_stfs_entry(data, entry, header),
+            achievement.index,
+            unlock_time_filetime=0x01DB50E713A9BC81,
+        )
+        changed_entry = next(item for item in parse_xdbf(changed) if item.index == achievement.index)
+        self.assertEqual(changed_entry.achievement["unlock_time_filetime"], 0x01DB50E713A9BC81)
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
