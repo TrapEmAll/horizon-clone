@@ -1191,6 +1191,8 @@ def main() -> int:
     parser.add_argument("--content-type", type=lambda value: int(value, 0), help="Replace the STFS content type")
     parser.add_argument("--thumbnail-source", type=Path, help="Replace the STFS thumbnail payload")
     parser.add_argument("--title-thumbnail-source", type=Path, help="Replace the STFS title-thumbnail payload")
+    parser.add_argument("--thumbnail-output", type=Path, help="Write the STFS thumbnail payload")
+    parser.add_argument("--title-thumbnail-output", type=Path, help="Write the STFS title-thumbnail payload")
     parser.add_argument("--xdbf-replace", type=int, metavar="INDEX", help="Replace one XDBF entry")
     parser.add_argument("--xdbf-source", type=Path, help="Raw replacement bytes for --xdbf-replace")
     parser.add_argument("--xdbf-remove", type=int, action="append", metavar="INDEX", help="Remove an XDBF entry")
@@ -1401,6 +1403,19 @@ def main() -> int:
         print(f"Wrote unsigned metadata mutation to {write_target}")
 
     thumbnails_requested = args.thumbnail_source is not None or args.title_thumbnail_source is not None
+    thumbnail_exports_requested = args.thumbnail_output is not None or args.title_thumbnail_output is not None
+    if thumbnail_exports_requested:
+        if not report.stfs_header:
+            parser.error("thumbnail export requires a readable STFS header")
+        try:
+            thumbnails = parse_stfs_thumbnails(raw, header=report.stfs_header)
+            if args.thumbnail_output:
+                args.thumbnail_output.write_bytes(thumbnails.thumbnail)
+            if args.title_thumbnail_output:
+                args.title_thumbnail_output.write_bytes(thumbnails.title_thumbnail)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print("Exported requested thumbnail payload(s)")
     if thumbnails_requested:
         if not write_target:
             parser.error("thumbnail mutation requires --write or --in-place")
