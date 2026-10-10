@@ -356,6 +356,36 @@ class ContainerInspectionTests(unittest.TestCase):
             output_path.unlink(missing_ok=True)
             directory.rmdir()
 
+    def test_cli_removes_embedded_xdbf_entry(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path == "FFFE07D1.gpd")
+        xdbf_entries = parse_xdbf(read_stfs_entry(original, entry, header))
+        removable = next(item for item in xdbf_entries if item.text is not None)
+        directory = self.fixture_dir / "cli-embedded-xdbf-remove"
+        directory.mkdir(parents=True, exist_ok=True)
+        output_path = directory / "profile.con"
+        try:
+            subprocess.run(
+                [
+                    sys.executable, "-m", "work.horizon_clone", str(path),
+                    "--xdbf-file", entry.path, "--xdbf-remove", str(removable.index),
+                    "--write", str(output_path),
+                ], check=True, capture_output=True, text=True,
+            )
+            mutated = output_path.read_bytes()
+            mutated_header = parse_stfs_header(mutated)
+            mutated_entry = next(item for item in list_stfs_entries(mutated, mutated_header) if item.path == entry.path)
+            remaining = parse_xdbf(read_stfs_entry(mutated, mutated_entry, mutated_header))
+            self.assertNotIn(removable.index, {item.index for item in remaining})
+            self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+        finally:
+            output_path.unlink(missing_ok=True)
+            directory.rmdir()
+
     def test_cli_exposes_stfs_security_metadata(self):
         path = supplied_fixture()
         if path is None or not path.exists():
