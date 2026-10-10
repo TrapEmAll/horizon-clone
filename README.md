@@ -14,6 +14,9 @@ copied implementation code.
 - Parses extracted XDBF/GPD indexes and common string entries.
 - Provides a library API for enumerating parseable XDBF payloads embedded in STFS GPD files.
 - Provides a normalized library API for enumerating observed achievements across embedded GPDs.
+- Provides aggregate profile achievement counts, raw gamerscore totals, and
+  explicitly unlabeled nonzero-flag counts through the library and
+  `--profile-summary` CLI option.
 - Provides bulk embedded-GPD summaries with per-file entry counts, namespace
   distributions, text counts, and achievement counts through the library and
   `--xdbf-summary` CLI option.
