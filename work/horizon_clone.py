@@ -707,6 +707,23 @@ def read_stfs_entry(data: bytes, entry: StfsEntry, header: StfsHeader | None = N
     return bytes(result)
 
 
+def list_embedded_xdbf(
+    data: bytes, header: StfsHeader | None = None
+) -> tuple[tuple[StfsEntry, tuple[XdbfEntry, ...]], ...]:
+    """Enumerate parseable XDBF payloads embedded in STFS GPD files."""
+    header = header or parse_stfs_header(data)
+    result: list[tuple[StfsEntry, tuple[XdbfEntry, ...]]] = []
+    for entry in list_stfs_entries(data, header):
+        if entry.is_directory or not entry.path.lower().endswith(".gpd"):
+            continue
+        try:
+            entries = parse_xdbf(read_stfs_entry(data, entry, header))
+        except (OSError, ValueError, IsADirectoryError):
+            continue
+        result.append((entry, entries))
+    return tuple(result)
+
+
 def mutate_stfs_entry_same_size(
     data: bytes,
     entry: StfsEntry,
