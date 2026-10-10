@@ -292,6 +292,40 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(security["signature_kind"], "console-certificate")
         self.assertEqual(len(security["licenses"]), 16)
 
+    def test_cli_exports_stfs_thumbnail_payloads(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        directory = self.fixture_dir / "thumbnail-export"
+        directory.mkdir(parents=True, exist_ok=True)
+        thumbnail_path = directory / "thumbnail.bin"
+        title_path = directory / "title-thumbnail.bin"
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "work.horizon_clone",
+                    str(path),
+                    "--thumbnail-output",
+                    str(thumbnail_path),
+                    "--title-thumbnail-output",
+                    str(title_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            original = path.read_bytes()
+            thumbnails = parse_stfs_thumbnails(original, parse_stfs_header(original))
+            self.assertEqual(thumbnail_path.read_bytes(), thumbnails.thumbnail)
+            self.assertEqual(title_path.read_bytes(), thumbnails.title_thumbnail)
+            self.assertIn("Exported requested thumbnail", result.stdout)
+        finally:
+            thumbnail_path.unlink(missing_ok=True)
+            title_path.unlink(missing_ok=True)
+            directory.rmdir()
+
     def test_rehashes_and_verifies_the_complete_stfs_tree(self):
         path = supplied_fixture()
         if path is None or not path.exists():
