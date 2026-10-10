@@ -36,9 +36,9 @@ The current title-specific increment publishes the observed Skyrim enum names
 all three use an observed `i4` backing field, with 27, 273, and 295 named
 members respectively. A metadata-only Constant-table extractor recovered their
 numeric values from the authenticated Horizon assembly; save-file offsets and
-mutation behavior remain unresolved. The Gears `EntryID` catalog likewise records its observed
-declaring type and 1,139 named members, while its `valuetype:2744` values and
-offsets remain unresolved.
+mutation behavior remain unresolved. The Gears `EntryID` catalog now likewise
+records its observed declaring type, 1,139 named members, and 1,139
+authenticated Constant-table values; save offsets remain unresolved.
 
 The shared managed-member evidence also exposes `ProfileLoadout` with its
 `All_Loadouts` member and `SaveEntryCategory` with observed audio, graphics,
