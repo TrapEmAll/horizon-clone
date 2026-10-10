@@ -7,12 +7,14 @@ from work.horizon_clone import (
     list_stfs_entries,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     repack_xdbf_entries,
     repack_stfs_entries,
     rehash_stfs_hashes,
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
+    parse_stfs_thumbnails,
     parse_xdbf,
     read_stfs_entry,
     verify_stfs_hashes,
@@ -210,6 +212,20 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(parsed.display_name, "Edited Profile")
         self.assertEqual(parsed.title_id, 0x12345678)
         self.assertTrue(verify_stfs_hashes(mutated, header=parsed)["header_hash_matches"])
+
+    def test_reads_and_mutates_bounded_stfs_thumbnails(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        thumbnails = parse_stfs_thumbnails(original, header)
+        self.assertEqual(thumbnails.thumbnail_size, header.thumbnail_size)
+        self.assertEqual(thumbnails.title_thumbnail_size, header.title_thumbnail_size)
+        mutated = mutate_stfs_thumbnails(original, thumbnail=b"thumbnail-test", header=header)
+        parsed = parse_stfs_thumbnails(mutated, parse_stfs_header(mutated))
+        self.assertEqual(parsed.thumbnail, b"thumbnail-test")
+        self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
     def test_repacks_entry_with_a_different_size(self):
         path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
