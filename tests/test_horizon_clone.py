@@ -251,6 +251,32 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(verification["header_hash_matches"])
         self.assertTrue(verification["top_hash_matches"])
 
+    def test_validates_achievement_mutation_for_every_fixture_achievement(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        count = 0
+        for entry in list_stfs_entries(data, header):
+            if entry.is_directory or not entry.name.casefold().endswith(".gpd"):
+                continue
+            gpd = read_stfs_entry(data, entry, header)
+            for achievement in parse_xdbf(gpd):
+                if achievement.achievement is None:
+                    continue
+                edited = mutate_xdbf_achievement(
+                    gpd,
+                    achievement.index,
+                    achievement_id=achievement.achievement["achievement_id"],
+                    image_id=achievement.achievement["image_id"],
+                    gamerscore=achievement.achievement["gamerscore"],
+                    flags=achievement.achievement["flags"],
+                )
+                self.assertEqual(len(parse_xdbf(edited)), len(parse_xdbf(gpd)))
+                count += 1
+        self.assertEqual(count, 2339)
+
     def test_unknown_magic_is_not_reported_as_container(self):
         self.fixture_dir.mkdir(exist_ok=True)
         path = self.fixture_dir / "sample-unknown"
