@@ -58,6 +58,11 @@ Account field layout, or Account-specific call edge. The supplied 404-byte
 `Account` entry is therefore an opaque STFS payload; same-size replacement is
 supported as a container operation, not as a reconstructed profile serializer.
 
+`AccountCodec` now connects that opaque payload to the explicit class3 provider
+boundary. It validates decrypt/encrypt buffer contracts and supports authorized
+provider round trips, but does not interpret the decrypted Account layout or
+persist key material.
+
 The same evidence identifies two zero-argument `Horizon.ProfileData` resource
 getters, `get_GoWJ_Thumb_New` and `get_GrayDot`, both returning unresolved
 managed type `class:957`. They are exposed as declaration metadata only; no
