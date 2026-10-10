@@ -182,6 +182,24 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
     return tuple(result)
 
 
+def xdbf_payload_surface(data: bytes) -> tuple[dict[str, object], ...]:
+    """Describe every XDBF payload without guessing opaque title semantics."""
+
+    entries = parse_xdbf(data)
+    return tuple(
+        {
+            "index": entry.index,
+            "namespace": entry.namespace,
+            "entry_id": entry.entry_id,
+            "offset": entry.data_offset,
+            "length": entry.length,
+            "sha256": hashlib.sha256(data[entry.data_offset : entry.data_offset + entry.length]).hexdigest(),
+            "kind": "achievement" if entry.achievement is not None else "text" if entry.text is not None else "opaque",
+        }
+        for entry in entries
+    )
+
+
 def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: bytes) -> bytes:
     """Replace an XDBF payload without changing its table allocation."""
     if len(replacement) != entry.length:
@@ -1382,6 +1400,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
+    parser.add_argument("--xdbf-surface", action="store_true", help="Report XDBF payload sizes and digests without interpreting opaque entries")
     parser.add_argument("--xdbf-summary", action="store_true", help="Summarize parseable embedded GPD namespaces")
     parser.add_argument("--list-achievements", action="store_true", help="List observed achievements from embedded GPD files")
     parser.add_argument("--achievements-output", type=Path, help="Write embedded achievement records as JSON")
@@ -1537,8 +1556,10 @@ def main() -> int:
                     kind = "achievement" if entry.achievement is not None else "entry"
                     label = entry.text if entry.text is not None else ""
                     print(f"{kind} {entry.index:>6} ns={entry.namespace:>5} id=0x{entry.entry_id:X} size={entry.length:>8} {label}")
+            if args.xdbf_surface:
+                print(json.dumps(xdbf_payload_surface(raw), indent=2, ensure_ascii=False))
             if args.as_json or not args.output:
-                if not args.list:
+                if not args.list and not args.xdbf_surface:
                     print(payload)
             return 0
         report = inspect(args.path)
