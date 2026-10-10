@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 25246)
-Total output lines: 2175
-
 """Clean-room Xbox 360 content-container inspector.
 
 This module intentionally limits itself to evidence-backed, non-destructive
@@ -20,7 +17,7 @@ from pathlib import Path
 from typing import BinaryIO, Iterable
 
 from .editor_inventory import capability_report, catalog_report
-from .native_surface import native_export_contract_report, native_surface_report
+from .native_surface import managed_native_import_report, native_export_contract_report, native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_surface_report
@@ -890,7 +887,634 @@ def read_stfs_entry(data: bytes, entry: StfsEntry, header: StfsHeader | None = N
 
 def list_embedded_xdbf(
     data: bytes, header: StfsHeader | None = None
-) -> tuple[tuple[StfsEntry, tuple[XdbfEnt…7246 tokens truncated…= None
+) -> tuple[tuple[StfsEntry, tuple[XdbfEntry, ...]], ...]:
+    """Enumerate parseable XDBF payloads embedded in STFS GPD files."""
+    header = header or parse_stfs_header(data)
+    result: list[tuple[StfsEntry, tuple[XdbfEntry, ...]]] = []
+    for entry in list_stfs_entries(data, header):
+        if entry.is_directory or not entry.path.lower().endswith(".gpd"):
+            continue
+        try:
+            entries = parse_xdbf(read_stfs_entry(data, entry, header))
+        except (OSError, ValueError, IsADirectoryError):
+            continue
+        result.append((entry, entries))
+    return tuple(result)
+
+
+def list_embedded_achievements(
+    data: bytes, header: StfsHeader | None = None
+) -> tuple[dict[str, object], ...]:
+    """Return normalized observed achievement records from embedded GPDs."""
+    records: list[dict[str, object]] = []
+    for entry, xdbf_entries in list_embedded_xdbf(data, header):
+        for xdbf_entry in xdbf_entries:
+            if xdbf_entry.achievement is None:
+                continue
+            records.append(
+                {
+                    "file": entry.path,
+                    "index": xdbf_entry.index,
+                    "namespace": xdbf_entry.namespace,
+                    "entry_id": xdbf_entry.entry_id,
+                    "achievement": xdbf_entry.achievement,
+                }
+            )
+    return tuple(records)
+
+
+def summarize_profile_achievements(
+    data: bytes, header: StfsHeader | None = None
+) -> dict[str, object]:
+    """Aggregate observed achievement fields across embedded GPDs."""
+
+    per_file: list[dict[str, object]] = []
+    total_entries = total_gamerscore = nonzero_flags = 0
+    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
+        achievements = [item.achievement for item in xdbf_entries if item.achievement is not None]
+        file_score = sum(int(item.get("gamerscore", 0)) for item in achievements)
+        file_flags = sum(bool(item.get("flags", 0)) for item in achievements)
+        per_file.append({
+            "file": file_entry.path,
+            "achievement_count": len(achievements),
+            "gamerscore_total": file_score,
+            "nonzero_flags_count": file_flags,
+        })
+        total_entries += len(achievements)
+        total_gamerscore += file_score
+        nonzero_flags += file_flags
+    return {
+        "gpd_count": len(per_file),
+        "achievement_entry_count": total_entries,
+        "gamerscore_total": total_gamerscore,
+        "nonzero_flags_count": nonzero_flags,
+        "flag_semantics": "raw nonzero flag count; bit meanings are not inferred",
+        "by_gpd": per_file,
+    }
+
+
+def summarize_embedded_xdbf(
+    data: bytes, header: StfsHeader | None = None
+) -> tuple[dict[str, object], ...]:
+    """Summarize every parseable embedded GPD without interpreting game data."""
+
+    summaries: list[dict[str, object]] = []
+    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
+        namespaces = Counter(item.namespace for item in xdbf_entries)
+        summaries.append(
+            {
+                "file": file_entry.path,
+                "entry_count": len(xdbf_entries),
+                "namespace_counts": dict(sorted(namespaces.items())),
+                "text_count": sum(item.text is not None for item in xdbf_entries),
+                "achievement_count": sum(item.achievement is not None for item in xdbf_entries),
+            }
+        )
+    return tuple(summaries)
+
+
+def mutate_stfs_entry_same_size(
+    data: bytes,
+    entry: StfsEntry,
+    replacement: bytes,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Replace one file's bytes in place and rebuild its STFS block hashes.
+
+    This deliberately preserves the existing allocation and file size.  It
+    updates data-block hashes and the metadata-header hash, but does not
+    forge the package's RSA signature.  Callers must use an authorized
+    signing provider before treating the result as console-valid.
+    """
+    header = header or parse_stfs_header(data)
+    if entry.is_directory:
+        raise IsADirectoryError(entry.path)
+    if len(replacement) != entry.size:
+        raise ValueError(
+            f"replacement size {len(replacement)} does not match entry size {entry.size}"
+        )
+
+    result = bytearray(data)
+    block = entry.first_block
+    cursor = 0
+    remaining = entry.size
+    while remaining and block >= 0:
+        address = block_offset(block, header.header_size, header.block_separation)
+        if address + BLOCK_SIZE > len(result):
+            raise ValueError(f"entry {entry.path!r} points beyond the end of the container")
+        take = min(BLOCK_SIZE, remaining)
+        result[address : address + take] = replacement[cursor : cursor + take]
+        if take < BLOCK_SIZE:
+            result[address + take : address + BLOCK_SIZE] = b"\x00" * (BLOCK_SIZE - take)
+        record = _hash_record_address(result, block, header)
+        if record < 0:
+            raise ValueError(f"entry {entry.path!r} has no addressable hash record")
+        result[record : record + 0x14] = hashlib.sha1(
+            result[address : address + BLOCK_SIZE]
+        ).digest()
+        cursor += take
+        remaining -= take
+        block = block + 1 if entry.consecutive else _next_block(result, block, header)
+    if remaining:
+        raise ValueError(f"entry {entry.path!r} has a broken block chain")
+
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def mutate_stfs_metadata(
+    data: bytes,
+    *,
+    display_name: str | None = None,
+    title_id: int | None = None,
+    content_type: int | None = None,
+    display_description: str | None = None,
+    publisher_name: str | None = None,
+    title_name: str | None = None,
+    transfer_flags: int | None = None,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Mutate fixed-width STFS metadata fields and rebuild the metadata hash."""
+    header = header or parse_stfs_header(data)
+    result = bytearray(data)
+    if display_name is not None:
+        encoded = display_name.encode("utf-16-be") + b"\x00\x00"
+        if len(encoded) > 0x80:
+            raise ValueError("display name exceeds the STFS 0x80-byte field")
+        result[0x411 : 0x411 + 0x80] = encoded.ljust(0x80, b"\x00")
+    if title_id is not None:
+        if not 0 <= title_id <= 0xFFFFFFFF:
+            raise ValueError("title ID must fit in an unsigned 32-bit field")
+        result[0x360:0x364] = title_id.to_bytes(4, "big")
+    if content_type is not None:
+        if not 0 <= content_type <= 0xFFFFFFFF:
+            raise ValueError("content type must fit in an unsigned 32-bit field")
+        result[0x344:0x348] = content_type.to_bytes(4, "big")
+    for value, offset in (
+        (display_description, 0xD11),
+        (publisher_name, 0x1611),
+        (title_name, 0x1691),
+    ):
+        if value is None:
+            continue
+        encoded = value.encode("utf-16-be") + b"\x00\x00"
+        if len(encoded) > 0x80:
+            raise ValueError("metadata text exceeds its 0x80-byte field")
+        result[offset : offset + 0x80] = encoded.ljust(0x80, b"\x00")
+    if transfer_flags is not None:
+        if not 0 <= transfer_flags <= 0xFF:
+            raise ValueError("transfer flags must fit in one byte")
+        result[0x1711] = transfer_flags
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def parse_stfs_thumbnails(data: bytes, header: StfsHeader | None = None) -> StfsThumbnails:
+    """Read bounded STFS thumbnail payloads without interpreting image bytes."""
+    header = header or parse_stfs_header(data)
+    thumbnail_size = _u32be(data, 0x1712)
+    title_size = _u32be(data, 0x1716)
+    capacity = 0x4000
+    if thumbnail_size > capacity or title_size > capacity:
+        raise ValueError("STFS thumbnail size exceeds its metadata field capacity")
+    thumbnail = data[0x171A : 0x171A + thumbnail_size]
+    title_thumbnail = data[0x571A : 0x571A + title_size]
+    if len(thumbnail) != thumbnail_size or len(title_thumbnail) != title_size:
+        raise ValueError("STFS thumbnail points beyond the metadata header")
+    return StfsThumbnails(thumbnail_size, title_size, thumbnail, title_thumbnail)
+
+
+def mutate_stfs_thumbnails(
+    data: bytes,
+    *,
+    thumbnail: bytes | None = None,
+    title_thumbnail: bytes | None = None,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Replace thumbnail payloads within their fixed STFS metadata capacity."""
+    header = header or parse_stfs_header(data)
+    result = bytearray(data)
+    capacity = 0x4000
+    for offset, size_offset, payload in (
+        (0x171A, 0x1712, thumbnail),
+        (0x571A, 0x1716, title_thumbnail),
+    ):
+        if payload is None:
+            continue
+        if len(payload) > capacity:
+            raise ValueError("thumbnail exceeds the fixed STFS metadata capacity")
+        result[size_offset : size_offset + 4] = len(payload).to_bytes(4, "big")
+        result[offset : offset + capacity] = payload.ljust(capacity, b"\x00")
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def _stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
+    """Return raw file-table slot offsets in the same order as parsed entries."""
+    slots: list[int] = []
+    block = header.file_table_block_number
+    for table_index in range(header.file_table_block_count):
+        address = block_offset(block, header.header_size, header.block_separation)
+        if address + BLOCK_SIZE > len(data):
+            raise ValueError("file table points beyond the end of the container")
+        for slot in range(64):
+            raw = data[address + slot * 0x40 : address + (slot + 1) * 0x40]
+            name_length = raw[0x28] & 0x3F
+            if name_length and all(0x20 <= value <= 0x7E for value in raw[:name_length]):
+                slots.append(address + slot * 0x40)
+        block = _next_block(data, block, header)
+    return tuple(slots)
+
+
+def _stfs_file_table_blocks(data: bytes, header: StfsHeader) -> tuple[int, ...]:
+    """Return the logical blocks in the file-table chain."""
+    blocks: list[int] = []
+    block = header.file_table_block_number
+    for index in range(header.file_table_block_count):
+        if block < 0:
+            raise ValueError("file table chain terminates before its declared length")
+        blocks.append(block)
+        block = _next_block(data, block, header)
+        if index + 1 < header.file_table_block_count and block < 0:
+            raise ValueError("file table chain is incomplete")
+    return tuple(blocks)
+
+
+def _all_stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
+    """Return every physical file-table slot, including empty slots."""
+    slots: list[int] = []
+    block = header.file_table_block_number
+    for table_index in range(header.file_table_block_count):
+        address = block_offset(block, header.header_size, header.block_separation)
+        if address + BLOCK_SIZE > len(data):
+            raise ValueError("file table points beyond the end of the container")
+        slots.extend(address + slot * 0x40 for slot in range(64))
+        block = _next_block(data, block, header)
+    return tuple(slots)
+
+
+def rename_stfs_entry(
+    data: bytes,
+    entry_path: str,
+    new_name: str,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Rename one STFS file or directory without changing its parent."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    entry = next((item for item in entries if item.path == entry_path), None)
+    if entry is None:
+        raise FileNotFoundError(entry_path)
+    encoded_name = new_name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS names must be non-empty ASCII basenames of at most 40 bytes")
+    parent = entry_path.rsplit("/", 1)[0] if "/" in entry_path else ""
+    new_path = f"{parent}/{new_name}" if parent else new_name
+    if any(item.path == new_path for item in entries if item.path != entry_path):
+        raise ValueError(f"STFS entry already exists: {new_path}")
+    slots = _stfs_file_table_slots(data, header)
+    if entry.index >= len(slots):
+        raise ValueError("STFS entry index does not resolve to a file-table slot")
+    result = bytearray(data)
+    slot = slots[entry.index]
+    result[slot : slot + 0x28] = encoded_name.ljust(0x28, b"\x00")
+    result[slot + 0x28] = (result[slot + 0x28] & 0xC0) | len(encoded_name)
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | None = None) -> bytes:
+    """Add an empty STFS directory in an available file-table slot."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    if not directory_path or directory_path.endswith("/"):
+        raise ValueError("directory path must be a non-empty path")
+    parent_path, _, name = directory_path.rpartition("/")
+    encoded_name = name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS directory names must be non-empty ASCII basenames of at most 40 bytes")
+    parent_index = 0xFFFF
+    if parent_path:
+        parent = next((item for item in entries if item.path == parent_path), None)
+        if parent is None or not parent.is_directory:
+            raise FileNotFoundError(f"parent directory does not exist: {parent_path}")
+        parent_index = parent.index
+    if any(item.path == directory_path for item in entries):
+        raise ValueError(f"STFS entry already exists: {directory_path}")
+    all_slots = _all_stfs_file_table_slots(data, header)
+    used_slots = set(_stfs_file_table_slots(data, header))
+    candidates = [slot for slot in all_slots if slot not in used_slots]
+    if not candidates:
+        raise ValueError("STFS file-table capacity is exhausted")
+    slot = candidates[0]
+    old_index_by_slot = {slot_address: item.index for slot_address, item in zip(_stfs_file_table_slots(data, header), entries)}
+    new_index_by_slot: dict[int, int] = {}
+    old_to_new: dict[int, int] = {}
+    next_index = 0
+    for slot_address in all_slots:
+        if slot_address not in used_slots and slot_address != slot:
+            continue
+        new_index_by_slot[slot_address] = next_index
+        if slot_address in old_index_by_slot:
+            old_to_new[old_index_by_slot[slot_address]] = next_index
+        next_index += 1
+    result = bytearray(data)
+    for slot_address in used_slots:
+        old_parent = int.from_bytes(result[slot_address + 0x32 : slot_address + 0x34], "big")
+        if old_parent != 0xFFFF:
+            if old_parent not in old_to_new:
+                raise ValueError("STFS parent index cannot be remapped")
+            result[slot_address + 0x32 : slot_address + 0x34] = old_to_new[old_parent].to_bytes(2, "big")
+    raw = bytearray(0x40)
+    raw[: len(encoded_name)] = encoded_name
+    raw[0x28] = 0x80 | len(encoded_name)
+    raw[0x32:0x34] = (0xFFFF if parent_index == 0xFFFF else old_to_new[parent_index]).to_bytes(2, "big")
+    result[slot : slot + 0x40] = raw
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def move_stfs_entry(
+    data: bytes,
+    entry_path: str,
+    destination_directory: str,
+    new_name: str | None = None,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Move an STFS entry to an existing directory without reallocating data."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    entry = next((item for item in entries if item.path == entry_path), None)
+    destination = next((item for item in entries if item.path == destination_directory), None)
+    if entry is None:
+        raise FileNotFoundError(entry_path)
+    if destination is None or not destination.is_directory:
+        raise FileNotFoundError(f"destination directory does not exist: {destination_directory}")
+    if entry.is_directory and (destination_directory == entry_path or destination_directory.startswith(entry_path + "/")):
+        raise ValueError("an STFS directory cannot be moved into itself or its descendants")
+    target_name = new_name or entry.name
+    encoded_name = target_name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS names must be non-empty ASCII basenames of at most 40 bytes")
+    new_path = f"{destination_directory}/{target_name}"
+    if any(item.path == new_path and item.path != entry_path for item in entries):
+        raise ValueError(f"STFS entry already exists: {new_path}")
+    slots = _stfs_file_table_slots(data, header)
+    if entry.index >= len(slots):
+        raise ValueError("STFS entry index does not resolve to a file-table slot")
+    result = bytearray(data)
+    slot = slots[entry.index]
+    result[slot : slot + 0x28] = encoded_name.ljust(0x28, b"\x00")
+    result[slot + 0x28] = (result[slot + 0x28] & 0xC0) | len(encoded_name)
+    result[slot + 0x32 : slot + 0x34] = destination.index.to_bytes(2, "big")
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def repack_stfs_entries(
+    data: bytes,
+    replacements: dict[str, bytes],
+    header: StfsHeader | None = None,
+    remove: Iterable[str] = (),
+    additions: dict[str, bytes] | None = None,
+) -> bytes:
+    """Repack one or more entries within the package's existing block capacity.
+
+    The operation preserves the physical package size and reserves the
+    existing file-table blocks.  It refuses requests that need a larger STFS
+    allocation table, leaving creation of new hash-table levels explicit.
+    """
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    removals = set(remove)
+    additions = dict(additions or {})
+    by_path = {entry.path: entry for entry in entries}
+    unknown = sorted((set(replacements) | removals) - set(by_path))
+    if unknown:
+        raise FileNotFoundError(unknown[0])
+    conflicts = sorted((set(additions) & set(by_path)) | (set(additions) & removals))
+    if conflicts:
+        raise ValueError(f"entry already exists: {conflicts[0]}")
+    if any(not path or path.endswith("/") for path in additions):
+        raise ValueError("added entries must be non-empty file paths")
+    for path in additions:
+        name = path.rsplit("/", 1)[-1]
+        if not name or len(name.encode("ascii", errors="ignore")) != len(name) or len(name) > 0x28:
+            raise ValueError(f"added entry name is not a supported ASCII file name: {path!r}")
+        parent = path.rsplit("/", 1)[0] if "/" in path else ""
+        if parent and (parent not in by_path or not by_path[parent].is_directory):
+            raise FileNotFoundError(f"parent directory does not exist: {parent}")
+    for path in removals:
+        if by_path[path].is_directory:
+            if any(item.path.startswith(path + "/") for item in entries):
+                raise IsADirectoryError(f"directory is not empty: {path}")
+            continue
+    for path, payload in replacements.items():
+        if by_path[path].is_directory:
+            raise IsADirectoryError(path)
+        if path in removals:
+            raise ValueError(f"entry cannot be both replaced and removed: {path}")
+
+    original_payloads = {
+        entry.path: read_stfs_entry(data, entry, header)
+        for entry in entries
+        if not entry.is_directory
+    }
+    payloads = {**original_payloads, **replacements, **additions}
+    for path in removals:
+        payloads.pop(path, None)
+    reserved = set(_stfs_file_table_blocks(data, header))
+    available = [block for block in range(header.allocated_block_count) if block not in reserved]
+    allocations: dict[str, tuple[int, ...]] = {}
+    cursor = 0
+    for entry in entries:
+        if entry.is_directory or entry.path in removals:
+            continue
+        block_count = (len(payloads[entry.path]) + BLOCK_SIZE - 1) // BLOCK_SIZE
+        selected = tuple(available[cursor : cursor + block_count])
+        if len(selected) != block_count:
+            raise ValueError("replacement set exceeds the existing STFS allocation capacity")
+        allocations[entry.path] = selected
+        cursor += block_count
+    for path, payload in additions.items():
+        block_count = (len(payload) + BLOCK_SIZE - 1) // BLOCK_SIZE
+        selected = tuple(available[cursor : cursor + block_count])
+        if len(selected) != block_count:
+            raise ValueError("addition set exceeds the existing STFS allocation capacity")
+        allocations[path] = selected
+        cursor += block_count
+
+    result = bytearray(data)
+    for path, blocks in allocations.items():
+        payload = payloads[path]
+        for index, block in enumerate(blocks):
+            address = block_offset(block, header.header_size, header.block_separation)
+            if address + BLOCK_SIZE > len(result):
+                raise ValueError("existing container does not contain the declared allocation")
+            chunk = payload[index * BLOCK_SIZE : (index + 1) * BLOCK_SIZE]
+            result[address : address + BLOCK_SIZE] = chunk.ljust(BLOCK_SIZE, b"\x00")
+
+    slots = _stfs_file_table_slots(data, header)
+    if len(slots) != len(entries):
+        raise ValueError("file-table slot count changed while repacking")
+    for entry, slot in zip(entries, slots):
+        if entry.path in removals:
+            result[slot : slot + 0x40] = b"\x00" * 0x40
+            continue
+        if entry.is_directory:
+            continue
+        raw = bytearray(result[slot : slot + 0x40])
+        blocks = allocations[entry.path]
+        raw[0x28] = (raw[0x28] | 0x40) & 0x7F
+        raw[0x29:0x2C] = len(blocks).to_bytes(3, "little")
+        raw[0x2F:0x32] = (blocks[0] if blocks else 0).to_bytes(3, "little")
+        raw[0x34:0x38] = len(payloads[entry.path]).to_bytes(4, "big")
+        result[slot : slot + 0x40] = raw
+
+    all_slots = _all_stfs_file_table_slots(data, header)
+    occupied = {
+        slot
+        for entry, slot in zip(entries, slots)
+        if entry.path not in removals
+    }
+    free_slots = [slot for slot in all_slots if slot not in occupied]
+    if len(free_slots) < len(additions):
+        raise ValueError("file-table capacity is exhausted")
+    entry_indices = {entry.path: entry.index for entry in entries}
+    for (path, payload), slot in zip(additions.items(), free_slots):
+        name = path.rsplit("/", 1)[-1].encode("ascii")
+        parent = path.rsplit("/", 1)[0] if "/" in path else ""
+        parent_index = 0xFFFF if not parent else entry_indices[parent]
+        blocks = allocations[path]
+        raw = bytearray(0x40)
+        raw[: len(name)] = name
+        raw[0x28] = (len(name) | 0x40) & 0x7F
+        raw[0x29:0x2C] = len(blocks).to_bytes(3, "little")
+        raw[0x2F:0x32] = (blocks[0] if blocks else 0).to_bytes(3, "little")
+        raw[0x32:0x34] = parent_index.to_bytes(2, "big")
+        raw[0x34:0x38] = len(payload).to_bytes(4, "big")
+        result[slot : slot + 0x40] = raw
+
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def verify_stfs_hashes(
+    data: bytes,
+    entry: StfsEntry | None = None,
+    header: StfsHeader | None = None,
+) -> dict:
+    """Verify data-block and metadata-header hashes without asserting signing validity."""
+    header = header or parse_stfs_header(data)
+    entries = (entry,) if entry is not None else list_stfs_entries(data, header)
+    failures: list[dict] = []
+    hash_table_failures: list[dict] = []
+    checked_blocks = 0
+    for current in entries:
+        if current.is_directory:
+            continue
+        block = current.first_block
+        remaining = current.size
+        while remaining and block >= 0:
+            address = block_offset(block, header.header_size, header.block_separation)
+            record = _hash_record_address(data, block, header)
+            if address + BLOCK_SIZE > len(data) or record < 0:
+                failures.append({"entry": current.path, "block": block, "reason": "out_of_range"})
+                break
+            expected = hashlib.sha1(data[address : address + BLOCK_SIZE]).digest()
+            actual = data[record : record + 0x14]
+            checked_blocks += 1
+            if actual != expected:
+                failures.append({"entry": current.path, "block": block, "reason": "data_hash"})
+            take = min(BLOCK_SIZE, remaining)
+            remaining -= take
+            block = block + 1 if current.consecutive else _next_block(data, block, header)
+        if remaining:
+            failures.append({"entry": current.path, "block": block, "reason": "broken_chain"})
+
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    header_hash_matches = hashlib.sha1(data[0x344:first_hash_table]).digest() == data[0x32C:0x340]
+    top_level = _top_level(header)
+    for table_index in range(_table_count(header, 0)):
+        level0_address = _hash_table_address(data, table_index * 0xAA, header, 0)
+        actual = hashlib.sha1(data[level0_address : level0_address + BLOCK_SIZE]).digest()
+        if top_level == 1:
+            parent_address = _hash_table_address(data, 0, header, 1)
+            expected = data[parent_address + table_index * 0x18 : parent_address + table_index * 0x18 + 0x14]
+        elif top_level == 2:
+            parent_address = _hash_table_address(data, (table_index // 0xAA) * 0x70E4, header, 1)
+            expected = data[parent_address + (table_index % 0xAA) * 0x18 : parent_address + (table_index % 0xAA) * 0x18 + 0x14]
+        else:
+            expected = actual
+        if actual != expected:
+            hash_table_failures.append({"level": 0, "table": table_index, "reason": "table_hash"})
+
+    if top_level == 2:
+        top_address = _hash_table_address(data, 0, header, 2)
+        for table_index in range(_table_count(header, 1)):
+            level1_address = _hash_table_address(data, table_index * 0x70E4, header, 1)
+            actual = hashlib.sha1(data[level1_address : level1_address + BLOCK_SIZE]).digest()
+            expected = data[top_address + table_index * 0x18 : top_address + table_index * 0x18 + 0x14]
+            if actual != expected:
+                hash_table_failures.append({"level": 1, "table": table_index, "reason": "table_hash"})
+    top_address = _hash_table_address(data, 0, header, top_level)
+    top_hash_matches = (
+        hashlib.sha1(data[top_address : top_address + BLOCK_SIZE]).digest() == data[0x381:0x395]
+    )
+    return {
+        "checked_blocks": checked_blocks,
+        "failures": failures,
+        "hash_table_failures": hash_table_failures,
+        "header_hash_matches": header_hash_matches,
+        "top_hash_matches": top_hash_matches,
+        "signature_checked": False,
+    }
+
+
+def extract_stfs(data: bytes, output_dir: Path, *, selected_path: str | None = None) -> tuple[Path, ...]:
+    """Extract entries without allowing an entry name to escape output_dir."""
+    header = parse_stfs_header(data)
+    entries = list_stfs_entries(data, header)
+    output_dir = output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for entry in entries:
+        if entry.is_directory or (selected_path and entry.path != selected_path):
+            continue
+        destination = (output_dir / Path(entry.path)).resolve()
+        if output_dir not in destination.parents:
+            raise ValueError(f"unsafe entry path: {entry.path!r}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(read_stfs_entry(data, entry, header))
+        written.append(destination)
+    if selected_path and not written:
+        raise FileNotFoundError(selected_path)
+    return tuple(written)
+
+
+def _strings(data: bytes, encoding: str) -> Iterable[ExtractedString]:
+    if encoding == "utf-16-le":
+        # The container includes arbitrary binary bytes, so decoding the
+        # entire file as UTF-16 produces false positives. Restrict this first
+        # pass to the printable ASCII subset commonly used by metadata.
+        for offset in range(0, len(data) - 1, 2):
+            end = offset
+            while end + 1 < len(data):
+                low, high = data[end], data[end + 1]
+                if high != 0 or not 0x20 <= low <= 0x7E:
+                    break
+                end += 2
+            if end - offset >= 8:
+                yield ExtractedString(offset, encoding, data[offset:end].decode(encoding))
+        return
+
+    for match in _PRINTABLE.finditer(data.decode("latin-1", errors="ignore")):
+        yield ExtractedString(match.start(), "ascii", match.group(0))
+
+
+def inspect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
+    data = path.read_bytes()
+    magic = data[:4].decode("latin-1", errors="replace")
+    package_kind = {
+        "CON ": "Xbox 360 content container",
+        "LIVE": "Xbox 360 LIVE container",
+        "PIRS": "Xbox 360 PIRS container",
+    }.get(magic, "Unknown container")
+    header = None
+    security = None
     entries: tuple[StfsEntry, ...] = ()
     if data[:4] in STFS_MAGICS:
         try:
@@ -941,6 +1565,8 @@ def main() -> int:
     parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--native-exports", action="store_true", help="Inspect named PE exports without loading the image")
     parser.add_argument("--native-contract", action="store_true", help="Compare a supplied DLL with its REA-observed export contract")
+    parser.add_argument("--native-import-bundle", type=Path, help="Read the complete REA managed P/Invoke inventory")
+    parser.add_argument("--native-import-pattern", help="Case-insensitive regex for --native-import-bundle scope!name")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
@@ -1046,6 +1672,12 @@ def main() -> int:
         try:
             print(json.dumps(native_export_contract_report(args.path), indent=2, ensure_ascii=False))
         except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        return 0
+    if args.native_import_bundle:
+        try:
+            print(json.dumps(managed_native_import_report(args.native_import_bundle, args.native_import_pattern), indent=2, ensure_ascii=False))
+        except ValueError as exc:
             parser.error(str(exc))
         return 0
     if args.device_surface:
