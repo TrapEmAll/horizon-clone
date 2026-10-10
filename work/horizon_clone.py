@@ -888,6 +888,54 @@ def stfs_signature_region_report(data: bytes) -> dict[str, object]:
     }
 
 
+def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str, object]:
+    """Compare two STFS images without claiming console-signature validity.
+
+    This is intentionally an integrity audit, not a verifier. It identifies
+    whether the stored signature bytes were preserved and whether any other
+    bytes changed, leaving the signed-region algorithm and signing authority
+    explicit.
+    """
+
+    original_metadata = parse_stfs_security_metadata(original)
+    mutated_metadata = parse_stfs_security_metadata(mutated)
+    if original_metadata.signature_kind != mutated_metadata.signature_kind:
+        raise ValueError("signature comparison requires matching STFS signature kinds")
+    original_regions = stfs_signature_region_report(original)["regions"]
+    mutated_regions = stfs_signature_region_report(mutated)["regions"]
+    signature_bytes_unchanged = original_regions == mutated_regions
+    region_ranges = [
+        (int(item["offset"]), int(item["offset"]) + int(item["length"]))
+        for item in original_regions
+    ]
+    changed_total = 0
+    changed_outside_signature = 0
+    for offset, (before, after) in enumerate(zip(original, mutated)):
+        if before == after:
+            continue
+        changed_total += 1
+        if not any(start <= offset < end for start, end in region_ranges):
+            changed_outside_signature += 1
+    if len(original) != len(mutated):
+        changed_total += abs(len(original) - len(mutated))
+        changed_outside_signature += abs(len(original) - len(mutated))
+    return {
+        "status": "metadata-only",
+        "same_length": len(original) == len(mutated),
+        "changed_bytes": changed_total,
+        "changed_outside_signature_regions": changed_outside_signature,
+        "stored_signature_bytes_unchanged": signature_bytes_unchanged,
+        "original_regions": original_regions,
+        "mutated_regions": mutated_regions,
+        "console_validity_checked": False,
+        "limitations": [
+            "The signed-region digest input and signature encoding remain unresolved.",
+            "Unchanged stored signature bytes do not prove that a mutation is console-valid.",
+            "Console-valid signing requires an authorized compatible signing provider.",
+        ],
+    }
+
+
 def extract_stfs_public_key(data: bytes) -> RsaPublicKey:
     """Extract the public CON certificate key without checking a signature."""
 
@@ -2019,6 +2067,7 @@ def main() -> int:
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
+    parser.add_argument("--signature-compare", type=Path, metavar="OTHER", help="Compare STFS signature bytes and changed regions with another image")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
@@ -2332,6 +2381,13 @@ def main() -> int:
             print(json.dumps(anti_analysis_report(args.anti_analysis), indent=2, ensure_ascii=False))
         except ValueError as exc:
             parser.error(str(exc))
+        return 0
+    if args.signature_compare:
+        try:
+            report = stfs_signature_mutation_report(args.path.read_bytes(), args.signature_compare.read_bytes())
+        except (OSError, TypeError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2))
         return 0
     if args.achievements_output:
         args.list_achievements = True
