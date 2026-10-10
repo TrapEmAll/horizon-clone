@@ -34,6 +34,7 @@ from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
+from work.observed_members import observed_fields, observed_profile_data_fields
 
 
 def supplied_fixture():
@@ -202,6 +203,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(catalog_member_names("ProfileLoadout"), ("All_Loadouts",))
         self.assertIn("Campaign_Level", catalog_member_names("SaveEntryCategory"))
         self.assertFalse(any(item.values_observed for item in catalogs))
+
+    def test_exposes_observed_profile_data_field_contract(self):
+        fields = observed_profile_data_fields()
+        self.assertEqual(
+            [(item.name, item.field_type) for item in fields],
+            [
+                ("FromDevice", "bool"),
+                ("XUID", "u8"),
+                ("Gamertag", "string"),
+                ("Gamerpicture", "u1[]"),
+                ("ProfileId", "u8"),
+                ("Favorite", "bool"),
+            ],
+        )
+        self.assertEqual(observed_fields("Horizon.ProfileData"), fields)
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
