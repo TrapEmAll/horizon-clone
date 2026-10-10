@@ -1831,6 +1831,26 @@ class ContainerInspectionTests(unittest.TestCase):
         finally:
             shutil.rmtree(directory_path, ignore_errors=True)
 
+    def test_cli_extracts_resources_when_bundle_is_also_supplied(self):
+        executable = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.exe")
+        bundle = Path("work/rea-managed-members-latest.json")
+        if not executable.exists() or not bundle.exists():
+            self.skipTest("supplied Horizon.exe and retained REA bundle are not available")
+        directory_path = Path("work/.test-resource-cli-output")
+        shutil.rmtree(directory_path, ignore_errors=True)
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "work.horizon_clone", str(executable),
+                 "--resource-bundle", str(bundle), "--resource-pattern", "A\\.c298",
+                 "--extract-resources", str(directory_path)],
+                check=True, capture_output=True, text=True,
+            )
+            report = json.loads(result.stdout)
+            self.assertEqual(report["counts"], {"extracted": 1, "unresolved": 0})
+            self.assertTrue(Path(report["resources"][0]["path"]).is_file())
+        finally:
+            shutil.rmtree(directory_path, ignore_errors=True)
+
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
         self.assertEqual(gears_entry_id_values()["SyncID"], 1)
