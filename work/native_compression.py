@@ -27,6 +27,8 @@ class Int32Ref:
 
 
 class LzoProvider(Protocol):
+    def lzo_version_string(self) -> bytes | str: ...
+    def lzo_version_date(self) -> bytes | str: ...
     def lzo1x_1_compress(self, source: bytes, source_length: int, destination: bytearray, destination_length: Int32Ref, work_memory: bytes) -> int: ...
     def lzo2a_999_compress(self, source: bytes, source_length: int, destination: bytearray, destination_length: Int32Ref, work_memory: bytes) -> int: ...
     def lzo1x_decompress(self, source: bytes, source_length: int, destination: bytearray, destination_length: Int32Ref, work_memory: bytes) -> int: ...
@@ -67,6 +69,10 @@ class CtypesLzoProvider:
                 "lzo2a_decompress",
             )
         }
+        self._version_functions = {
+            name: self._bind_version(name)
+            for name in ("lzo_version_string", "lzo_version_date")
+        }
 
     def _bind(self, name: str):
         try:
@@ -77,6 +83,27 @@ class CtypesLzoProvider:
         function.argtypes = (pointer, ctypes.c_int32, pointer, ctypes.POINTER(ctypes.c_int32), pointer)
         function.restype = ctypes.c_int32
         return function
+
+    def _bind_version(self, name: str):
+        try:
+            function = getattr(self._dll, name)
+        except AttributeError as exc:
+            raise OSError(f"{self.path} does not export {name}") from exc
+        function.argtypes = ()
+        function.restype = ctypes.c_char_p
+        return function
+
+    def lzo_version_string(self) -> bytes:
+        value = self._version_functions["lzo_version_string"]()
+        if not value:
+            raise OSError("lzo.dll returned no version string")
+        return bytes(value)
+
+    def lzo_version_date(self) -> bytes:
+        value = self._version_functions["lzo_version_date"]()
+        if not value:
+            raise OSError("lzo.dll returned no version date")
+        return bytes(value)
 
     @staticmethod
     def _input(value: bytes):
@@ -242,6 +269,24 @@ class LzoBinding:
         if method is None:
             raise ValueError(f"unknown LZO decompressor: {variant}")
         return self._invoke(method, source, source_length, destination, destination_length, work_memory)
+
+    def version_string(self) -> str:
+        return self._version("lzo_version_string")
+
+    def version_date(self) -> str:
+        return self._version("lzo_version_date")
+
+    def _version(self, method: str) -> str:
+        provider = self._require()
+        value = getattr(provider, method, None)
+        if value is None:
+            raise LzoUnavailable(f"explicit LZO provider does not expose {method}")
+        result = value()
+        if isinstance(result, bytes):
+            result = result.decode("ascii", errors="strict")
+        if not isinstance(result, str) or not result:
+            raise ValueError(f"LZO provider returned an invalid {method} value")
+        return result
 
     def _invoke(self, method: str, source: bytes, source_length: int, destination: bytearray, destination_length: Int32Ref, work_memory: bytes) -> int:
         if not isinstance(source, bytes) or not isinstance(destination, bytearray) or not isinstance(work_memory, bytes):
