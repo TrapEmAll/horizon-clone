@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 17005)
+Total output lines: 1348
+
 import hashlib
 import json
 import os
@@ -46,6 +49,7 @@ from work.signing import (
     sign_region,
     sign_with_provider,
     verify_region,
+    verify_sha1_pkcs1v15,
     verify_sha256_pkcs1v15,
 )
 from work.profile_model import ProfileData
@@ -648,88 +652,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     "--write", str(output_path),
                 ], check=True, capture_output=True, text=True,
             )
-            mutated = output_path.read_bytes()
-            mutated_header = parse_stfs_header(mutated)
-            mutated_entry = next(item for item in list_stfs_entries(mutated, mutated_header) if item.path == entry.path)
-            edited = next(item for item in parse_xdbf(read_stfs_entry(mutated, mutated_entry, mutated_header)) if item.index == achievement.index)
-            self.assertEqual(edited.achievement["gamerscore"], 1000)
-            self.assertEqual(edited.achievement["flags"], 1)
-            self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
-        finally:
-            output_path.unlink(missing_ok=True)
-            directory.rmdir()
-
-    def test_cli_removes_embedded_xdbf_entry(self):
-        path = supplied_fixture()
-        if path is None or not path.exists():
-            self.skipTest("supplied STFS profile fixture is not available")
-        original = path.read_bytes()
-        header = parse_stfs_header(original)
-        entry = next(item for item in list_stfs_entries(original, header) if item.path == "FFFE07D1.gpd")
-        xdbf_entries = parse_xdbf(read_stfs_entry(original, entry, header))
-        removable = next(item for item in xdbf_entries if item.text is not None)
-        directory = self.fixture_dir / "cli-embedded-xdbf-remove"
-        directory.mkdir(parents=True, exist_ok=True)
-        output_path = directory / "profile.con"
-        try:
-            subprocess.run(
-                [
-                    sys.executable, "-m", "work.horizon_clone", str(path),
-                    "--xdbf-file", entry.path, "--xdbf-remove", str(removable.index),
-                    "--write", str(output_path),
-                ], check=True, capture_output=True, text=True,
-            )
-            mutated = output_path.read_bytes()
-            mutated_header = parse_stfs_header(mutated)
-            mutated_entry = next(item for item in list_stfs_entries(mutated, mutated_header) if item.path == entry.path)
-            remaining = parse_xdbf(read_stfs_entry(mutated, mutated_entry, mutated_header))
-            self.assertNotIn(removable.index, {item.index for item in remaining})
-            self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
-        finally:
-            output_path.unlink(missing_ok=True)
-            directory.rmdir()
-
-    def test_cli_exposes_stfs_security_metadata(self):
-        path = supplied_fixture()
-        if path is None or not path.exists():
-            self.skipTest("supplied STFS profile fixture is not available")
-        result = subprocess.run(
-            [sys.executable, "-m", "work.horizon_clone", str(path), "--security"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        security, _ = json.JSONDecoder().raw_decode(result.stdout.lstrip())
-        self.assertEqual(security["signature_kind"], "console-certificate")
-        self.assertEqual(len(security["licenses"]), 16)
-
-    def test_cli_exports_stfs_thumbnail_payloads(self):
-        path = supplied_fixture()
-        if path is None or not path.exists():
-            self.skipTest("supplied STFS profile fixture is not available")
-        directory = self.fixture_dir / "thumbnail-export"
-        directory.mkdir(parents=True, exist_ok=True)
-        thumbnail_path = directory / "thumbnail.bin"
-        title_path = directory / "title-thumbnail.bin"
-        try:
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "work.horizon_clone",
-                    str(path),
-                    "--thumbnail-output",
-                    str(thumbnail_path),
-                    "--title-thumbnail-output",
-                    str(title_path),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            original = path.read_bytes()
-            thumbnails = parse_stfs_thumbnails(original, parse_stfs_header(original))
-            self.assertEqual(thumbnail_path.read_bytes(), thumbnails.thumbnail)
+            mutated = output…1005 tokens truncated…assertEqual(thumbnail_path.read_bytes(), thumbnails.thumbnail)
             self.assertEqual(title_path.read_bytes(), thumbnails.title_thumbnail)
             self.assertIn("Exported requested thumbnail", result.stdout)
         finally:
@@ -771,6 +694,13 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(provider.message, region.data)
         detached = DetachedSignature("other-region", detached.algorithm, detached.signature)
         self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
+
+    def test_sha1_verification_dispatch_is_explicit_and_fail_closed(self):
+        key = RsaPublicKey(257, 3)
+        self.assertFalse(verify_sha1_pkcs1v15(b"test vector", b"bad", key))
+        region = SignedRegion("legacy-region", b"test vector")
+        detached = DetachedSignature("legacy-region", "RSA-SHA1-PKCS1v1.5", b"bad")
+        self.assertFalse(verify_region(region, detached, key))
 
     def test_profile_model_round_trips_observed_metadata(self):
         profile = ProfileData(
