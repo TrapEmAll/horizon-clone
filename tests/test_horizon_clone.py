@@ -282,6 +282,46 @@ class ContainerInspectionTests(unittest.TestCase):
             backup_path.unlink(missing_ok=True)
             directory.rmdir()
 
+    def test_cli_edits_embedded_xdbf_text(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path == "FFFE07D1.gpd")
+        text_entry = next(item for item in parse_xdbf(read_stfs_entry(original, entry, header)) if item.text is not None)
+        directory = self.fixture_dir / "cli-embedded-xdbf-text"
+        directory.mkdir(parents=True, exist_ok=True)
+        output_path = directory / "profile.con"
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "work.horizon_clone",
+                    str(path),
+                    "--xdbf-file",
+                    entry.path,
+                    "--xdbf-text",
+                    str(text_entry.index),
+                    "--xdbf-text-value",
+                    "Edited Dashboard",
+                    "--write",
+                    str(output_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            mutated = output_path.read_bytes()
+            mutated_entry = next(item for item in list_stfs_entries(mutated, parse_stfs_header(mutated)) if item.path == entry.path)
+            values = parse_xdbf(read_stfs_entry(mutated, mutated_entry, parse_stfs_header(mutated)))
+            self.assertEqual(next(item for item in values if item.index == text_entry.index).text, "Edited Dashboard")
+            self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
+        finally:
+            output_path.unlink(missing_ok=True)
+            directory.rmdir()
+
     def test_cli_exposes_stfs_security_metadata(self):
         path = supplied_fixture()
         if path is None or not path.exists():
