@@ -137,6 +137,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "extract_managed_resources"))
         self.assertTrue(hasattr(HorizonApp, "sign_loaded_bytes"))
         self.assertTrue(hasattr(HorizonApp, "show_anti_analysis"))
+        self.assertTrue(hasattr(HorizonApp, "show_device_inventory"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
