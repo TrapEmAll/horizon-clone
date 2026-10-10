@@ -114,6 +114,9 @@ copied implementation code.
 - Exposes `--anti-analysis` as an evidence-only report of REA-observed
   debugger/obfuscation markers and guarded managed types; it does not execute,
   patch, disable, or bypass Horizon protections.
+- Exposes the complete 54-row REA managed P/Invoke inventory through
+  `--native-import-bundle`, including import scopes, names, calling metadata,
+  and declaration-only verification state.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
