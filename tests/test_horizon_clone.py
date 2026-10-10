@@ -200,6 +200,20 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report.sha256, hashlib.sha256(payload).hexdigest())
         self.assertIn("Achievement One", {item.value for item in report.utf16_strings})
 
+    def test_parses_every_gpd_in_supplied_profile_fixture(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        gpd_entries = [
+            entry for entry in list_stfs_entries(data, header)
+            if not entry.is_directory and entry.name.casefold().endswith(".gpd")
+        ]
+        self.assertEqual(len(gpd_entries), 67)
+        for entry in gpd_entries:
+            self.assertTrue(parse_xdbf(read_stfs_entry(data, entry, header)))
+
     def test_unknown_magic_is_not_reported_as_container(self):
         self.fixture_dir.mkdir(exist_ok=True)
         path = self.fixture_dir / "sample-unknown"
