@@ -86,6 +86,18 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertFalse(report.is_container)
         self.assertEqual(report.package_kind, "Unknown container")
 
+    def test_recognizes_all_stfs_magic_variants_as_containers(self):
+        for magic, package_kind in ((b"LIVE", "Xbox 360 LIVE container"), (b"PIRS", "Xbox 360 PIRS container")):
+            self.fixture_dir.mkdir(exist_ok=True)
+            path = self.fixture_dir / f"sample-{magic.decode('ascii').lower()}"
+            path.write_bytes(magic + b"\x00" * 12)
+            try:
+                report = inspect(path)
+            finally:
+                path.unlink(missing_ok=True)
+            self.assertTrue(report.is_container)
+            self.assertEqual(report.package_kind, package_kind)
+
     def test_parses_xdbf_string_entry(self):
         payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
         table_length, free_length = 1, 1
