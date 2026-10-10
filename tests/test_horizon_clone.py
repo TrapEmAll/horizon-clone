@@ -451,13 +451,13 @@ class ContainerInspectionTests(unittest.TestCase):
             directory.rmdir()
 
     def test_mutates_xdbf_achievement_fields(self):
-        name = "Old".encode("utf-16-le") + b"\x00\x00"
-        payload = bytearray(0x18 + len(name))
-        payload[4:8] = (10).to_bytes(4, "little")
-        payload[8:12] = (20).to_bytes(4, "little")
-        payload[12:16] = (5).to_bytes(4, "little", signed=True)
-        payload[16:20] = (1).to_bytes(4, "little")
-        payload[0x18:] = name
+        name = "Old".encode("utf-16-be") + b"\x00\x00"
+        payload = bytearray(0x1C + len(name))
+        payload[4:8] = (10).to_bytes(4, "big")
+        payload[8:12] = (20).to_bytes(4, "big")
+        payload[12:16] = (5).to_bytes(4, "big", signed=True)
+        payload[16:18] = (1).to_bytes(2, "big")
+        payload[0x1C:] = name
         header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 2 + b"\x00\x00\x00\x01" * 2
         entry = (1).to_bytes(2, "big") + (0x9000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
         data = header + entry + b"\x00" * 8 + payload
@@ -761,6 +761,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertGreater(summary["gpd_count"], 0)
         self.assertEqual(summary["achievement_entry_count"], len(list_embedded_achievements(path.read_bytes())))
         self.assertIn("raw nonzero flag count", summary["flag_semantics"])
+        self.assertEqual(summary["gamerscore_total"], 63450)
+
+    def test_decodes_observed_gpd_achievement_endianness_and_text(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        entry = next(item for item in list_stfs_entries(data, header) if item.name == "415607E7.gpd")
+        achievement = next(item for item in parse_xdbf(read_stfs_entry(data, entry, header)) if item.achievement is not None)
+        self.assertEqual(achievement.achievement["achievement_id"], 2)
+        self.assertEqual(achievement.achievement["image_id"], 3)
+        self.assertEqual(achievement.achievement["gamerscore"], 10)
+        self.assertEqual(achievement.achievement["flags"], 0x12)
+        self.assertEqual(achievement.achievement["name"], "100K Club")
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
