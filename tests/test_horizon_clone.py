@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 19077)
-Total output lines: 1502
-
 import hashlib
 import json
 import os
@@ -68,7 +65,7 @@ from work.editor_inventory import capability_report, catalog_report, inventory_s
 from work.anti_analysis import anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
-from work.native_surface import native_export_contract_report, native_surface_report, observed_native_imports, observed_native_callers
+from work.native_surface import managed_native_import_report, native_export_contract_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
@@ -729,7 +726,107 @@ class ContainerInspectionTests(unittest.TestCase):
                     str(path),
                     "--thumbnail-output",
                     str(thumbnail_path),
-                    "--title-thumbnail-output"…1077 tokens truncated… "ProfileData metadata editor")
+                    "--title-thumbnail-output",
+                    str(title_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            original = path.read_bytes()
+            thumbnails = parse_stfs_thumbnails(original, parse_stfs_header(original))
+            self.assertEqual(thumbnail_path.read_bytes(), thumbnails.thumbnail)
+            self.assertEqual(title_path.read_bytes(), thumbnails.title_thumbnail)
+            self.assertIn("Exported requested thumbnail", result.stdout)
+        finally:
+            thumbnail_path.unlink(missing_ok=True)
+            title_path.unlink(missing_ok=True)
+            directory.rmdir()
+
+    def test_rehashes_and_verifies_the_complete_stfs_tree(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        rebuilt = rehash_stfs_hashes(original, header)
+        result = verify_stfs_hashes(rebuilt, header=parse_stfs_header(rebuilt))
+        self.assertEqual(result["failures"], [])
+        self.assertEqual(result["hash_table_failures"], [])
+        self.assertTrue(result["header_hash_matches"])
+        self.assertTrue(result["top_hash_matches"])
+
+    def test_signing_provider_boundary_rejects_empty_signatures(self):
+        class EmptyProvider:
+            def sign_sha256(self, message):
+                return b""
+
+        with self.assertRaises(ValueError):
+            sign_with_provider(b"test vector", EmptyProvider())
+
+        self.assertFalse(verify_sha256_pkcs1v15(b"test vector", b"bad", RsaPublicKey(257, 3)))
+        region = SignedRegion("development-test", b"test vector")
+        class TestProvider:
+            def sign_sha256(self, message):
+                self.message = message
+                return b"signature"
+
+        provider = TestProvider()
+        detached = sign_region(region, provider)
+        self.assertEqual(detached.region_label, "development-test")
+        self.assertEqual(provider.message, region.data)
+        detached = DetachedSignature("other-region", detached.algorithm, detached.signature)
+        self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
+
+    def test_sha1_verification_dispatch_is_explicit_and_fail_closed(self):
+        key = RsaPublicKey(257, 3)
+        self.assertFalse(verify_sha1_pkcs1v15(b"test vector", b"bad", key))
+        region = SignedRegion("legacy-region", b"test vector")
+        detached = DetachedSignature("legacy-region", "RSA-SHA1-PKCS1v1.5", b"bad")
+        self.assertFalse(verify_region(region, detached, key))
+
+    def test_profile_model_round_trips_observed_metadata(self):
+        profile = ProfileData(
+            from_device=True,
+            xuid=0x0123456789ABCDEF,
+            gamertag="Test User",
+            gamer_picture=b"\x01\x02",
+            profile_id=0xE9ECC9141E317C7B,
+            favorite=True,
+        )
+        self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
+
+    def test_profile_data_cli_report_validates_authenticated_envelope(self):
+        path = self.fixture_dir / "profile-data.json"
+        path.write_text(json.dumps({
+            "editor": "profile-data",
+            "values": {
+                "from_device": True,
+                "xuid": 1,
+                "gamertag": "Test User",
+                "gamer_picture": "0102",
+                "profile_id": 2,
+                "favorite": False,
+            },
+        }), encoding="utf-8")
+        try:
+            report = profile_data_report(path)
+        finally:
+            path.unlink(missing_ok=True)
+        self.assertEqual(report["status"], "metadata-only")
+        self.assertEqual(report["values"]["xuid"], 1)
+
+    def test_editor_inspect_dispatches_an_explicit_profile_envelope(self):
+        path = self.fixture_dir / "editor-profile.json"
+        path.write_text(json.dumps({
+            "editor": "profile-data",
+            "values": {"xuid": 9, "gamertag": "Dispatch", "gamer_picture": "", "profile_id": 10},
+        }), encoding="utf-8")
+        try:
+            report = editor_inspect_report(path)
+        finally:
+            path.unlink(missing_ok=True)
+        self.assertEqual(report["editor"], "ProfileData metadata editor")
         self.assertEqual(report["result"]["values"]["xuid"], 9)
 
     def test_editor_edit_values_uses_declared_profile_plugin(self):
@@ -789,6 +886,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["status"], "observed-only")
         self.assertTrue(any("Debugger" in str(item["type_name"]) for item in report["attribute_markers"]))
         self.assertTrue(any("ZYXDNGuarder" in str(item["full_name"]) for item in report["guarded_types"]))
+
+    def test_reports_complete_rea_managed_pinvoke_inventory(self):
+        bundle = Path("work/rea-export-20261010.json")
+        if not bundle.exists():
+            self.skipTest("retained REA export bundle is not available")
+        report = managed_native_import_report(bundle)
+        self.assertEqual(report["counts"]["total"], 54)
+        self.assertEqual(report["counts"]["matched"], 54)
+        self.assertTrue(any(item["import_name"] == "RtsSaveDecrypt" for item in report["imports"]))
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
