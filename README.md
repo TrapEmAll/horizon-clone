@@ -154,6 +154,9 @@ copied implementation code.
 - Exposes the same managed-resource extraction flow from the desktop front end
   through an explicit executable, REA bundle, output directory, and optional
   resource-name filter.
+- Exposes detached development signing for the currently loaded desktop
+  artifact through an explicit caller label, private-key JSON, and signature
+  output path.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
