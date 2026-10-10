@@ -43,6 +43,8 @@ copied implementation code.
   including gamerscore, flags, and bounded name changes.
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
+- Supports bounded display-description, publisher-name, title-name, and
+  transfer-flag metadata mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
   capacity, updating file-table records and hashes.
 - Adds new root or existing-directory STFS files when both file-table slots and
