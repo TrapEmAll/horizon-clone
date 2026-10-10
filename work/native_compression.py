@@ -149,6 +149,8 @@ class PowerShellLzoProvider:
             raise ValueError(f"unknown LZO operation: {name}")
         if not source or not work_memory:
             raise ValueError("LZO source/work memory must be non-empty")
+        if name == "lzo2a_999_compress" and len(work_memory) < 262144:
+            raise ValueError("the supplied lzo2a compressor requires at least 262144 bytes of work memory")
         if source_length < 0 or source_length > len(source):
             raise ValueError("source_length exceeds source")
         if destination_length.value < 0 or destination_length.value > len(destination):
