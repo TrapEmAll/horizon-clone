@@ -12,6 +12,7 @@ from .horizon_clone import (
     inspect,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    mutate_xdbf_achievement,
     parse_xdbf,
     read_stfs_entry,
     repack_stfs_entries,
@@ -39,6 +40,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
         self.status.pack(side=tk.RIGHT)
@@ -243,6 +245,79 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "display_name": display_name, "title_id": title_id, "signature_checked": False})
         except (OSError, ValueError) as exc:
             messagebox.showerror("Metadata edit failed", str(exc))
+
+    def edit_selected_achievement(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Achievement", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Achievement", "Select a GPD/XDBF file first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.is_directory:
+            messagebox.showinfo("Achievement", "Directories cannot be edited.")
+            return
+        try:
+            payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+            entries = parse_xdbf(payload)
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("Achievement", f"Selected entry is not a readable XDBF file: {exc}")
+            return
+        achievement_entries = [item for item in entries if item.achievement is not None]
+        if not achievement_entries:
+            messagebox.showinfo("Achievement", "The selected XDBF has no observed achievement entries.")
+            return
+        index_text = simpledialog.askstring(
+            "Achievement index",
+            "XDBF entry index (" + ", ".join(str(item.index) for item in achievement_entries) + "):",
+            parent=self,
+        )
+        if index_text is None:
+            return
+        try:
+            index = int(index_text, 0)
+            selected_entry = next(item for item in achievement_entries if item.index == index)
+            current = selected_entry.achievement or {}
+            score_text = simpledialog.askstring(
+                "Gamerscore", "Gamerscore (blank to keep current):", initialvalue=str(current.get("gamerscore", "")), parent=self
+            )
+            if score_text is None:
+                return
+            flags_text = simpledialog.askstring(
+                "Flags", "Flags (hex, blank to keep current):", initialvalue=hex(current.get("flags", 0)), parent=self
+            )
+            if flags_text is None:
+                return
+            name = simpledialog.askstring(
+                "Achievement name", "Name (blank to keep current):", initialvalue=str(current.get("name", "")), parent=self
+            )
+            if name is None:
+                return
+            edited = mutate_xdbf_achievement(
+                payload,
+                index,
+                gamerscore=None if not score_text.strip() else int(score_text, 0),
+                flags=None if not flags_text.strip() else int(flags_text, 0),
+                name=name,
+            )
+            mutated = mutate_stfs_entry_same_size(
+                self._data, entry, edited, self._report.stfs_header
+            )
+            target = filedialog.asksaveasfilename(
+                title="Save achievement edit",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned achievement edit: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "xdbf_index": index, "signature_checked": False})
+        except (OSError, ValueError, StopIteration, IsADirectoryError) as exc:
+            messagebox.showerror("Achievement edit failed", str(exc))
 
     def export_report(self) -> None:
         if not self._report:
