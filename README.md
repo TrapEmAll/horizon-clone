@@ -120,6 +120,9 @@ copied implementation code.
 - Supports explicit raw Account decryption through `--account-decrypt`, a
   caller-selected x86 `class3.dll`, and a nonpersistent key-vault helper;
   native crypto is never loaded implicitly.
+- Supports the reverse raw-encryption flow with explicit output capacity and
+  caller-known ciphertext length via `--account-encrypt`; the encrypted bytes
+  can be passed to the existing `--replace Account` or `--in-place` path.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
