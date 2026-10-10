@@ -214,6 +214,26 @@ class ContainerInspectionTests(unittest.TestCase):
         for entry in gpd_entries:
             self.assertTrue(parse_xdbf(read_stfs_entry(data, entry, header)))
 
+    def test_exercises_same_size_xdbf_mutation_for_every_fixture_gpd(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        gpd_entries = [
+            entry for entry in list_stfs_entries(data, header)
+            if not entry.is_directory and entry.name.casefold().endswith(".gpd")
+        ]
+        for entry in gpd_entries:
+            gpd = read_stfs_entry(data, entry, header)
+            xdbf_entries = parse_xdbf(gpd)
+            candidate = next((item for item in xdbf_entries if item.length), None)
+            self.assertIsNotNone(candidate, entry.name)
+            replacement = b"\x00" * candidate.length
+            mutated = mutate_xdbf_entry_same_size(gpd, candidate, replacement)
+            self.assertEqual(len(mutated), len(gpd))
+            self.assertEqual(len(parse_xdbf(mutated)), len(xdbf_entries))
+
     def test_unknown_magic_is_not_reported_as_container(self):
         self.fixture_dir.mkdir(exist_ok=True)
         path = self.fixture_dir / "sample-unknown"
