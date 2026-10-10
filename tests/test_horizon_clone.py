@@ -138,6 +138,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(account.block_count, 2)
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
+    def test_removes_a_file_table_entry(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        mutated = repack_stfs_entries(original, {}, remove=("Account",))
+        entries = list_stfs_entries(mutated, parse_stfs_header(mutated))
+        self.assertNotIn("Account", {item.path for item in entries})
+        self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
