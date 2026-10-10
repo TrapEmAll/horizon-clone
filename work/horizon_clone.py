@@ -128,6 +128,50 @@ def verify_detached_signature(
     )
 
 
+def verify_embedded_signature_region(
+    data: bytes,
+    *,
+    signed_start: int,
+    signed_end: int,
+    signature_offset: int,
+    modulus: int,
+    exponent: int = 65537,
+    algorithm: str = "RSA-SHA256-PKCS1v1.5",
+) -> bool:
+    """Verify an explicitly selected in-container RSA signature region.
+
+    Offsets are caller-supplied because the clean-room evidence does not
+    establish Horizon/Xbox's package signed-region layout.  No offsets are
+    inferred and no bytes are modified.
+    """
+
+    from .signing import verify_sha1_pkcs1v15, verify_sha256_pkcs1v15
+
+    if not isinstance(data, bytes):
+        raise TypeError("container data must be bytes")
+    if any(not isinstance(value, int) or isinstance(value, bool) for value in (signed_start, signed_end, signature_offset)):
+        raise ValueError("signature offsets must be integers")
+    if not 0 <= signed_start < signed_end <= len(data):
+        raise ValueError("signed region is outside the container")
+    if not 0 <= signature_offset < len(data):
+        raise ValueError("signature offset is outside the container")
+    if not isinstance(modulus, int) or isinstance(modulus, bool) or modulus <= 0:
+        raise ValueError("public-key modulus must be a positive integer")
+    signature_length = (modulus.bit_length() + 7) // 8
+    signature_end = signature_offset + signature_length
+    if signature_end > len(data):
+        raise ValueError("embedded signature exceeds the container")
+    if max(signed_start, signature_offset) < min(signed_end, signature_end):
+        raise ValueError("signed region overlaps embedded signature")
+    region = data[signed_start:signed_end]
+    signature = data[signature_offset:signature_end]
+    if algorithm == "RSA-SHA256-PKCS1v1.5":
+        return verify_sha256_pkcs1v15(region, signature, RsaPublicKey(modulus, exponent))
+    if algorithm == "RSA-SHA1-PKCS1v1.5":
+        return verify_sha1_pkcs1v15(region, signature, RsaPublicKey(modulus, exponent))
+    raise ValueError(f"unsupported signature algorithm: {algorithm}")
+
+
 def read_public_key_json(path: Path) -> tuple[int, int]:
     """Read the public-key JSON emitted by ``--public-key``."""
 
@@ -1585,6 +1629,10 @@ def main() -> int:
     parser.add_argument("--editor-edit-values", type=Path, metavar="JSON", help="Apply registry metadata edits from a JSON object")
     parser.add_argument("--editor-edit-output", type=Path, metavar="FILE", help="Output path for --editor-edit-values")
     parser.add_argument("--verify-detached-signature", type=Path, metavar="SIGNATURE", help="Verify a detached development signature over the input bytes")
+    parser.add_argument("--verify-embedded-signature", action="store_true", help="Verify an explicitly bounded in-container RSA signature")
+    parser.add_argument("--signed-start", type=lambda value: int(value, 0), help="Start offset for --verify-embedded-signature")
+    parser.add_argument("--signed-end", type=lambda value: int(value, 0), help="Exclusive end offset for --verify-embedded-signature")
+    parser.add_argument("--signature-offset", type=lambda value: int(value, 0), help="Signature offset for --verify-embedded-signature")
     parser.add_argument("--signature-label", help="Caller-defined label for --verify-detached-signature")
     parser.add_argument("--signature-algorithm", choices=("RSA-SHA256-PKCS1v1.5", "RSA-SHA1-PKCS1v1.5"), default="RSA-SHA256-PKCS1v1.5")
     parser.add_argument("--public-key-modulus", type=lambda value: int(value, 0), help="Public RSA modulus for detached verification")
@@ -1775,6 +1823,32 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps({"verified": verified, "algorithm": args.signature_algorithm, "region_label": args.signature_label}, indent=2))
+        return 0 if verified else 1
+    if args.verify_embedded_signature:
+        if args.signed_start is None or args.signed_end is None or args.signature_offset is None:
+            parser.error("--verify-embedded-signature requires --signed-start, --signed-end, and --signature-offset")
+        if args.public_key_modulus is None and not args.public_key_json:
+            parser.error("--verify-embedded-signature requires a public key")
+        if args.public_key_modulus is not None and args.public_key_json:
+            parser.error("choose one of --public-key-modulus or --public-key-json")
+        try:
+            modulus, exponent = (
+                read_public_key_json(args.public_key_json)
+                if args.public_key_json
+                else (args.public_key_modulus, args.public_key_exponent)
+            )
+            verified = verify_embedded_signature_region(
+                args.path.read_bytes(),
+                signed_start=args.signed_start,
+                signed_end=args.signed_end,
+                signature_offset=args.signature_offset,
+                modulus=modulus,
+                exponent=exponent,
+                algorithm=args.signature_algorithm,
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({"verified": verified, "algorithm": args.signature_algorithm, "signed_start": args.signed_start, "signed_end": args.signed_end, "signature_offset": args.signature_offset}, indent=2))
         return 0 if verified else 1
     if args.anti_analysis:
         try:
