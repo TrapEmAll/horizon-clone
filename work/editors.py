@@ -8,6 +8,7 @@ results; no target code is loaded or executed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from typing import Any, Protocol
 
 from .horizon_clone import (
@@ -104,6 +105,35 @@ class ManagedSurfaceEditor:
         return managed_surface_report_from_bundle(bundle)
 
 
+@dataclass(frozen=True)
+class AccountEditor:
+    """Handle the opaque STFS Account payload without guessing its schema."""
+
+    name: str = "Opaque Account editor"
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        return context.filename.replace("\\", "/").rsplit("/", 1)[-1].casefold() == "account"
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, object]:
+        if not isinstance(data, bytes):
+            raise TypeError("Account editor input must be bytes")
+        return {
+            "status": "opaque",
+            "length": len(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "mutation": "same-size-only",
+            "limitations": [
+                "REA did not expose an Account serializer, field offsets, or Account-specific call edge.",
+                "The payload is not interpreted as ProfileData; it is only byte-addressable.",
+            ],
+        }
+
+    def replace_same_size(self, data: bytes, replacement: bytes) -> bytes:
+        if len(data) != len(replacement):
+            raise ValueError("opaque Account replacement must preserve byte length")
+        return bytes(replacement)
+
+
 class EditorRegistry:
     def __init__(self) -> None:
         self._plugins: list[EditorPlugin] = []
@@ -127,5 +157,6 @@ def default_registry() -> EditorRegistry:
     registry = EditorRegistry()
     registry.register(XdbfEditor())
     registry.register(ManagedSurfaceEditor())
+    registry.register(AccountEditor())
     return registry
 
