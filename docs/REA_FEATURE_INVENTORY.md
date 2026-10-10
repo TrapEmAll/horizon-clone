@@ -42,9 +42,9 @@ byte digests, and all 16 license slots. It deliberately does not verify or
 forge console signatures.
 
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
-War 3 type, and 103 Halo general-class types. The clone reports these aggregate
-coverage figures as catalog-only inventory; they do not imply editor behavior
-or package-format parity.
+War 3 type, and 103 Halo general-class types. The clone exposes the retained
+names through catalog-only APIs; they do not imply editor behavior or
+package-format parity.
 
 ## Security observations
 
