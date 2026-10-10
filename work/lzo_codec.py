@@ -19,6 +19,12 @@ class LzoCodec:
     def decompress(self, variant: str, source: bytes, output_capacity: int, work_memory: bytes = b"") -> bytes:
         return self._run(False, variant, source, output_capacity, work_memory)
 
+    def version_string(self) -> str:
+        return self.binding.version_string()
+
+    def version_date(self) -> str:
+        return self.binding.version_date()
+
     def _run(self, compress: bool, variant: str, source: bytes, output_capacity: int, work_memory: bytes) -> bytes:
         if not isinstance(source, bytes) or not isinstance(work_memory, bytes):
             raise TypeError("source and work_memory must be bytes")
