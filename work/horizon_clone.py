@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import BinaryIO, Iterable
 
-from .editor_inventory import capability_report, catalog_report
+from .editor_inventory import capability_report, catalog_report, rea_feature_ledger
 from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
 from .device_binding import DeviceIoBinding, WindowsDeviceIoProvider
@@ -2434,9 +2434,10 @@ def _json_xdbf(data: bytes, path: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Inspect an Xbox 360 content container")
-    parser.add_argument("path", type=Path)
+    parser.add_argument("path", type=Path, nargs="?")
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--capabilities", action="store_true", help="Print the evidence-qualified implementation capability ledger")
+    parser.add_argument("--rea-feature-ledger", action="store_true", help="Print the compact REA reconstruction ledger")
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--native-exports", action="store_true", help="Inspect named PE exports without loading the image")
@@ -2587,9 +2588,12 @@ def main() -> int:
     parser.add_argument("--historical-account-key-hex", help="Exactly 16-byte key for --historical-account-inspect; never persisted")
     parser.add_argument("--historical-account-edit", type=Path, metavar="JSON", help="Apply explicit historical Account field updates from JSON")
     args = parser.parse_args()
+    if args.rea_feature_ledger:
+        print(json.dumps(rea_feature_ledger(), indent=2, ensure_ascii=False))
+        return 0
     if args.capabilities:
         print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
-        if len(__import__("sys").argv) == 3:
+        if args.path is None:
             return 0
     if args.account_decrypt:
         if not args.account_class3_dll or not args.account_key_helper or args.account_output_capacity is None:
