@@ -226,6 +226,93 @@ def parse_dotnet_resources(data: bytes) -> dict[str, Any]:
             shift += 7
         raise ValueError("invalid .NET resources length")
 
+    def decode_safe_value(payload: bytes) -> dict[str, Any]:
+        """Decode only standard primitive resource values.
+
+        User-defined resource types are intentionally left opaque.  This
+        avoids reproducing ``ResourceReader`` deserialization, which could
+        instantiate arbitrary formatter types from an untrusted payload.
+        """
+
+        type_code, position = read_7bit_integer_from(payload, 0)
+        type_names_by_code = {
+            0: "Null",
+            1: "String",
+            2: "Boolean",
+            3: "Char",
+            4: "Byte",
+            5: "SByte",
+            6: "Int16",
+            7: "UInt16",
+            8: "Int32",
+            9: "UInt32",
+            10: "Int64",
+            11: "UInt64",
+            12: "Single",
+            13: "Double",
+            14: "Decimal",
+            15: "DateTime",
+            16: "TimeSpan",
+            32: "ByteArray",
+            33: "Stream",
+        }
+        type_name = type_names_by_code.get(type_code, type_names[type_code - 0x40] if 0x40 <= type_code < 0x40 + len(type_names) else None)
+        result: dict[str, Any] = {
+            "type_code": type_code,
+            "type_name": type_name or "UserDefined",
+            "decoded": False,
+        }
+        if type_code == 0:
+            result.update({"decoded": True, "value": None})
+            return result
+        if type_code == 1:
+            length, position = read_7bit_integer_from(payload, position)
+            end = position + length * 2
+            if end > len(payload):
+                raise ValueError("truncated .NET resources string value")
+            result.update({"decoded": True, "value": payload[position:end].decode("utf-16le")})
+            return result
+        formats = {
+            2: (1, "Boolean", "<?"), 3: (2, "Char", "<H"), 4: (1, "Byte", "<B"),
+            5: (1, "SByte", "<b"), 6: (2, "Int16", "<h"), 7: (2, "UInt16", "<H"),
+            8: (4, "Int32", "<i"), 9: (4, "UInt32", "<I"), 10: (8, "Int64", "<q"),
+            11: (8, "UInt64", "<Q"), 12: (4, "Single", "<f"), 13: (8, "Double", "<d"),
+            14: (16, "Decimal", None), 15: (8, "DateTime", None), 16: (8, "TimeSpan", None),
+        }
+        if type_code in formats:
+            width, type_name, value_format = formats[type_code]
+            end = position + width
+            if end > len(payload):
+                raise ValueError("truncated .NET resources primitive value")
+            decoded: dict[str, Any] = {"decoded": True, "value_hex": payload[position:end].hex()}
+            if value_format is not None:
+                decoded["value"] = struct.unpack(value_format, payload[position:end])[0]
+            result.update({"type_name": type_name, **decoded})
+            return result
+        if type_code in {32, 33}:
+            length, position = read_7bit_integer_from(payload, position)
+            end = position + length
+            if end > len(payload):
+                raise ValueError("truncated .NET resources binary value")
+            result.update({"decoded": True, "value_length": length, "value_sha256": hashlib.sha256(payload[position:end]).hexdigest()})
+            return result
+        result["opaque_reason"] = "user-defined resource type is not deserialized"
+        return result
+
+    def read_7bit_integer_from(value: bytes, position: int) -> tuple[int, int]:
+        result = 0
+        shift = 0
+        for _ in range(5):
+            if position >= len(value):
+                raise ValueError("truncated .NET resources length")
+            byte = value[position]
+            position += 1
+            result |= (byte & 0x7F) << shift
+            if not byte & 0x80:
+                return result, position
+            shift += 7
+        raise ValueError("invalid .NET resources length")
+
     type_names: list[str] = []
     for _ in range(type_count):
         length, cursor = read_7bit_integer(cursor)
@@ -284,6 +371,7 @@ def parse_dotnet_resources(data: bytes) -> dict[str, Any]:
         item["data_length"] = len(payload)
         item["data_sha256"] = hashlib.sha256(payload).hexdigest()
         item["payload_kind"] = classify_resource_payload(payload)
+        item["value"] = decode_safe_value(payload)
 
     return {
         "status": "observed-index",
@@ -295,7 +383,8 @@ def parse_dotnet_resources(data: bytes) -> dict[str, Any]:
         "data_section_offset": data_section_offset,
         "resources": names,
         "limitations": [
-            "Resource value type codes and values remain opaque; no value deserialization is performed.",
+            "Only standard primitive, string, byte-array, and stream type codes are decoded; user-defined values remain opaque.",
+            "User-defined resource values are never deserialized or instantiated.",
             "The parser reports spans from the standard name/data index and does not infer UI ownership.",
         ],
     }
