@@ -84,6 +84,7 @@ python -m work.horizon_clone C:\path\to\container --json
 python -m work.horizon_clone C:\path\to\container --output report.json
 python -m work.horizon_clone C:\path\to\container --list
 python -m work.horizon_clone C:\path\to\profile.con --list-xdbf
+python -m work.horizon_clone C:\path\to\profile.con --list-achievements
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
