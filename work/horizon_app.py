@@ -264,14 +264,55 @@ class HorizonApp(tk.Tk):
         if display_name is None:
             return
         title_id_text = simpledialog.askstring(
-            "Title ID", "Title ID (hex, blank to keep current):", parent=self
+            "Title ID", "Title ID (hex, blank to keep current):", initialvalue=f"0x{header.title_id:08X}", parent=self
         )
         if title_id_text is None:
             return
+        content_type_text = simpledialog.askstring(
+            "Content type",
+            "Content type (hex, blank to keep current):",
+            initialvalue=f"0x{header.content_type:08X}",
+            parent=self,
+        )
+        if content_type_text is None:
+            return
+        description = simpledialog.askstring(
+            "Description", "Display description:", initialvalue=header.display_description, parent=self
+        )
+        if description is None:
+            return
+        publisher = simpledialog.askstring(
+            "Publisher", "Publisher name:", initialvalue=header.publisher_name, parent=self
+        )
+        if publisher is None:
+            return
+        title_name = simpledialog.askstring(
+            "Title name", "Title name:", initialvalue=header.title_name, parent=self
+        )
+        if title_name is None:
+            return
+        transfer_flags_text = simpledialog.askstring(
+            "Transfer flags",
+            "Transfer flags (hex, blank to keep current):",
+            initialvalue=f"0x{header.transfer_flags:02X}",
+            parent=self,
+        )
+        if transfer_flags_text is None:
+            return
         try:
             title_id = header.title_id if not title_id_text.strip() else int(title_id_text, 16)
+            content_type = header.content_type if not content_type_text.strip() else int(content_type_text, 16)
+            transfer_flags = header.transfer_flags if not transfer_flags_text.strip() else int(transfer_flags_text, 16)
             mutated = mutate_stfs_metadata(
-                self._data, display_name=display_name, title_id=title_id, header=header
+                self._data,
+                display_name=display_name,
+                display_description=description,
+                publisher_name=publisher,
+                title_name=title_name,
+                transfer_flags=transfer_flags,
+                title_id=title_id,
+                content_type=content_type,
+                header=header,
             )
             target = filedialog.asksaveasfilename(
                 title="Save metadata edit",
@@ -284,7 +325,19 @@ class HorizonApp(tk.Tk):
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text="Wrote unsigned metadata edit")
-            self._set_details({"path": target, "display_name": display_name, "title_id": title_id, "signature_checked": False})
+            self._set_details(
+                {
+                    "path": target,
+                    "display_name": display_name,
+                    "display_description": description,
+                    "publisher_name": publisher,
+                    "title_name": title_name,
+                    "title_id": title_id,
+                    "content_type": content_type,
+                    "transfer_flags": transfer_flags,
+                    "signature_checked": False,
+                }
+            )
         except (OSError, ValueError) as exc:
             messagebox.showerror("Metadata edit failed", str(exc))
 
