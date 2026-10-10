@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -157,6 +158,7 @@ class ContainerInspectionTests(unittest.TestCase):
         directory.mkdir(parents=True, exist_ok=True)
         work_path = directory / "profile.con"
         replacement_path = directory / "account.bin"
+        report_path = directory / "report.json"
         try:
             shutil.copyfile(path, work_path)
             replacement_path.write_bytes(b"\x00" * entry.size)
@@ -171,6 +173,8 @@ class ContainerInspectionTests(unittest.TestCase):
                     "--replacement",
                     str(replacement_path),
                     "--in-place",
+                    "--output",
+                    str(report_path),
                 ],
                 check=True,
                 capture_output=True,
@@ -180,9 +184,11 @@ class ContainerInspectionTests(unittest.TestCase):
             mutated = work_path.read_bytes()
             self.assertEqual(read_stfs_entry(mutated, entry, parse_stfs_header(mutated)), b"\x00" * entry.size)
             self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
+            self.assertEqual(json.loads(report_path.read_text(encoding="utf-8"))["sha256"], hashlib.sha256(mutated).hexdigest())
         finally:
             work_path.unlink(missing_ok=True)
             replacement_path.unlink(missing_ok=True)
+            report_path.unlink(missing_ok=True)
             directory.rmdir()
 
     def test_rehashes_and_verifies_the_complete_stfs_tree(self):
