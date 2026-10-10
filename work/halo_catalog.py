@@ -4,7 +4,9 @@ This catalog records stable managed type names only. It does not claim numeric
 field layouts, save offsets, or title-specific mutation behavior.
 """
 
-from __future__ import annotations;
+from __future__ import annotations
+
+from collections.abc import Mapping
 
 
 _HALO_GENERAL_CLASS_TYPES = (
@@ -271,6 +273,35 @@ def halo_general_class_field_types(type_name: str | None = None) -> dict[str, ob
     return dict(_HALO_GENERAL_CLASS_FIELD_TYPES[type_name])
 
 
+def validate_halo_metadata_values(type_name: str, values: Mapping[str, object], *, require_all: bool = False) -> dict[str, object]:
+    """Validate values against the authenticated REA field-type slice.
+
+    This validates managed metadata only. It deliberately does not assign
+    offsets, serialize bytes, or interpret ``class:N`` references.
+    """
+
+    field_types = halo_general_class_field_types(type_name)
+    unknown = sorted(set(values) - set(field_types))
+    if unknown:
+        raise ValueError(f"unknown {type_name} fields: {', '.join(unknown)}")
+    missing = sorted(set(field_types) - set(values)) if require_all else []
+    if missing:
+        raise ValueError(f"missing {type_name} fields: {', '.join(missing)}")
+    result: dict[str, object] = {}
+    for name, value in values.items():
+        field_type = field_types[name]
+        if field_type == "bool" and not isinstance(value, bool):
+            raise TypeError(f"{type_name}.{name} must be bool")
+        if field_type == "string" and not isinstance(value, str):
+            raise TypeError(f"{type_name}.{name} must be string")
+        if field_type in {"i1", "i4", "u1"}:
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"{type_name}.{name} must be integer")
+            limits = {"i1": (-128, 127), "i4": (-0x80000000, 0x7FFFFFFF), "u1": (0, 255)}[field_type]
+            if not limits[0] <= value <= limits[1]:
+                raise ValueError(f"{type_name}.{name} is outside {field_type} range")
+        result[name] = value
+    return result
 def halo_general_class_method_summary() -> dict[str, object]:
     """Return aggregate method evidence retained for Halo general classes."""
 
