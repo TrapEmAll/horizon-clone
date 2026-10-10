@@ -77,6 +77,10 @@ plus `get_DeviceSize`/`set_DeviceSize` with an `i8` value. These declarations
 are now available through `--device-surface`; device enumeration, FATX/USB
 behavior, and IOCTL semantics remain unresolved.
 
+`DeviceBinding` models the observed signed-64-bit `DeviceSize` getter/setter
+behind an explicit provider. It does not enumerate devices, open USB/FATX
+handles, or infer IOCTL semantics.
+
 `NativeRuntimeBinding` provides the recovered `CheckRuntime`, `RunHVM`, and
 `GetUserString` calls as an explicit provider boundary. No provider is bundled;
 the binding refuses implicit DLL loading and preserves the unresolved native
