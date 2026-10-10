@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 18659)
-Total output lines: 1473
+Warning: truncated output (original token count: 18755)
+Total output lines: 1482
 
 import hashlib
 import json
@@ -35,6 +35,7 @@ from work.horizon_clone import (
     editor_inspect_report,
     editor_edit_values,
     verify_detached_signature,
+    read_public_key_json,
     block_offset,
     parse_stfs_header,
     parse_stfs_security_metadata,
@@ -729,17 +730,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     str(thumbnail_path),
                     "--title-thumbnail-output",
                     str(title_path),
-                ],
-                chec…659 tokens truncated…le_model_round_trips_observed_metadata(self):
-        profile = ProfileData(
-            from_device=True,
-            xuid=0x0123456789ABCDEF,
-            gamertag="Test User",
-            gamer_picture=b"\x01\x02",
-            profile_id=0xE9ECC9141E317C7B,
-            favorite=True,
-        )
-        self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
+             …755 tokens truncated…ct()), profile)
 
     def test_profile_data_cli_report_validates_authenticated_envelope(self):
         path = self.fixture_dir / "profile-data.json"
@@ -814,6 +805,14 @@ class ContainerInspectionTests(unittest.TestCase):
         finally:
             region.unlink(missing_ok=True)
             signature.unlink(missing_ok=True)
+
+    def test_reads_public_key_json_emitted_by_public_key_command(self):
+        path = self.fixture_dir / "public-key.json"
+        path.write_text(json.dumps({"exponent": 3, "modulus_hex": "0101"}), encoding="utf-8")
+        try:
+            self.assertEqual(read_public_key_json(path), (257, 3))
+        finally:
+            path.unlink(missing_ok=True)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
