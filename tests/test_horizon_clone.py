@@ -1098,6 +1098,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("GameVariant", types)
         self.assertIn("Halo4PlayerTraits", types)
         self.assertIn("HMegaloStrings", types)
+        field_types = halo_general_class_field_types()
+        self.assertEqual(sum(len(fields) for fields in field_types.values()), 489)
+        self.assertEqual(len(field_types), 92)
         counts = halo_general_class_field_counts()
         self.assertEqual(counts["GameVariant"], 3)
         self.assertEqual(counts["Halo4GameOptionsOrdnanceOptions"], 22)
@@ -1627,6 +1630,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(validate_halo_metadata_values("GameVariant", {field: 7})[field], 7)
         with self.assertRaises(ValueError):
             validate_halo_metadata_values("GameVariant", {field: 0x1_0000_0000})
+        array_field = next(name for name, kind in halo_general_class_field_types("Halo4MegaloEngineVariant").items() if kind == "i4[]")
+        self.assertEqual(validate_halo_metadata_values("Halo4MegaloEngineVariant", {array_field: [1, -2]})[array_field], [1, -2])
         self.assertIn("ShoutEnums", catalog_report("skyrim"))
         self.assertEqual(catalog_report("skyrim")["values"]["ShoutEnums"]["AnimalAllegiance"], 392311)
         self.assertEqual(resolve_skyrim_enum_member("ShoutEnums", "AnimalAllegiance"), 392311)
