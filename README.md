@@ -142,6 +142,9 @@ copied implementation code.
 - Provides `NativeSaveBinding`, an explicit provider-only model of the
   recovered `RtsSaveDecrypt`/`RtsSaveEncrypt` signatures; it does not load
   `class3.dll` or infer the save-crypto protocol.
+- The supplied x86 `Horizon.dll` has been smoke-tested through the explicit
+  runtime bridge: `check-runtime` returns `true`; VM execution and user-string
+  handles remain opt-in because their argument semantics are unresolved.
 - Provides `AccountCodec`, an explicit bridge for opaque STFS `Account`
   payloads once an authorized class3-compatible provider and key are supplied;
   `encrypt_raw` preserves native status and the caller-sized output buffer;
