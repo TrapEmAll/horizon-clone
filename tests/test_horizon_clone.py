@@ -87,7 +87,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -187,6 +187,29 @@ class ContainerInspectionTests(unittest.TestCase):
             bundle.unlink(missing_ok=True)
         self.assertEqual(report["counts"], {"types": 1, "fields": 1, "methods": 1})
         self.assertEqual(report["methods"][0]["name"], "Save")
+
+    def test_reports_declared_managed_assembly_references(self):
+        bundle = self.fixture_dir / "managed-artifact.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_artifact",
+                "evidence_id": "ev_artifact",
+                "normalized_result": {
+                    "artifact": {"sha256": "abc", "path": "Horizon.exe"},
+                    "assembly": {"name": "Horizon", "version": "2.9.0.0"},
+                    "references": [
+                        {"name": "System", "version": "2.0.0.0", "public_key_or_token": {"token": "b77a"}, "token": "0x23000001"},
+                        {"name": "System.Data.SQLite", "version": "1.0.65.0", "public_key_or_token": {"token": "db93"}, "token": "0x23000002"},
+                    ],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_reference_report(bundle, "SQLite")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["counts"], {"matched": 1, "total": 2})
+        self.assertEqual(report["references"][0]["name"], "System.Data.SQLite")
 
     def test_joins_managed_editor_schema_by_type(self):
         bundle = self.fixture_dir / "schema-bundle.json"
