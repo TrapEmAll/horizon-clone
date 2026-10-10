@@ -2110,6 +2110,15 @@ def main() -> int:
         print(json.dumps(observed_resource_surface(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
+    if args.extract_resources:
+        if not args.resource_bundle:
+            parser.error("--extract-resources requires --resource-bundle")
+        try:
+            report = extract_managed_resource_payloads(args.path, args.resource_bundle, args.extract_resources, args.resource_pattern)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
     if args.resource_bundle:
         try:
             report = resource_surface_report(args.resource_bundle, args.resource_pattern)
@@ -2127,15 +2136,6 @@ def main() -> int:
     if args.verify_resources:
         try:
             report = verify_managed_resource_payloads(args.path, args.verify_resources, args.resource_pattern)
-        except (OSError, ValueError) as exc:
-            parser.error(str(exc))
-        print(json.dumps(report, indent=2, ensure_ascii=False))
-        return 0
-    if args.extract_resources:
-        if not args.resource_bundle:
-            parser.error("--extract-resources requires --resource-bundle")
-        try:
-            report = extract_managed_resource_payloads(args.path, args.resource_bundle, args.extract_resources, args.resource_pattern)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
