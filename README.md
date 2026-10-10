@@ -81,7 +81,8 @@ copied implementation code.
   and opaque Account inputs use one explicit dispatch path.
 - Exposes declared metadata mutations through `--editor-edit-values` and
   `--editor-edit-output`; editors without an authenticated value-edit contract
-  are rejected instead of being treated as mutable.
+  are rejected instead of being treated as mutable, and the CLI requires a
+  distinct output path.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
