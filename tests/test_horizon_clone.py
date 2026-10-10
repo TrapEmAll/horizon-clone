@@ -11,6 +11,7 @@ from work.horizon_clone import (
     inspect,
     list_stfs_entries,
     list_embedded_xdbf,
+    summarize_embedded_xdbf,
     list_embedded_achievements,
     rename_stfs_entry,
     add_stfs_directory,
@@ -485,6 +486,17 @@ class ContainerInspectionTests(unittest.TestCase):
         embedded = list_embedded_xdbf(path.read_bytes())
         self.assertTrue(any(entry.path == "FFFE07D1.gpd" for entry, _ in embedded))
         self.assertTrue(any(item.index == 106 for entry, items in embedded if entry.path == "FFFE07D1.gpd" for item in items))
+
+    def test_summarizes_embedded_xdbf_namespaces(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        summaries = summarize_embedded_xdbf(path.read_bytes())
+        self.assertEqual(len(summaries), 67)
+        dashboard = next(item for item in summaries if item["file"] == "FFFE07D1.gpd")
+        self.assertIn(1, dashboard["namespace_counts"])
+        self.assertIn(3, dashboard["namespace_counts"])
+        self.assertEqual(sum(item["achievement_count"] for item in summaries), len(list_embedded_achievements(path.read_bytes())))
 
     def test_lists_embedded_achievements_library_api(self):
         path = supplied_fixture()
