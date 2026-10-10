@@ -385,16 +385,17 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
         achievement = None
         if namespace == 5:
             text = payload.decode("utf-16-be", errors="replace").rstrip("\x00")
-        elif namespace == 1 and entry_id not in (0x100000000, 0x200000000) and len(payload) >= 0x18:
-            name_end = payload.find(b"\x00\x00", 0x18)
-            if name_end >= 0 and name_end % 2:
+        elif namespace == 1 and entry_id not in (0x100000000, 0x200000000) and len(payload) >= 0x1C:
+            name_start = 0x1C
+            name_end = payload.find(b"\x00\x00", name_start)
+            if name_end >= 0 and (name_end - name_start) % 2:
                 name_end += 1
-            name = payload[0x18:name_end if name_end >= 0 else len(payload)].decode("utf-16-le", errors="replace").rstrip("\x00")
+            name = payload[name_start:name_end if name_end >= 0 else len(payload)].decode("utf-16-be", errors="replace").rstrip("\x00")
             achievement = {
-                "achievement_id": int.from_bytes(payload[4:8], "little"),
-                "image_id": int.from_bytes(payload[8:12], "little"),
-                "gamerscore": int.from_bytes(payload[12:16], "little", signed=True),
-                "flags": int.from_bytes(payload[16:20], "little"),
+                "achievement_id": int.from_bytes(payload[4:8], "big"),
+                "image_id": int.from_bytes(payload[8:12], "big"),
+                "gamerscore": int.from_bytes(payload[12:16], "big", signed=True),
+                "flags": int.from_bytes(payload[16:18], "big"),
                 "name": name,
             }
         result.append(XdbfEntry(index, namespace, entry_id, offset, length, start, text, achievement))
@@ -532,21 +533,21 @@ def mutate_xdbf_achievement(
         raise ValueError("XDBF entry is not an achievement payload")
     payload = bytearray(data[entry.data_offset : entry.data_offset + entry.length])
     if achievement_id is not None:
-        payload[4:8] = achievement_id.to_bytes(4, "little", signed=False)
+        payload[4:8] = achievement_id.to_bytes(4, "big", signed=False)
     if image_id is not None:
-        payload[8:12] = image_id.to_bytes(4, "little", signed=False)
+        payload[8:12] = image_id.to_bytes(4, "big", signed=False)
     if gamerscore is not None:
-        payload[12:16] = gamerscore.to_bytes(4, "little", signed=True)
+        payload[12:16] = gamerscore.to_bytes(4, "big", signed=True)
     if flags is not None:
-        payload[16:20] = flags.to_bytes(4, "little", signed=False)
+        payload[16:18] = flags.to_bytes(2, "big", signed=False)
     if name is not None:
-        encoded = name.encode("utf-16-le")
-        name_start = 0x18
+        encoded = name.encode("utf-16-be")
+        name_start = 0x1C
         name_end = payload.find(b"\x00\x00", name_start)
+        if name_end >= 0 and (name_end - name_start) % 2:
+            name_end += 1
         if name_end < 0:
             name_end = len(payload)
-        if name_end % 2:
-            name_end += 1
         capacity = name_end - name_start
         if len(encoded) > capacity:
             raise ValueError("achievement name does not fit the existing XDBF payload")
