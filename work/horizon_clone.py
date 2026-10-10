@@ -191,6 +191,45 @@ def read_public_key_json(path: Path) -> tuple[int, int]:
     return modulus, exponent
 
 
+def read_private_key_json(path: Path):
+    """Read an explicitly supplied development RSA private key.
+
+    The file is caller-owned and is never copied into reports or committed by
+    this tool.  It is intentionally separate from the public-key JSON emitted
+    for CON metadata.
+    """
+
+    from .signing import RsaPrivateKey
+
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"private-key JSON is not readable: {path}") from exc
+    if not isinstance(value, dict) or not isinstance(value.get("modulus_hex"), str) or not isinstance(value.get("private_exponent_hex"), str):
+        raise ValueError("private-key JSON must contain modulus_hex and private_exponent_hex")
+    try:
+        modulus = int(value["modulus_hex"], 16)
+        private_exponent = int(value["private_exponent_hex"], 16)
+    except ValueError as exc:
+        raise ValueError("private-key modulus_hex and private_exponent_hex must be hexadecimal") from exc
+    if modulus <= 0 or private_exponent <= 0:
+        raise ValueError("private-key values must be positive")
+    return RsaPrivateKey(modulus, private_exponent)
+
+
+def sign_detached_signature(region_path: Path, signature_path: Path, label: str, private_key_path: Path) -> dict[str, object]:
+    """Sign caller-labeled bytes with an explicit development RSA key."""
+
+    from .signing import SignedRegion, LocalRsaSha256Signer, sign_region
+
+    if not label.strip():
+        raise ValueError("signature region label cannot be empty")
+    key = read_private_key_json(private_key_path)
+    detached = sign_region(SignedRegion(label, region_path.read_bytes()), LocalRsaSha256Signer(key))
+    _atomic_replace_bytes(signature_path, detached.signature)
+    return {"algorithm": detached.algorithm, "region_label": detached.region_label, "signature": str(signature_path), "bytes": len(detached.signature)}
+
+
 MAGIC = b"CON "
 STFS_MAGICS = {b"CON ", b"LIVE", b"PIRS"}
 BLOCK_SIZE = 0x1000
@@ -1634,6 +1673,7 @@ def main() -> int:
     parser.add_argument("--editor-edit-values", type=Path, metavar="JSON", help="Apply registry metadata edits from a JSON object")
     parser.add_argument("--editor-edit-output", type=Path, metavar="FILE", help="Output path for --editor-edit-values")
     parser.add_argument("--verify-detached-signature", type=Path, metavar="SIGNATURE", help="Verify a detached development signature over the input bytes")
+    parser.add_argument("--sign-detached-signature", type=Path, metavar="SIGNATURE", help="Sign the input bytes with an explicit development RSA private key")
     parser.add_argument("--verify-embedded-signature", action="store_true", help="Verify an explicitly bounded in-container RSA signature")
     parser.add_argument("--signed-start", type=lambda value: int(value, 0), help="Start offset for --verify-embedded-signature")
     parser.add_argument("--signed-end", type=lambda value: int(value, 0), help="Exclusive end offset for --verify-embedded-signature")
@@ -1643,6 +1683,7 @@ def main() -> int:
     parser.add_argument("--public-key-modulus", type=lambda value: int(value, 0), help="Public RSA modulus for detached verification")
     parser.add_argument("--public-key-exponent", type=lambda value: int(value, 0), default=65537)
     parser.add_argument("--public-key-json", type=Path, help="JSON key emitted by --public-key for detached verification")
+    parser.add_argument("--private-key-json", type=Path, help="Caller-supplied development RSA private key JSON for --sign-detached-signature")
     parser.add_argument("--anti-analysis", type=Path, metavar="BUNDLE", help="Report REA-observed anti-analysis markers from an evidence bundle")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
@@ -1821,6 +1862,17 @@ def main() -> int:
         except (OSError, ValueError, TypeError) as exc:
             parser.error(str(exc))
         print(json.dumps({"editor": editor_name, "input": str(args.path), "output": str(args.editor_edit_output), "bytes": len(edited)}, indent=2))
+        return 0
+    if args.sign_detached_signature:
+        if not args.signature_label or not args.private_key_json:
+            parser.error("--sign-detached-signature requires --signature-label and --private-key-json")
+        if args.signature_algorithm != "RSA-SHA256-PKCS1v1.5":
+            parser.error("--sign-detached-signature currently supports RSA-SHA256-PKCS1v1.5 only")
+        try:
+            result = sign_detached_signature(args.path, args.sign_detached_signature, args.signature_label, args.private_key_json)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, indent=2))
         return 0
     if args.verify_detached_signature:
         if not args.signature_label or (args.public_key_modulus is None and not args.public_key_json):
