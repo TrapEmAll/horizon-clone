@@ -94,6 +94,7 @@ python -m work.horizon_clone C:\path\to\container --repack Account --repack-sour
 python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
 python -m work.horizon_clone C:\path\to\container --add sidecar.bin --add-source sidecar.bin --write with-sidecar.con
 python -m work.horizon_clone C:\path\to\container --thumbnail-source thumbnail.bin --write with-thumbnail.con
+python -m work.horizon_clone C:\path\to\container --thumbnail-output thumbnail.bin --title-thumbnail-output title-thumbnail.bin
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-replace 5 --xdbf-source payload.bin --write edited.gpd
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-remove 5 --write without-entry.gpd
