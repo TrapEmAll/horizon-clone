@@ -465,6 +465,33 @@ class StfsHeader:
     title_thumbnail_size: int
 
 
+def stfs_magic_filename(header: StfsHeader, filename: str | None = None) -> str:
+    """Return the canonical FATX-facing filename for an observed package.
+
+    Profile packages are authenticated by the supplied fixture and the public
+    XContent reference: their filename is the uppercase profile identifier.
+    Other content types retain the caller's filename because their naming
+    rules are not established by the current REA evidence.
+    """
+
+    if header.content_type == 0x00010000 and header.profile_id:
+        return header.profile_id.upper()
+    if filename:
+        return filename
+    raise ValueError("a filename is required for this unclassified content type")
+
+
+def stfs_fatx_device_path(header: StfsHeader, filename: str | None = None) -> str:
+    """Build the canonical ``Content\\profile\\title\\type\\file`` path."""
+
+    return "Content\\{0}\\{1:08X}\\{2:08X}\\{3}".format(
+        header.profile_id.upper(),
+        header.title_id,
+        header.content_type,
+        stfs_magic_filename(header, filename),
+    )
+
+
 @dataclass(frozen=True)
 class StfsEntry:
     index: int
@@ -2315,6 +2342,8 @@ def main() -> int:
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
+    parser.add_argument("--fatx-path", action="store_true", help="Print the canonical FATX-facing Content path")
+    parser.add_argument("--fatx-filename", help="Caller filename for non-profile FATX path reporting")
     parser.add_argument("--signature-compare", type=Path, metavar="OTHER", help="Compare STFS signature bytes and changed regions with another image")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
@@ -3078,6 +3107,20 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps(signature_report, indent=2))
         return 0 if signature_report["verified"] else 1
+
+    if args.fatx_path:
+        try:
+            header = parse_stfs_header(raw)
+            print(json.dumps({
+                "content_type": f"0x{header.content_type:08X}",
+                "title_id": f"0x{header.title_id:08X}",
+                "profile_id": header.profile_id.upper(),
+                "magic_filename": stfs_magic_filename(header, args.fatx_filename),
+                "fatx_path": stfs_fatx_device_path(header, args.fatx_filename),
+            }, indent=2))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        return 0
 
     if args.replace:
         if not args.replacement or not write_target:
