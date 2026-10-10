@@ -53,6 +53,8 @@ copied implementation code.
 - The desktop front end exposes an explicit, confirmation-gated in-place
   same-size STFS entry replacement; writes remain atomic and the container is
   reparsed afterward. The result is unsigned until an authorized signing step.
+- It also exposes the corresponding confirmation-gated in-place capacity-aware
+  repack action for entries whose replacement size differs.
 - Repackages XDBF entries to different payload sizes within existing data
   capacity and can remove entries while rebuilding free-space metadata.
 - Edits observed achievement payload fields: achievement ID, image ID,
