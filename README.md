@@ -120,6 +120,8 @@ copied implementation code.
 - Exposes joined type-centric managed editor schemas through
   `--managed-schema` and `--schema-pattern`, linking every matched observed
   type to its fields and methods without inferring save offsets or serializers.
+- Adds opt-in `--schema-bodies` summaries for REA-observed method-body status,
+  instruction counts, opcode counts, and IL digests.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
