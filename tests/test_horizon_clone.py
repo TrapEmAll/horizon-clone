@@ -52,6 +52,7 @@ from work.editor_inventory import capability_report, catalog_report, inventory_s
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
+from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 
 
 def supplied_fixture():
@@ -758,6 +759,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
+        self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("--resource-surface", by_name["Embedded UI/resource surface"]["entry_points"])
 
     def test_reports_observed_native_save_and_runtime_boundaries(self):
@@ -812,6 +814,32 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(bound.check_runtime())
         self.assertEqual(bound.run_hvm(), 7)
         self.assertEqual(bound.get_user_string(1, 2, 3), 6)
+
+    def test_native_save_requires_explicit_provider_and_preserves_observed_shapes(self):
+        binding = NativeSaveBinding()
+        self.assertEqual(binding.status, "unavailable")
+        with self.assertRaises(NativeSaveUnavailable):
+            binding.encrypt(b"in", bytearray(8), 2, b"key")
+
+        class Provider:
+            def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
+                output_buffer[:input_length] = input_buffer[:input_length]
+                output_length.value = input_length
+                return 0
+
+            def rts_save_encrypt(self, input_buffer, output_buffer, input_length, key):
+                output_buffer[:input_length] = input_buffer[:input_length]
+                return 0
+
+        bound = NativeSaveBinding(Provider())
+        output = bytearray(8)
+        self.assertEqual(bound.encrypt(b"in", output, 2, b"key"), 0)
+        self.assertEqual(output[:2], b"in")
+        length = UInt32Ref(8)
+        self.assertEqual(bound.decrypt(b"in", length, output, 2, b"key"), 0)
+        self.assertEqual(length.value, 2)
+        with self.assertRaises(ValueError):
+            bound.encrypt(b"in", output, 0x1_0000_0000, b"key")
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
