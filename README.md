@@ -19,6 +19,8 @@ copied implementation code.
   affected data-block hashes plus the metadata-header hash.
 - Verifies data-block and metadata-header hashes while explicitly reporting
   that RSA package signing has not been checked.
+- Provides a provider-oriented RSA PKCS#1 v1.5/SHA-256 boundary for
+  authorized local test or development keys.
 
 RSA signing remains behind an authorized signing-provider boundary. This
 clean-room project does not contain private Xbox/Microsoft signing keys and
