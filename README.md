@@ -26,6 +26,8 @@ copied implementation code.
 - Provides aggregate profile achievement counts, raw gamerscore totals, observed
   unlock-time coverage/bounds, and explicitly unlabeled nonzero-flag counts through the library and
   `--profile-summary` CLI option.
+- Provides explicit raw achievement-flag mask operations across one XDBF payload
+  through `mutate_xdbf_achievement_flags`; flag-bit meanings remain unlabeled.
 - Exposes the same profile summary export from the desktop front end.
 - Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
   legacy, and global catalogs from the desktop front end.
