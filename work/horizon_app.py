@@ -114,7 +114,9 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Remove entry", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove entry in place", command=self.remove_file_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Rename file", command=self.rename_file).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Rename file in place", command=self.rename_file_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Move entry", command=self.move_entry).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Move entry in place", command=self.move_entry_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
@@ -1008,6 +1010,71 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "destination": destination, "new_name": final_name, "signature_checked": False})
         except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
             messagebox.showerror("Move entry failed", str(exc))
+
+    def _rebuild_tree(self) -> None:
+        self.tree.delete(*self.tree.get_children())
+        self._entries.clear()
+        if not self._report:
+            return
+        for item in self._report.entries:
+            tree_item = self.tree.insert("", tk.END, text=item.path, values=(item.size, "DIR" if item.is_directory else "FILE"))
+            self._entries[tree_item] = item
+
+    def rename_file_in_place(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
+            messagebox.showinfo("Rename file in place", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Rename file in place", "Select a file first.")
+            return
+        entry = self._entries[selected[0]]
+        new_name = simpledialog.askstring("Rename file in place", "New ASCII basename:", initialvalue=entry.name, parent=self)
+        if new_name is None or new_name == entry.name:
+            return
+        if not messagebox.askyesno("Rename file in place", f"Overwrite the loaded container by renaming {entry.path}?", parent=self):
+            return
+        try:
+            mutated = rename_stfs_entry(self._data, entry.path, new_name, self._report.stfs_header)
+            target = Path(self._report.path)
+            _atomic_write_bytes(target, mutated)
+            self._data = mutated
+            self._report = inspect(target)
+            self._rebuild_tree()
+            self.status.configure(text=f"Renamed in place: {entry.path} -> {new_name}")
+            self._set_details({"path": str(target), "entry": entry.path, "new_name": new_name, "in_place": True, "signature_checked": False})
+        except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
+            messagebox.showerror("Rename file in place failed", str(exc))
+
+    def move_entry_in_place(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
+            messagebox.showinfo("Move entry in place", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Move entry in place", "Select an entry first.")
+            return
+        entry = self._entries[selected[0]]
+        destination = simpledialog.askstring("Move entry in place", "Destination directory path:", parent=self)
+        if not destination:
+            return
+        new_name = simpledialog.askstring("Move entry in place", "New ASCII basename (blank keeps current name):", initialvalue=entry.name, parent=self)
+        if new_name is None:
+            return
+        final_name = new_name or entry.name
+        if not messagebox.askyesno("Move entry in place", f"Overwrite the loaded container by moving {entry.path} to {destination}/{final_name}?", parent=self):
+            return
+        try:
+            mutated = move_stfs_entry(self._data, entry.path, destination, new_name or None, self._report.stfs_header)
+            target = Path(self._report.path)
+            _atomic_write_bytes(target, mutated)
+            self._data = mutated
+            self._report = inspect(target)
+            self._rebuild_tree()
+            self.status.configure(text=f"Moved in place: {entry.path} -> {destination}/{final_name}")
+            self._set_details({"path": str(target), "entry": entry.path, "destination": destination, "new_name": final_name, "in_place": True, "signature_checked": False})
+        except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
+            messagebox.showerror("Move entry in place failed", str(exc))
 
     def edit_metadata(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
