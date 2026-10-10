@@ -77,7 +77,7 @@ from work.global_catalog import global_catalog_report, observed_global_types
 from work.native_surface import managed_native_import_report, native_export_contract_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
-from work.device_inventory import device_inventory_report
+from work.device_inventory import device_inventory_report, enumerate_host_device_entries
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable, PowerShellNativeRuntimeProvider
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
 from work.account_codec import AccountCodec, AccountKeyProviderUnavailable, CommandAccountKeyProvider
@@ -151,6 +151,14 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn(report["status"], {"host-visible-read-only", "unsupported-host"})
         self.assertEqual(len(report["volumes"]), len({item["root"] for item in report["volumes"]}))
         self.assertTrue(any("FATX" in item for item in report["limitations"]))
+
+    def test_host_device_listing_is_bounded_and_read_only(self):
+        root = self.fixture_dir.resolve()
+        entries = enumerate_host_device_entries(root)
+        self.assertEqual(tuple(item.name for item in entries), tuple(sorted((item.name for item in root.iterdir()), key=str.casefold)))
+        self.assertTrue(all(not item.relative_path.startswith("../") for item in entries))
+        with self.assertRaises(ValueError):
+            enumerate_host_device_entries(root, "..")
 
     def test_reports_selected_managed_surface_from_exported_evidence(self):
         bundle = self.fixture_dir / "managed-surface.json"
