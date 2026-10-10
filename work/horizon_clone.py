@@ -772,12 +772,19 @@ def main() -> int:
     parser.add_argument("--xdbf-replace", type=int, metavar="INDEX", help="Replace one XDBF entry")
     parser.add_argument("--xdbf-source", type=Path, help="Raw replacement bytes for --xdbf-replace")
     parser.add_argument("--xdbf-remove", type=int, action="append", metavar="INDEX", help="Remove an XDBF entry")
+    parser.add_argument("--achievement", type=int, metavar="INDEX", help="Edit one XDBF achievement entry")
+    parser.add_argument("--achievement-id", type=lambda value: int(value, 0))
+    parser.add_argument("--image-id", type=lambda value: int(value, 0))
+    parser.add_argument("--gamerscore", type=int)
+    parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
+    parser.add_argument("--achievement-name")
     args = parser.parse_args()
 
     try:
         raw = args.path.read_bytes()
         if raw[:4] == b"XDBF":
-            if args.xdbf_replace is not None or args.xdbf_remove:
+            achievement_requested = args.achievement is not None
+            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested:
                 if not args.write:
                     parser.error("XDBF mutation requires --write")
                 if args.xdbf_replace is not None and not args.xdbf_source:
@@ -786,6 +793,16 @@ def main() -> int:
                 if args.xdbf_replace is not None:
                     replacements[args.xdbf_replace] = args.xdbf_source.read_bytes()
                 raw = repack_xdbf_entries(raw, replacements, remove=args.xdbf_remove or ())
+                if achievement_requested:
+                    raw = mutate_xdbf_achievement(
+                        raw,
+                        args.achievement,
+                        achievement_id=args.achievement_id,
+                        image_id=args.image_id,
+                        gamerscore=args.gamerscore,
+                        flags=args.achievement_flags,
+                        name=args.achievement_name,
+                    )
                 args.write.write_bytes(raw)
                 print(f"Wrote XDBF mutation to {args.write}")
             payload = json.dumps(_json_xdbf(raw, args.path), indent=2, ensure_ascii=False)
