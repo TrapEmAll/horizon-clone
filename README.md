@@ -76,6 +76,9 @@ copied implementation code.
 - Provides a legacy-catalog metadata-editor envelope for the seven observed
   title families, validating authenticated member names and signed-32-bit
   values without inventing enum assignments or save offsets.
+- Exposes the same clean-room editor registry through `--editor-inspect`, so
+  supported XDBF, ProfileData, Halo, Constant, legacy-catalog, managed-surface,
+  and opaque Account inputs use one explicit dispatch path.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
