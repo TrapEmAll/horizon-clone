@@ -27,6 +27,8 @@ copied implementation code.
   mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
   capacity, updating file-table records and hashes.
+- Removes file-table entries safely when the resulting package fits the
+  existing allocation capacity.
 
 RSA signing remains behind an authorized signing-provider boundary. This
 clean-room project does not contain private Xbox/Microsoft signing keys and
@@ -45,6 +47,7 @@ python -m work.horizon_clone C:\path\to\container --verify-hashes
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile" --write renamed.con
 python -m work.horizon_clone C:\path\to\container --repack Account --repack-source account.bin --write repacked.con
+python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
 python -m work.horizon_app
 ```
