@@ -232,3 +232,94 @@ def managed_schema_report(
         raise ValueError(f"unable to read evidence bundle: {path}") from exc
     return managed_schema_report_from_bundle(bundle, pattern, include_bodies, method_pattern, include_field_accesses)
 
+
+def managed_io_contract_report_from_bundle(
+    bundle: dict[str, Any],
+    pattern: str | None = None,
+    method_pattern: str = r"^(get_|set_|Read|Write|Load|Save|Compress|Decompress)",
+) -> dict[str, Any]:
+    """Return static managed I/O contracts for reconstruction work."""
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    types = result.get("types") or []
+    methods = result.get("methods") or []
+    fields = result.get("field_accesses") or []
+    calls = result.get("call_edges") or []
+    type_matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
+    method_matcher = re.compile(method_pattern, re.IGNORECASE)
+    selected_names = {
+        str(item.get("full_name") or "")
+        for item in types
+        if isinstance(item, dict) and (type_matcher is None or type_matcher.search(str(item.get("full_name") or "")))
+    }
+    selected_methods = [
+        item for item in methods
+        if isinstance(item, dict)
+        and item.get("declaring_type") in selected_names
+        and method_matcher.search(str(item.get("name") or ""))
+    ]
+    contracts: list[dict[str, Any]] = []
+    for item in selected_methods:
+        token = str(item.get("token"))
+        body = item.get("body") or {}
+        contracts.append({
+            "declaring_type": item.get("declaring_type"),
+            "name": item.get("name"),
+            "token": item.get("token"),
+            "signature": item.get("signature"),
+            "body": {
+                "status": body.get("status"),
+                "rva": body.get("rva"),
+                "file_offset": body.get("file_offset"),
+                "instruction_count": body.get("instruction_count"),
+                "opcode_counts": body.get("opcode_counts"),
+                "il_sha256": body.get("il_sha256"),
+                "anchors": body.get("anchors") or [],
+                "exception_regions": body.get("exception_regions") or [],
+            },
+            "field_accesses": [
+                {"field_name": access.get("field_name"), "field_token": access.get("field_token"), "opcode": access.get("opcode")}
+                for access in fields
+                if isinstance(access, dict) and str(access.get("method_token")) == token
+            ],
+            "call_targets": [
+                {"opcode": edge.get("opcode"), "target_kind": edge.get("target_kind"), "target_name": edge.get("target_name"), "target_token": edge.get("target_token")}
+                for edge in calls
+                if isinstance(edge, dict) and str(edge.get("caller_token")) == token
+            ],
+        })
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "method_pattern": method_pattern,
+        "counts": {
+            "matched_types": len(selected_names),
+            "matched_methods": len(contracts),
+            "methods_with_field_accesses": sum(bool(item["field_accesses"]) for item in contracts),
+            "methods_with_call_targets": sum(bool(item["call_targets"]) for item in contracts),
+        },
+        "methods": contracts,
+        "limitations": [
+            "CIL anchors and tokens are artifact-local evidence, not a serializer implementation.",
+            "The report does not infer field offsets, endianness, validation, or native protocol semantics.",
+        ],
+    }
+
+
+def managed_io_contract_report(
+    bundle_path: str | Path,
+    pattern: str | None = None,
+    method_pattern: str = r"^(get_|set_|Read|Write|Load|Save|Compress|Decompress)",
+) -> dict[str, Any]:
+    """Return selected static managed I/O contracts from a retained bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read evidence bundle: {path}") from exc
+    return managed_io_contract_report_from_bundle(bundle, pattern, method_pattern)
+
