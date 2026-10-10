@@ -42,9 +42,9 @@ from work.signing import (
 )
 from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
-from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
+from work.skyrim_catalog import enum_member_names, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
-from work.gears_catalog import gears_of_war_3_entry_ids
+from work.gears_catalog import gears_entry_id_summary, gears_of_war_3_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_types
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
@@ -668,12 +668,20 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual({item.name for item in enums}, {"ShoutEnums", "PerkEnums", "MagicEnums"})
         self.assertEqual(len(enum_member_names("ShoutEnums")), 27)
         self.assertFalse(any(item.values_observed for item in enums))
+        summary = observed_skyrim_enum_summary()
+        self.assertEqual(summary["underlying_type"], "i4")
+        self.assertEqual(summary["enums"]["PerkEnums"]["named_member_count"], 273)
+        self.assertFalse(summary["constant_values_observed"])
 
     def test_exposes_observed_gears_entry_id_names_without_guessing_values(self):
         entries = gears_of_war_3_entry_ids()
         self.assertGreater(len(entries), 1000)
         self.assertIn("Selected_COG_Character", entries)
         self.assertIn("Horde_Sentry_Level_7", entries)
+        summary = gears_entry_id_summary()
+        self.assertEqual(summary["declaring_type"], "Horizon.PackageEditors.Gears_of_War_3.EntryID")
+        self.assertEqual(summary["named_member_count"], len(entries))
+        self.assertFalse(summary["constant_values_observed"])
 
     def test_exposes_observed_halo_general_class_names_without_guessing_layouts(self):
         types = halo_general_class_types()
