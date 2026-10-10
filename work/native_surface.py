@@ -165,6 +165,58 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
     }
 
 
+def native_installation_report(directory: str | Path) -> dict[str, object]:
+    """Inventory the observed native deployment without loading any DLLs."""
+
+    root = Path(directory)
+    expected = {
+        "class3.dll": ("x86", ("RtsSaveDecrypt", "RtsSaveEncrypt")),
+        "lzo.dll": ("x86", ("__lzo_init_v2", "lzo1x_1_compress", "lzo2a_999_compress", "lzo1x_decompress", "lzo2a_decompress")),
+        "Horizon.dll": ("x86", ("CheckRuntime", "DNG_Runtime", "GetUserString", "RunHVM")),
+        "HVMRun64.dll": ("x86_64", ("CheckRuntime", "DNG_Runtime", "GetUserString", "RunHVM")),
+    }
+    images: list[dict[str, object]] = []
+    for filename, (expected_architecture, expected_exports) in expected.items():
+        path = root / filename
+        item: dict[str, object] = {
+            "name": filename,
+            "path": str(path),
+            "expected_architecture": expected_architecture,
+            "expected_exports": list(expected_exports),
+            "present": path.is_file(),
+        }
+        if path.is_file():
+            try:
+                architecture, process_architecture = compatible_pe_architecture(path)
+                exports = pe_export_names(path)
+                item.update({
+                    "image_architecture": architecture,
+                    "process_architecture": process_architecture,
+                    "observed_exports": list(exports),
+                    "missing_exports": [name for name in expected_exports if name not in exports],
+                    "architecture_matches_contract": architecture == expected_architecture,
+                })
+            except (OSError, ValueError) as exc:
+                item.update({"status": "unreadable", "error": str(exc)})
+            else:
+                item["status"] = "verified" if not item["missing_exports"] and item["architecture_matches_contract"] else "mismatch"
+        else:
+            item["status"] = "missing"
+        images.append(item)
+    present = sum(bool(item["present"]) for item in images)
+    return {
+        "status": "verified" if present == len(images) and all(item["status"] == "verified" for item in images) else "partial",
+        "directory": str(root),
+        "images": images,
+        "present_count": present,
+        "expected_count": len(images),
+        "limitations": [
+            "This inventory reads PE headers and export tables only; it never loads or executes a native image.",
+            "Export presence does not establish native calling semantics or save/key-vault behavior.",
+        ],
+    }
+
+
 def managed_native_import_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
     """Return the complete REA-authenticated managed P/Invoke inventory."""
 
