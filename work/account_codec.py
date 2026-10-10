@@ -26,17 +26,31 @@ class AccountCodec:
             raise ValueError("save provider returned a length beyond the output buffer")
         return bytes(output[: length.value])
 
-    def encrypt(self, plaintext: bytes, key: bytes, output_capacity: int) -> bytes:
+    def encrypt(self, plaintext: bytes, key: bytes, output_capacity: int, output_length: int | None = None) -> bytes:
+        """Return encrypted bytes when the caller supplies their known length.
+
+        ``RtsSaveEncrypt`` has no output-length reference and REA did not
+        establish that its integer return value is a byte count.  Callers
+        must therefore pass the serialized output length explicitly.
+        """
+
+        _status, output = self.encrypt_raw(plaintext, key, output_capacity)
+        if output_length is None:
+            raise ValueError("encrypted output length is unresolved; use encrypt_raw and slice with the caller-known length")
+        if not isinstance(output_length, int) or isinstance(output_length, bool) or not 0 <= output_length <= output_capacity:
+            raise ValueError("output_length must fit the supplied output capacity")
+        return output[:output_length]
+
+    def encrypt_raw(self, plaintext: bytes, key: bytes, output_capacity: int) -> tuple[int, bytes]:
+        """Return the native status and the complete caller-sized output buffer."""
+
         _validate_payload(plaintext)
         _validate_capacity(output_capacity)
         output = bytearray(output_capacity)
         result = self.binding.encrypt(plaintext, output, len(plaintext), key)
-        # The native declaration has no output-length reference.  Providers
-        # must return the number of valid bytes, which avoids guessing a
-        # serialized Account size.
-        if not isinstance(result, int) or isinstance(result, bool) or not 0 <= result <= len(output):
-            raise ValueError("save provider returned an invalid encrypted length")
-        return bytes(output[:result])
+        if not isinstance(result, int) or isinstance(result, bool) or not -0x80000000 <= result <= 0x7FFFFFFF:
+            raise ValueError("save provider returned an invalid status")
+        return result, bytes(output)
 
 
 def _validate_payload(payload: bytes) -> None:
