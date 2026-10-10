@@ -32,6 +32,8 @@ copied implementation code.
 - Exposes variable-size STFS repacking and fixed-width display-name/title-ID
   metadata editing from the desktop front end, also with explicit
   unsigned-mutation status.
+- Exposes observed XDBF achievement editing from the desktop front end,
+  including gamerscore, flags, and bounded name changes.
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
