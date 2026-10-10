@@ -30,20 +30,9 @@ def _member_record(bundle: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def managed_surface_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
-    """Return observed managed types, fields, and methods matching *pattern*.
+def managed_surface_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
+    """Return an observed managed surface from an already-decoded bundle."""
 
-    The default report includes counts and no member dump.  A regex pattern is
-    an explicit request for the matching surface and is evaluated locally over
-    the exported REA evidence.  Tokens remain build-local and are never treated
-    as stable file offsets.
-    """
-
-    path = Path(bundle_path)
-    try:
-        bundle = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"unable to read evidence bundle: {path}") from exc
     record = _member_record(bundle)
     result = record.get("normalized_result") or {}
     artifact = result.get("artifact") or {}
@@ -90,4 +79,21 @@ def managed_surface_report(bundle_path: str | Path, pattern: str | None = None) 
         if matches(item, "declaring_type", "name")
     ]
     return report
+
+
+def managed_surface_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return observed managed types, fields, and methods matching *pattern*.
+
+    The default report includes counts and no member dump.  A regex pattern is
+    an explicit request for the matching surface and is evaluated locally over
+    the exported REA evidence.  Tokens remain build-local and are never treated
+    as stable file offsets.
+    """
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read evidence bundle: {path}") from exc
+    return managed_surface_report_from_bundle(bundle, pattern)
 
