@@ -951,6 +951,56 @@ def rename_stfs_entry(
     return rehash_stfs_hashes(bytes(result), header)
 
 
+def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | None = None) -> bytes:
+    """Add an empty STFS directory in an available file-table slot."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    if not directory_path or directory_path.endswith("/"):
+        raise ValueError("directory path must be a non-empty path")
+    parent_path, _, name = directory_path.rpartition("/")
+    encoded_name = name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x3F or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS directory names must be non-empty ASCII basenames of at most 63 bytes")
+    parent_index = 0xFFFF
+    if parent_path:
+        parent = next((item for item in entries if item.path == parent_path), None)
+        if parent is None or not parent.is_directory:
+            raise FileNotFoundError(f"parent directory does not exist: {parent_path}")
+        parent_index = parent.index
+    if any(item.path == directory_path for item in entries):
+        raise ValueError(f"STFS entry already exists: {directory_path}")
+    all_slots = _all_stfs_file_table_slots(data, header)
+    used_slots = set(_stfs_file_table_slots(data, header))
+    candidates = [slot for slot in all_slots if slot not in used_slots]
+    if not candidates:
+        raise ValueError("STFS file-table capacity is exhausted")
+    slot = candidates[0]
+    old_index_by_slot = {slot_address: item.index for slot_address, item in zip(_stfs_file_table_slots(data, header), entries)}
+    new_index_by_slot: dict[int, int] = {}
+    old_to_new: dict[int, int] = {}
+    next_index = 0
+    for slot_address in all_slots:
+        if slot_address not in used_slots and slot_address != slot:
+            continue
+        new_index_by_slot[slot_address] = next_index
+        if slot_address in old_index_by_slot:
+            old_to_new[old_index_by_slot[slot_address]] = next_index
+        next_index += 1
+    result = bytearray(data)
+    for slot_address in used_slots:
+        old_parent = int.from_bytes(result[slot_address + 0x32 : slot_address + 0x34], "big")
+        if old_parent != 0xFFFF:
+            if old_parent not in old_to_new:
+                raise ValueError("STFS parent index cannot be remapped")
+            result[slot_address + 0x32 : slot_address + 0x34] = old_to_new[old_parent].to_bytes(2, "big")
+    raw = bytearray(0x40)
+    raw[: len(encoded_name)] = encoded_name
+    raw[0x28] = 0x80 | len(encoded_name)
+    raw[0x32:0x34] = (0xFFFF if parent_index == 0xFFFF else old_to_new[parent_index]).to_bytes(2, "big")
+    result[slot : slot + 0x40] = raw
+    return rehash_stfs_hashes(bytes(result), header)
+
+
 def repack_stfs_entries(
     data: bytes,
     replacements: dict[str, bytes],
@@ -1260,6 +1310,7 @@ def main() -> int:
     parser.add_argument("--add-source", action="append", type=Path, help="Raw bytes for --add (repeat in the same order)")
     parser.add_argument("--rename", metavar="ENTRY", help="Rename an STFS file or directory")
     parser.add_argument("--new-name", help="New ASCII basename for --rename")
+    parser.add_argument("--mkdir", metavar="PATH", help="Add an empty STFS directory")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument(
         "--in-place",
@@ -1459,6 +1510,19 @@ def main() -> int:
         except (OSError, ValueError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned STFS rename to {write_target}")
+
+    if args.mkdir:
+        if not write_target:
+            parser.error("--mkdir requires --write or --in-place")
+        if not report.stfs_header:
+            parser.error("--mkdir requires a readable STFS header")
+        try:
+            raw = add_stfs_directory(raw, args.mkdir, report.stfs_header)
+            write_mutation(raw)
+            mutation_written = True
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned STFS directory addition to {write_target}")
 
     if args.list:
         if not report.entries:
