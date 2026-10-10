@@ -40,6 +40,21 @@ _GLOBAL_TYPES = (
     ObservedGlobalType("MegaloObject", 8, 18),
     ObservedGlobalType("MenuLocationEntry", 4, 7),
     ObservedGlobalType("SilyValue", 4, 12),
+    ObservedGlobalType("ArmorEffect", 8),
+    ObservedGlobalType("AssaultRifle", 4),
+    ObservedGlobalType("Chest", 19),
+    ObservedGlobalType("ChestsOption", 31),
+    ObservedGlobalType("COGCharacter", 31),
+    ObservedGlobalType("FirefightVoice", 13),
+    ObservedGlobalType("Forearms", 27),
+    ObservedGlobalType("KneeGuards", 5),
+    ObservedGlobalType("Legs", 26),
+    ObservedGlobalType("LocusCharacter", 23),
+    ObservedGlobalType("PrimaryWeapon", 34),
+    ObservedGlobalType("PrimaryWeapon", 38),
+    ObservedGlobalType("SecondaryWeapon", 12),
+    ObservedGlobalType("Weapon", 11),
+    ObservedGlobalType("Weapon", 38),
 )
 
 
