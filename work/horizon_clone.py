@@ -1128,6 +1128,41 @@ def verify_stfs_console_signature(data: bytes) -> dict[str, object]:
     }
 
 
+def sign_stfs_console_package(data: bytes, private_key) -> bytes:
+    """Sign the observed CON package region with an explicit caller key.
+
+    The certificate's public modulus must match the supplied private key. The
+    result only updates the stored package-signature bytes; it does not alter
+    certificates, licenses, or file payloads, and it does not claim retail
+    console authority.
+    """
+
+    from .signing import LocalRsaSha1Signer, RsaPrivateKey
+
+    if not isinstance(data, bytes):
+        raise TypeError("STFS package data must be bytes")
+    if not isinstance(private_key, RsaPrivateKey):
+        raise TypeError("private_key must be an RsaPrivateKey")
+    metadata = parse_stfs_security_metadata(data)
+    if metadata.signature_kind != "console-certificate":
+        raise ValueError("CON package signing requires a CON container")
+    key = extract_stfs_public_key(data)
+    if private_key.modulus != key.modulus:
+        raise ValueError("private-key modulus does not match the CON certificate modulus")
+    signature_offset = metadata.package_signature_offset
+    signature_length = metadata.package_signature_length
+    signed_start = signature_offset + signature_length
+    signed_end = signed_start + 0x118
+    if signed_end > len(data):
+        raise ValueError("CON package signed region exceeds the container")
+    signature = LocalRsaSha1Signer(private_key).sign_sha1(data[signed_start:signed_end])[::-1]
+    if len(signature) != signature_length:
+        raise ValueError("private-key signature length does not match the CON package signature slot")
+    result = bytearray(data)
+    result[signature_offset:signature_offset + signature_length] = signature
+    return bytes(result)
+
+
 def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str, object]:
     """Compare two STFS images without claiming console-signature validity.
 
@@ -2378,6 +2413,7 @@ def main() -> int:
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
+    parser.add_argument("--sign-stfs-package", type=Path, metavar="OUTPUT", help="Sign the observed CON package region with an explicit matching RSA private key")
     parser.add_argument("--fatx-path", action="store_true", help="Print the canonical FATX-facing Content path")
     parser.add_argument("--fatx-filename", help="Caller filename for non-profile FATX path reporting")
     parser.add_argument("--signature-compare", type=Path, metavar="OTHER", help="Compare STFS signature bytes and changed regions with another image")
@@ -3143,6 +3179,27 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps(signature_report, indent=2))
         return 0 if signature_report["verified"] else 1
+
+    if args.sign_stfs_package:
+        if not args.private_key_json:
+            parser.error("--sign-stfs-package requires --private-key-json")
+        if args.sign_stfs_package.resolve() == args.path.resolve():
+            parser.error("--sign-stfs-package must be different from the input path")
+        try:
+            private_key = read_private_key_json(args.private_key_json)
+            signed = sign_stfs_console_package(raw, private_key)
+            _atomic_replace_bytes(args.sign_stfs_package, signed)
+            verification = verify_stfs_console_signature(signed)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({
+            "output": str(args.sign_stfs_package),
+            "bytes": len(signed),
+            "signature_verified": verification["verified"],
+            "algorithm": verification["algorithm"],
+            "console_authority_established": False,
+        }, indent=2))
+        return 0 if verification["verified"] else 1
 
     if args.fatx_path:
         try:
