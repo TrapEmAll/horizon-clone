@@ -14,8 +14,10 @@ observed high-level areas include:
 - a large Halo variant/editor surface;
 - save entries, content metadata, thumbnails, and game-specific models.
 
-The current implementation covers the shared STFS/XDBF substrate and a
-provider-oriented mutation/signing boundary. It does not yet claim parity for
-the game-specific editors above. Each editor requires format fixtures and
-behavioral tests before it can be implemented without guessing opaque fields.
+The current implementation covers the shared STFS/XDBF substrate, including
+capacity-bounded mutation/repacking and complete three-level STFS hash-tree
+rehashing/verification, plus a provider-oriented mutation/signing boundary.
+It does not yet claim parity for the game-specific editors above. Each editor
+requires format fixtures and behavioral tests before it can be implemented
+without guessing opaque fields.
 
