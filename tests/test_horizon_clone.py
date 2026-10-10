@@ -29,6 +29,7 @@ from work.horizon_clone import (
     parse_stfs_security_metadata,
     parse_stfs_thumbnails,
     parse_xdbf,
+    xdbf_payload_surface,
     read_stfs_entry,
     verify_stfs_hashes,
 )
@@ -180,6 +181,11 @@ class ContainerInspectionTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             mutate_xdbf_entry_same_size(data, parsed[0], b"short")
+
+        surface = xdbf_payload_surface(data)
+        self.assertEqual(surface[0]["kind"], "text")
+        self.assertEqual(surface[0]["length"], len(payload))
+        self.assertEqual(len(surface[0]["sha256"]), 64)
 
     def test_adds_xdbf_entry_with_explicit_namespace_and_id(self):
         payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
