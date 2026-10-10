@@ -45,6 +45,8 @@ copied implementation code.
   Halo editor families without publishing proprietary-derived member labels.
 - Tracks the REA-observed embedded managed-resource surface (205 payloads)
   separately from implementation claims.
+- Exposes that resource-surface report through `--resource-surface` without
+  copying or executing shipped resources.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
