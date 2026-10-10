@@ -123,6 +123,10 @@ output-length argument. It requires an explicit provider and does not load
 `lzo.dll` or claim that a particular provider reproduces Horizon's codec
 configuration.
 
+`LzoCodec` now adds a high-level validated buffer bridge over that binding. It
+does not select a provider, infer work-memory requirements, or claim that an
+arbitrary provider matches Horizon's compression configuration.
+
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
