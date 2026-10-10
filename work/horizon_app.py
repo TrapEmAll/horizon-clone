@@ -33,6 +33,7 @@ from .horizon_clone import (
     repack_xdbf_entries,
     repack_stfs_entries,
     verify_stfs_hashes,
+    stfs_fatx_device_path,
     editor_edit_values,
     editor_inspect_report,
     extract_managed_resource_payloads,
@@ -84,6 +85,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="FATX path", command=self.show_fatx_path).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
@@ -448,6 +450,18 @@ class HorizonApp(tk.Tk):
             "signature_validity_checked": False,
         })
         self.status.configure(text="Displayed public security metadata; signature validity not checked")
+
+    def show_fatx_path(self) -> None:
+        if not self._report or not self._report.stfs_header:
+            messagebox.showinfo("FATX path", "Open a readable STFS container first.")
+            return
+        try:
+            path = stfs_fatx_device_path(self._report.stfs_header)
+        except ValueError as exc:
+            messagebox.showerror("FATX path", str(exc))
+            return
+        self._set_details({"fatx_path": path})
+        self.status.configure(text=f"FATX path: {path}")
 
     def replace_selected(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
