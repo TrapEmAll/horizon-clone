@@ -7,6 +7,7 @@ from work.horizon_clone import (
     list_stfs_entries,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    mutate_xdbf_achievement,
     repack_xdbf_entries,
     repack_stfs_entries,
     mutate_xdbf_entry_same_size,
@@ -76,6 +77,24 @@ class ContainerInspectionTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             mutate_xdbf_entry_same_size(data, parsed[0], b"short")
+
+    def test_mutates_xdbf_achievement_fields(self):
+        name = "Old".encode("utf-16-le") + b"\x00\x00"
+        payload = bytearray(0x18 + len(name))
+        payload[4:8] = (10).to_bytes(4, "little")
+        payload[8:12] = (20).to_bytes(4, "little")
+        payload[12:16] = (5).to_bytes(4, "little", signed=True)
+        payload[16:20] = (1).to_bytes(4, "little")
+        payload[0x18:] = name
+        header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 2 + b"\x00\x00\x00\x01" * 2
+        entry = (1).to_bytes(2, "big") + (0x9000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
+        data = header + entry + b"\x00" * 8 + payload
+
+        mutated = mutate_xdbf_achievement(data, 0, gamerscore=100, flags=7, name="New")
+        achievement = parse_xdbf(mutated)[0].achievement
+        self.assertEqual(achievement["gamerscore"], 100)
+        self.assertEqual(achievement["flags"], 7)
+        self.assertEqual(achievement["name"], "New")
 
     def test_mutates_and_rehashes_supplied_profile_fixture(self):
         path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
