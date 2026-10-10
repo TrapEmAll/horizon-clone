@@ -46,6 +46,8 @@ from work.horizon_clone import (
     stfs_signature_region_report,
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
+    stfs_magic_filename,
+    stfs_fatx_device_path,
     read_private_key_json,
     sign_detached_signature,
     sign_detached_bytes,
@@ -2303,6 +2305,17 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual((result["signature_offset"], result["signature_length"]), (0x1AC, 0x80))
         self.assertEqual((result["signed_start"], result["signed_end"]), (0x22C, 0x344))
         self.assertFalse(result["verified"])
+
+    def test_builds_canonical_profile_fatx_path(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        header = parse_stfs_header(path.read_bytes())
+        self.assertEqual(stfs_magic_filename(header), "E9ECC9141E317C7B")
+        self.assertEqual(
+            stfs_fatx_device_path(header),
+            "Content\\E9ECC9141E317C7B\\FFFE07D1\\00010000\\E9ECC9141E317C7B",
+        )
 
     def test_compares_stfs_mutations_without_claiming_console_validity(self):
         path = supplied_fixture()
