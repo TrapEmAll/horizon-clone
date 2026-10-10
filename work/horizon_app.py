@@ -106,6 +106,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Sign written CON", command=self.sign_written_package).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify CON signature", command=self.verify_con_signature).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Replace selected in place", command=self.replace_selected_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add directory", command=self.add_directory).pack(side=tk.LEFT, padx=(8, 0))
@@ -682,6 +683,43 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Replace failed", str(exc))
+
+    def replace_selected_in_place(self) -> None:
+        """Replace one selected entry in the currently loaded container."""
+
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("In-place replace", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("In-place replace", "Select a file first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.is_directory:
+            messagebox.showinfo("In-place replace", "Directories cannot be replaced.")
+            return
+        source = filedialog.askopenfilename(title="Choose same-size replacement bytes")
+        if not source:
+            return
+        if not messagebox.askyesno(
+            "Confirm in-place mutation",
+            f"Replace {entry.path} in {self._report.path}? The original bytes will be overwritten.",
+            parent=self,
+        ):
+            return
+        try:
+            replacement = Path(source).read_bytes()
+            mutated = mutate_stfs_entry_same_size(
+                self._data, entry, replacement, self._report.stfs_header
+            )
+            target = Path(self._report.path)
+            _atomic_write_bytes(target, mutated)
+            self._data = mutated
+            self._report = inspect(target)
+            self.status.configure(text=f"Wrote unsigned in-place mutation: {entry.path}")
+            self._set_details({"path": str(target), "entry": entry.path, "signature_checked": False})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("In-place replace failed", str(exc))
 
     def repack_selected(self) -> None:
         """Replace a file with a different size within existing STFS capacity."""
