@@ -51,6 +51,7 @@ from work.horizon_clone import (
     filetime_to_utc,
     utc_to_filetime,
     xdbf_payload_surface,
+    xdbf_achievement_image_links,
     read_stfs_entry,
     verify_stfs_hashes,
 )
@@ -527,6 +528,20 @@ class ContainerInspectionTests(unittest.TestCase):
         surface = xdbf_payload_surface(data)
         self.assertEqual(surface[0]["kind"], "opaque")
         self.assertEqual(surface[0]["metadata"], {"kind": "png", "bytes": len(payload), "width": 64, "height": 32})
+
+    def test_links_achievement_image_ids_to_same_file_png_entries(self):
+        image = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + (1).to_bytes(4, "big") + (1).to_bytes(4, "big") + b"\x08\x06\x00\x00\x00"
+        achievement = bytearray(0x1c)
+        achievement[4:8] = (7).to_bytes(4, "big")
+        achievement[8:12] = (99).to_bytes(4, "big")
+        header = b"XDBF" + b"\x00\x01\x00\x00" + (b"\x00\x00\x00\x02" + b"\x00\x00\x00\x02" + b"\x00\x00\x00\x01" + b"\x00\x00\x00\x01")
+        first = (1).to_bytes(2, "big") + (7).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(achievement).to_bytes(4, "big")
+        second = (2).to_bytes(2, "big") + (99).to_bytes(8, "big") + len(achievement).to_bytes(4, "big") + len(image).to_bytes(4, "big")
+        data = header + first + second + b"\x00" * 8 + bytes(achievement) + image
+        links = xdbf_achievement_image_links(data)
+        self.assertEqual(links[0]["status"], "linked")
+        self.assertEqual(links[0]["image_id"], 99)
+        self.assertEqual(links[0]["image_metadata"]["kind"], "png")
 
     def test_adds_xdbf_entry_with_explicit_namespace_and_id(self):
         payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
