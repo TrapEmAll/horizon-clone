@@ -1041,6 +1041,13 @@ class ContainerInspectionTests(unittest.TestCase):
         image, process = compatible_pe_architecture(path)
         self.assertEqual(image, "x86")
         self.assertIn(process, {"x86", "x86_64"})
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--native-architecture"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(json.loads(result.stdout)["image_architecture"], "x86")
 
     def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
         with self.assertRaises(NativeSaveUnavailable):
