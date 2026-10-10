@@ -20,6 +20,16 @@ class ProfileData:
     profile_id: int = 0
     favorite: bool = False
 
+    def __post_init__(self) -> None:
+        for name in ("xuid", "profile_id"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 0xFFFFFFFFFFFFFFFF:
+                raise ValueError(f"{name} must be an unsigned 64-bit integer")
+        if not isinstance(self.gamer_picture, bytes):
+            raise TypeError("gamer_picture must be bytes")
+        if not isinstance(self.gamertag, str):
+            raise TypeError("gamertag must be a string")
+
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["gamer_picture"] = self.gamer_picture.hex()
