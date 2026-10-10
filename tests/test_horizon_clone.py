@@ -12,6 +12,7 @@ from work.horizon_clone import (
     list_stfs_entries,
     list_embedded_xdbf,
     list_embedded_achievements,
+    rename_stfs_entry,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
@@ -241,6 +242,19 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(result["header_hash_matches"])
         self.assertTrue(result["top_hash_matches"])
         self.assertFalse(result["signature_checked"])
+
+    def test_renames_stfs_entry_and_rehashes(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        mutated = rename_stfs_entry(original, "cache/ph.dat", "ph2.dat", header)
+        renamed_header = parse_stfs_header(mutated)
+        self.assertIn("cache/ph2.dat", {entry.path for entry in list_stfs_entries(mutated, renamed_header)})
+        self.assertEqual(verify_stfs_hashes(mutated, header=renamed_header)["failures"], [])
+        with self.assertRaises(ValueError):
+            rename_stfs_entry(original, "cache/ph.dat", "bad/name", header)
 
     def test_cli_supports_explicit_in_place_mutation(self):
         path = supplied_fixture()
