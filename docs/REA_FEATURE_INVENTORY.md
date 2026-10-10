@@ -36,6 +36,12 @@ The retained member evidence identifies the six `Horizon.ProfileData` fields
 and their managed types. The clone exposes that contract as metadata while
 leaving the opaque Account-file serialization unresolved.
 
+The retained evidence contains 1,140 fields on
+`Horizon.PackageEditors.Gears_of_War_3.EntryID`, including the compiler backing
+field; 1,139 are named editor labels. The clone publishes that complete named
+catalog as metadata, but does not infer the associated numeric IDs or package
+serialization.
+
 The shared STFS report also exposes public certificate descriptors, signature
 byte digests, and all 16 license slots. It deliberately does not verify or
 forge console signatures.
