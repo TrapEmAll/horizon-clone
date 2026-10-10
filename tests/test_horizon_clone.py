@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 18293)
-Total output lines: 1444
+Warning: truncated output (original token count: 18516)
+Total output lines: 1461
 
 import hashlib
 import json
@@ -730,28 +730,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     str(title_path),
                 ],
                 check=True,
-                capture…293 tokens truncated…    self.assertTrue(result["top_hash_matches"])
-
-    def test_signing_provider_boundary_rejects_empty_signatures(self):
-        class EmptyProvider:
-            def sign_sha256(self, message):
-                return b""
-
-        with self.assertRaises(ValueError):
-            sign_with_provider(b"test vector", EmptyProvider())
-
-        self.assertFalse(verify_sha256_pkcs1v15(b"test vector", b"bad", RsaPublicKey(257, 3)))
-        region = SignedRegion("development-test", b"test vector")
-        class TestProvider:
-            def sign_sha256(self, message):
-                self.message = message
-                return b"signature"
-
-        provider = TestProvider()
-        detached = sign_region(region, provider)
-        self.assertEqual(detached.region_label, "development-test")
-        self.assertEqual(provider.message, region.data)
-        detached = DetachedSignature("other-region", detached.algorithm, detached.signature)
+                capture…516 tokens truncated…on", detached.algorithm, detached.signature)
         self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
 
     def test_sha1_verification_dispatch_is_explicit_and_fail_closed(self):
@@ -817,6 +796,23 @@ class ContainerInspectionTests(unittest.TestCase):
             values.unlink(missing_ok=True)
         self.assertEqual(editor_name, "ProfileData metadata editor")
         self.assertEqual(json.loads(edited)["values"]["xuid"], 2)
+
+    def test_editor_edit_values_does_not_allow_implicit_in_place_overwrite(self):
+        source = self.fixture_dir / "editor-edit-in-place.json"
+        values = self.fixture_dir / "editor-edit-in-place-values.json"
+        source.write_text(json.dumps({"editor": "profile-data", "values": {"xuid": 1}}), encoding="utf-8")
+        values.write_text(json.dumps({"xuid": 2}), encoding="utf-8")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "work.horizon_clone", str(source), "--editor-edit-values", str(values), "--editor-edit-output", str(source)],
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            source.unlink(missing_ok=True)
+            values.unlink(missing_ok=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("different from the input path", result.stderr)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
