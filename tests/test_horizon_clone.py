@@ -12,6 +12,7 @@ from work.horizon_clone import (
     read_stfs_entry,
     verify_stfs_hashes,
 )
+from work.signing import RsaPublicKey, sign_with_provider, verify_sha256_pkcs1v15
 
 
 class ContainerInspectionTests(unittest.TestCase):
@@ -81,6 +82,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(result["failures"], [])
         self.assertTrue(result["header_hash_matches"])
         self.assertFalse(result["signature_checked"])
+
+    def test_signing_provider_boundary_rejects_empty_signatures(self):
+        class EmptyProvider:
+            def sign_sha256(self, message):
+                return b""
+
+        with self.assertRaises(ValueError):
+            sign_with_provider(b"test vector", EmptyProvider())
+
+        self.assertFalse(verify_sha256_pkcs1v15(b"test vector", b"bad", RsaPublicKey(257, 3)))
 
 
 if __name__ == "__main__":
