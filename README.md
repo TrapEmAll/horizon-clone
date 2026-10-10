@@ -142,6 +142,9 @@ copied implementation code.
   contract queries within matched managed editor types.
 - Supports opt-in `--schema-field-accesses` to expose REA-observed field-access
   anchors and opcodes for matched managed types.
+- Exposes `--managed-io-contract` for focused static `Read`/`Write`/`Load`/
+  `Save` method contracts, including authenticated CIL anchors, field accesses,
+  and call targets without inferring save offsets.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
