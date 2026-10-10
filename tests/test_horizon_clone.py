@@ -45,7 +45,7 @@ from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_regi
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_of_war_3_entry_ids
-from work.halo_catalog import halo_general_class_types
+from work.halo_catalog import halo_general_class_field_counts, halo_general_class_types
 from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, inventory_summary, observed_editor_inventory
 
@@ -630,6 +630,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("GameVariant", types)
         self.assertIn("Halo4PlayerTraits", types)
         self.assertIn("HMegaloStrings", types)
+        counts = halo_general_class_field_counts()
+        self.assertEqual(counts["GameVariant"], 3)
+        self.assertEqual(counts["Halo4GameOptionsOrdnanceOptions"], 22)
 
     def test_exposes_observed_shared_horizon_catalog_names_without_guessing_values(self):
         catalogs = observed_catalogs()
