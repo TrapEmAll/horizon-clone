@@ -173,6 +173,9 @@ copied implementation code.
   one caller-selected IOCTL is forwarded over a read-only handle with input
   and output bytes represented as hex; FATX command values and safety
   semantics remain caller-resolved.
+- Exposes the authenticated `Horizon.dll`/HVM runtime boundary through
+  `--native-runtime-operation`, preserving raw runtime results and requiring
+  an explicit DLL path and caller-supplied arguments.
 - Tracks the REA-observed managed-resource surface as 206 metadata records,
   205 embedded payloads, and one non-embedded unresolved record, separately
   from implementation claims.
