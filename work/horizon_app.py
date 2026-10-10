@@ -641,27 +641,60 @@ class HorizonApp(tk.Tk):
         try:
             edited = repack_xdbf_entries(self._data, {entry.index: Path(source).read_bytes()})
             self._save_standalone_xdbf(edited, "Save standalone XDBF replacement", "Wrote unsigned standalone XDBF replacement")
-        except (OSError, ValueError, IndexError) as exc:
+        except (OSError, ValueError, IndexError, StopIteration) as exc:
             messagebox.showerror("XDBF replacement failed", str(exc))
 
     def edit_xdbf_text(self) -> None:
-        if not self._standalone_xdbf:
-            messagebox.showinfo("XDBF text", "Open a standalone GPD/XDBF file first.")
-            return
         selected = self.tree.selection()
         if not selected:
             messagebox.showinfo("XDBF text", "Select an XDBF entry first.")
             return
         entry = self._entries[selected[0]]
-        if entry.text is None:
-            messagebox.showinfo("XDBF text", "The selected entry is not an observed namespace-5 string.")
-            return
-        value = simpledialog.askstring("XDBF text", "Replacement text:", initialvalue=entry.text, parent=self)
-        if value is None:
-            return
         try:
-            edited = mutate_xdbf_text(self._data, entry.index, value)
-            self._save_standalone_xdbf(edited, "Save standalone XDBF text edit", "Wrote unsigned standalone XDBF text edit")
+            if self._standalone_xdbf:
+                if entry.text is None:
+                    messagebox.showinfo("XDBF text", "The selected entry is not an observed namespace-5 string.")
+                    return
+                value = simpledialog.askstring("XDBF text", "Replacement text:", initialvalue=entry.text, parent=self)
+                if value is None:
+                    return
+                edited = mutate_xdbf_text(self._data, entry.index, value)
+                self._save_standalone_xdbf(edited, "Save standalone XDBF text edit", "Wrote unsigned standalone XDBF text edit")
+                return
+            if not self._report or not self._report.stfs_header or entry.is_directory:
+                messagebox.showinfo("XDBF text", "Select a readable GPD/XDBF file first.")
+                return
+            payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+            xdbf_entries = parse_xdbf(payload)
+            text_entries = [item for item in xdbf_entries if item.text is not None]
+            if not text_entries:
+                messagebox.showinfo("XDBF text", "The selected file has no observed namespace-5 strings.")
+                return
+            index_text = simpledialog.askstring(
+                "XDBF text index",
+                "Entry index (" + ", ".join(str(item.index) for item in text_entries) + "):",
+                parent=self,
+            )
+            if index_text is None:
+                return
+            selected_text = next(item for item in text_entries if item.index == int(index_text, 0))
+            value = simpledialog.askstring("XDBF text", "Replacement text:", initialvalue=selected_text.text, parent=self)
+            if value is None:
+                return
+            edited_payload = mutate_xdbf_text(payload, selected_text.index, value)
+            mutated = repack_stfs_entries(self._data, {entry.path: edited_payload}, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(
+                title="Save embedded XDBF text edit",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned embedded XDBF text edit: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "xdbf_index": selected_text.index, "signature_checked": False})
         except (OSError, ValueError, IndexError) as exc:
             messagebox.showerror("XDBF text edit failed", str(exc))
 
