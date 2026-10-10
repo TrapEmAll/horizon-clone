@@ -29,6 +29,8 @@ copied implementation code.
 - Exposes the retained REA-observed Gears of War 3 `EntryID` labels; numeric
   values and save offsets remain unclaimed until fixture evidence establishes
   them.
+- Exposes the 103 retained REA-observed Halo general-class type names; field
+  layouts, save offsets, and mutation behavior remain unclaimed.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
   `SaveEntryCategory`; enum values and package offsets remain unclaimed until
   fixture evidence establishes them.
