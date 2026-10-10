@@ -33,6 +33,7 @@ from .horizon_clone import (
     editor_edit_values,
     editor_inspect_report,
     extract_managed_resource_payloads,
+    anti_analysis_report,
     sign_detached_bytes,
 )
 from .editor_inventory import catalog_report
@@ -76,6 +77,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
@@ -255,6 +257,22 @@ class HorizonApp(tk.Tk):
             self._set_details(result)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("Detached signing failed", str(exc))
+
+    def show_anti_analysis(self) -> None:
+        """Display retained REA anti-analysis observations without execution."""
+
+        bundle = filedialog.askopenfilename(
+            title="Choose REA evidence bundle",
+            filetypes=(("JSON evidence", "*.json"), ("All files", "*.*")),
+        )
+        if not bundle:
+            return
+        try:
+            report = anti_analysis_report(Path(bundle))
+            self.status.configure(text="Displayed anti-analysis evidence")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Anti-analysis report failed", str(exc))
 
     def show_selected(self, _event=None) -> None:
         if not self._data or not self._report:
