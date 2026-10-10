@@ -98,6 +98,79 @@ def managed_surface_report(bundle_path: str | Path, pattern: str | None = None) 
     return managed_surface_report_from_bundle(bundle, pattern)
 
 
+def managed_editor_family_report_from_bundle(
+    bundle: dict[str, Any], pattern: str | None = None
+) -> dict[str, Any]:
+    """Group authenticated managed types into queryable editor families."""
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    types = [item for item in result.get("types") or [] if isinstance(item, dict)]
+    fields = [item for item in result.get("fields") or [] if isinstance(item, dict)]
+    methods = [item for item in result.get("methods") or [] if isinstance(item, dict)]
+    matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
+
+    def family_name(full_name: str) -> str:
+        if full_name.startswith("Horizon.PackageEditors."):
+            remainder = full_name[len("Horizon.PackageEditors."):]
+            return "Horizon.PackageEditors." + (remainder.split(".", 1)[0] or "(root)")
+        if full_name.startswith("Horizon."):
+            return "Horizon"
+        if full_name.startswith("A."):
+            return "obfuscated"
+        return full_name.split(".", 1)[0] or "(global)"
+
+    selected = [
+        item for item in types
+        if isinstance(item.get("full_name"), str)
+        and (matcher is None or matcher.search(item["full_name"]))
+    ]
+    selected_names = {item["full_name"] for item in selected}
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in selected:
+        name = item["full_name"]
+        family = family_name(name)
+        group = grouped.setdefault(family, {"family": family, "type_count": 0, "field_count": 0, "method_count": 0, "sample_types": []})
+        group["type_count"] += 1
+        if len(group["sample_types"]) < 12:
+            group["sample_types"].append(name)
+    for item in fields:
+        declaring = item.get("declaring_type")
+        if declaring in selected_names:
+            grouped[family_name(declaring)]["field_count"] += 1
+    for item in methods:
+        declaring = item.get("declaring_type")
+        if declaring in selected_names:
+            grouped[family_name(declaring)]["method_count"] += 1
+    families = sorted(grouped.values(), key=lambda item: item["family"].lower())
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "counts": {"matched_families": len(families), "matched_types": len(selected_names), "total_types": len(types), "total_fields": len(fields), "total_methods": len(methods)},
+        "families": families,
+        "limitations": [
+            "Family grouping is derived from authenticated managed type names only.",
+            "Counts do not establish editor registration, save offsets, serialization, or mutation behavior.",
+        ],
+    }
+
+
+def managed_editor_family_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return editor-family counts from a retained REA managed-members bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-members bundle: {path}") from exc
+    try:
+        return managed_editor_family_report_from_bundle(bundle, pattern)
+    except re.error as exc:
+        raise ValueError(f"invalid managed-editor-family regex: {pattern}") from exc
+
+
 def managed_schema_report_from_bundle(
     bundle: dict[str, Any],
     pattern: str | None = None,
