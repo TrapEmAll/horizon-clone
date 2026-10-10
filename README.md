@@ -167,6 +167,9 @@ copied implementation code.
 - Provides `--sign-detached-signature` with a caller-supplied private-key JSON
   file for authorized development signing; private material is read only for
   the operation and is not included in reports.
+- Provides `--sign-written-output` to sign the exact bytes emitted by a
+  mutation through `--write` or `--in-place`, using the same explicit key and
+  label requirements.
 - Provides `--verify-embedded-signature` for caller-specified in-container
   signature and signed-region offsets; it deliberately does not infer Xbox
   package layout or claim console validity.
