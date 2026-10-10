@@ -484,8 +484,8 @@ class HorizonApp(tk.Tk):
                 flags=None if not flags_text.strip() else int(flags_text, 0),
                 name=name,
             )
-            mutated = mutate_stfs_entry_same_size(
-                self._data, entry, edited, self._report.stfs_header
+            mutated = repack_stfs_entries(
+                self._data, {entry.path: edited}, self._report.stfs_header
             )
             target = filedialog.asksaveasfilename(
                 title="Save achievement edit",
@@ -610,7 +610,7 @@ class HorizonApp(tk.Tk):
                 {},
                 additions={(int(namespace_text, 0), int(entry_id_text, 0)): Path(source).read_bytes()},
             )
-            mutated = mutate_stfs_entry_same_size(self._data, entry, edited, self._report.stfs_header)
+            mutated = repack_stfs_entries(self._data, {entry.path: edited}, self._report.stfs_header)
             target = filedialog.asksaveasfilename(
                 title="Save XDBF entry addition",
                 defaultextension=".con",
