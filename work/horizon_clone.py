@@ -1167,6 +1167,7 @@ def main() -> int:
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
+    parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
@@ -1295,6 +1296,11 @@ def main() -> int:
             parser.error("the file does not contain a readable STFS header")
         verification = verify_stfs_hashes(raw, header=report.stfs_header)
         print(json.dumps(verification, indent=2))
+
+    if args.security:
+        if not report.stfs_security:
+            parser.error("the file does not contain readable STFS security metadata")
+        print(json.dumps(asdict(report.stfs_security), indent=2))
 
     if args.replace:
         if not args.replacement or not write_target:
