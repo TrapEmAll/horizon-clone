@@ -28,6 +28,7 @@ from work.horizon_clone import (
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
     parse_stfs_security_metadata,
+    extract_stfs_public_key,
     parse_stfs_thumbnails,
     parse_xdbf,
     xdbf_payload_surface,
@@ -1144,6 +1145,10 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(metadata.signature_kind, "console-certificate")
         self.assertEqual(len(metadata.licenses), 16)
         self.assertIsNotNone(metadata.package_signature_sha256)
+        key = extract_stfs_public_key(path.read_bytes())
+        self.assertEqual(key.exponent, 65537)
+        self.assertLessEqual(key.modulus.bit_length(), 1024)
+        self.assertGreater(key.modulus.bit_length(), 1000)
         self.assertTrue(metadata.header_sha1_matches)
         self.assertEqual(len(metadata.header_sha1), 40)
         self.assertIsNotNone(metadata.public_modulus_sha256)
