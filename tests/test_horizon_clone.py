@@ -798,7 +798,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("InitialEquipment", properties)
         self.assertIn("c09521bc19ea8141a547e37f5ed091fcf", properties)
 
-    def test_exposes_observed_shared_horizon_catalog_names_without_guessing_values(self):
+    def test_exposes_authenticated_shared_horizon_constant_values(self):
         catalogs = observed_catalogs()
         self.assertEqual(
             {item.name for item in catalogs},
@@ -806,7 +806,8 @@ class ContainerInspectionTests(unittest.TestCase):
         )
         self.assertEqual(catalog_member_names("ProfileLoadout"), ("All_Loadouts",))
         self.assertIn("Campaign_Level", catalog_member_names("SaveEntryCategory"))
-        self.assertFalse(any(item.values_observed for item in catalogs))
+        self.assertTrue(any(item.values_observed for item in catalogs))
+        self.assertEqual(catalog_report("shared")["values"]["SaveEntryCategory"]["Campaign_Level"], 6)
 
     def test_exposes_observed_profile_data_field_contract(self):
         fields = observed_profile_data_fields()
@@ -1087,7 +1088,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual([item.field_count for item in rows if item.name == "Weapon"], [11, 38])
         report = global_catalog_report()
         self.assertEqual(report["observed_namespace_type_count"], 632)
-        self.assertFalse(report["values_observed"])
+        self.assertTrue(report["values_observed"])
+        self.assertEqual(report["values"]["XGearSlot"]["Pants"], 13)
         self.assertEqual(catalog_report("global")["status"], "catalog-only")
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
