@@ -98,6 +98,11 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(achievement["flags"], 7)
         self.assertEqual(achievement["name"], "New")
 
+        editor = XdbfEditor()
+        edited = editor.edit_achievement(data, 0, gamerscore=125, name="API")
+        self.assertEqual(parse_xdbf(edited)[0].achievement["gamerscore"], 125)
+        self.assertEqual(parse_xdbf(edited)[0].achievement["name"], "API")
+
     def test_mutates_and_rehashes_supplied_profile_fixture(self):
         path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
         if not path.exists():
