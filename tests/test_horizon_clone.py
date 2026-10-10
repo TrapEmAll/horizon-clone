@@ -41,6 +41,7 @@ from work.horizon_clone import (
     parse_stfs_header,
     parse_stfs_security_metadata,
     extract_stfs_public_key,
+    stfs_signature_region_report,
     read_private_key_json,
     sign_detached_signature,
     sign_detached_bytes,
@@ -2044,6 +2045,10 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual((metadata.certificate_signature_offset, metadata.certificate_signature_length), (0xAC, 0x100))
         self.assertEqual((metadata.package_signature_offset, metadata.package_signature_length), (0x1AC, 0x80))
         self.assertIsNotNone(metadata.package_signature_sha256)
+        regions = stfs_signature_region_report(path.read_bytes())
+        self.assertEqual(regions["status"], "metadata-only")
+        self.assertEqual([item["name"] for item in regions["regions"]], ["certificate-signature", "package-signature"])
+        self.assertEqual(regions["public_key"]["exponent"], 65537)
         key = extract_stfs_public_key(path.read_bytes())
         self.assertEqual(key.exponent, 65537)
         self.assertLessEqual(key.modulus.bit_length(), 1024)
