@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 18755)
-Total output lines: 1482
+Warning: truncated output (original token count: 18923)
+Total output lines: 1492
 
 import hashlib
 import json
@@ -730,26 +730,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     str(thumbnail_path),
                     "--title-thumbnail-output",
                     str(title_path),
-             …755 tokens truncated…ct()), profile)
-
-    def test_profile_data_cli_report_validates_authenticated_envelope(self):
-        path = self.fixture_dir / "profile-data.json"
-        path.write_text(json.dumps({
-            "editor": "profile-data",
-            "values": {
-                "from_device": True,
-                "xuid": 1,
-                "gamertag": "Test User",
-                "gamer_picture": "0102",
-                "profile_id": 2,
-                "favorite": False,
-            },
-        }), encoding="utf-8")
-        try:
-            report = profile_data_report(path)
-        finally:
-            path.unlink(missing_ok=True)
-        self.assertEqual(report["status"], "metadata-only")
+             …923 tokens truncated…data-only")
         self.assertEqual(report["values"]["xuid"], 1)
 
     def test_editor_inspect_dispatches_an_explicit_profile_envelope(self):
@@ -1222,6 +1203,16 @@ class ContainerInspectionTests(unittest.TestCase):
         report = verify_managed_resource_payloads(executable, bundle, "A\\.c298")
         self.assertEqual(report["counts"], {"verified": 1, "unresolved": 0})
         self.assertEqual(report["resources"][0]["status"], "verified")
+
+    def test_verifies_all_embedded_managed_resource_hashes(self):
+        executable = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.exe")
+        bundle = Path("work/rea-managed-members-latest.json")
+        if not executable.exists() or not bundle.exists():
+            self.skipTest("supplied Horizon.exe and retained REA bundle are not available")
+        report = verify_managed_resource_payloads(executable, bundle)
+        self.assertEqual(report["status"], "partial")
+        self.assertEqual(report["counts"], {"verified": 205, "unresolved": 1})
+        self.assertEqual(sum(item["status"] == "verified" for item in report["resources"]), 205)
 
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
