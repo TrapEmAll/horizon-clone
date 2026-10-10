@@ -51,6 +51,8 @@ python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile
 python -m work.horizon_clone C:\path\to\container --repack Account --repack-source account.bin --write repacked.con
 python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
+python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-replace 5 --xdbf-source payload.bin --write edited.gpd
+python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-remove 5 --write without-entry.gpd
 python -m work.horizon_app
 ```
 
