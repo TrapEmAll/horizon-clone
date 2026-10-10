@@ -122,6 +122,8 @@ copied implementation code.
   type to its fields and methods without inferring save offsets or serializers.
 - Adds opt-in `--schema-bodies` summaries for REA-observed method-body status,
   instruction counts, opcode counts, and IL digests.
+- Supports `--schema-method-pattern` for focused `Read`/`Write`/`Save` method
+  contract queries within matched managed editor types.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
