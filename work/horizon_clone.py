@@ -63,6 +63,7 @@ class StfsHeader:
     file_table_block_number: int
     allocated_block_count: int
     display_name: str
+    top_hash_table_hash: str
 
 
 @dataclass(frozen=True)
@@ -295,6 +296,7 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         file_table_block_number=_u24le(data, 0x37E),
         allocated_block_count=_u32be(data, 0x395),
         display_name=_fixed_text(data, 0x411, 0x80, "utf-16-be"),
+        top_hash_table_hash=data[0x381:0x395].hex(),
     )
 
 
@@ -356,6 +358,148 @@ def _hash_record_address(data: bytes, block: int, header: StfsHeader) -> int:
         address += (data[level1_record + 0x14] & 0x40) << 6
     record = address + (block % 0xAA) * 0x18
     return record if record + 0x18 <= len(data) else -1
+
+
+def _top_level(header: StfsHeader) -> int:
+    if header.allocated_block_count <= 0xAA:
+        return 0
+    if header.allocated_block_count <= 0x70E4:
+        return 1
+    if header.allocated_block_count <= 0x4AF768:
+        return 2
+    raise ValueError("STFS allocation exceeds the supported three-level hash tree")
+
+
+def _hash_table_address(
+    data: bytes, block: int, header: StfsHeader, level: int
+) -> int:
+    """Return the selected physical address of a hash table.
+
+    ``block`` is the first logical data block covered by the table.  STFS
+    stores two copies of non-top tables and uses the parent's status bit to
+    select the active copy.  This mirrors the address selection used by
+    ``_hash_record_address`` while keeping table-level operations explicit.
+    """
+    if level not in (0, 1, 2):
+        raise ValueError("hash-table level must be 0, 1, or 2")
+    top_level = _top_level(header)
+    if level > top_level:
+        raise ValueError("hash-table level is not present in this package")
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    shift = 0 if header.block_separation & 1 else 1
+    step0 = 0xAB if shift == 0 else 0xAC
+    step1 = 0x718F if shift == 0 else 0x723A
+
+    if level == 0:
+        if block < 0 or block >= header.allocated_block_count:
+            raise ValueError("level-0 table starts outside the allocation")
+        if block < 0xAA:
+            hash_block = 0
+        else:
+            hash_block = (block // 0xAA) * step0 + (((block // 0x70E4) + 1) << shift)
+            if block // 0x70E4:
+                hash_block += 1 << shift
+    elif level == 1:
+        hash_block = step0 if block < 0x70E4 else (1 << shift) + (block // 0x70E4) * step1
+    else:
+        hash_block = step1
+
+    address = first_hash_table + (hash_block << 12)
+    if level == top_level:
+        return address + ((header.block_separation & 2) << 11)
+
+    if top_level == 1 and level == 0:
+        parent = _hash_table_address(data, 0, header, 1)
+        selector = parent + (block // 0xAA) * 0x18 + 0x14
+    elif top_level == 2 and level == 1:
+        parent = _hash_table_address(data, 0, header, 2)
+        selector = parent + (block // 0x70E4) * 0x18 + 0x14
+    elif top_level == 2 and level == 0:
+        parent = _hash_table_address(data, 0, header, 2)
+        top_selector = parent + (block // 0x70E4) * 0x18 + 0x14
+        if top_selector + 1 > len(data):
+            raise ValueError("top hash table selector is outside the container")
+        level1_block = (1 << shift) + (block // 0x70E4) * step1
+        level1 = first_hash_table + (level1_block << 12)
+        selector = level1 + ((data[top_selector] & 0x40) << 6) + (block // 0xAA % 0xAA) * 0x18 + 0x14
+    else:
+        raise ValueError("unsupported STFS hash-table relationship")
+    if selector + 1 > len(data):
+        raise ValueError("hash table selector is outside the container")
+    return address + ((data[selector] & 0x40) << 6)
+
+
+def _table_count(header: StfsHeader, level: int) -> int:
+    covered = (0xAA, 0x70E4, 0x4AF768)[level]
+    return (header.allocated_block_count + covered - 1) // covered
+
+
+def _table_entry_count(header: StfsHeader, level: int, index: int) -> int:
+    if level == 0:
+        return min(0xAA, header.allocated_block_count - index * 0xAA)
+    child_count = _table_count(header, level - 1)
+    return min(0xAA, child_count - index * 0xAA)
+
+
+def rehash_stfs_hashes(data: bytes, header: StfsHeader | None = None) -> bytes:
+    """Rebuild the complete STFS hash tree without changing its allocation.
+
+    This updates data-block hashes, every present intermediate table, the
+    table count words, the top-table digest, and the metadata digest.  It does
+    not create new allocation levels and does not generate the package's RSA
+    signature.
+    """
+    header = header or parse_stfs_header(data)
+    result = bytearray(data)
+    top_level = _top_level(header)
+
+    def write_hash(record: int, payload: bytes) -> None:
+        if record < 0 or record + 0x14 > len(result):
+            raise ValueError("hash record is outside the container")
+        result[record : record + 0x14] = hashlib.sha1(payload).digest()
+
+    # Rebuild level-0 tables and hash each selected table into its parent.
+    for table_index in range(_table_count(header, 0)):
+        first_block = table_index * 0xAA
+        table_address = _hash_table_address(result, first_block, header, 0)
+        count = _table_entry_count(header, 0, table_index)
+        for offset in range(count):
+            block = first_block + offset
+            address = block_offset(block, header.header_size, header.block_separation)
+            record = table_address + offset * 0x18
+            if address + BLOCK_SIZE > len(result):
+                raise ValueError("data block is outside the container")
+            write_hash(record, result[address : address + BLOCK_SIZE])
+        table_bytes = bytes(result[table_address : table_address + BLOCK_SIZE])
+        if len(table_bytes) != BLOCK_SIZE:
+            raise ValueError("level-0 hash table is outside the container")
+        if top_level == 1:
+            parent_address = _hash_table_address(result, 0, header, 1)
+            write_hash(parent_address + table_index * 0x18, table_bytes)
+
+    if top_level == 2:
+        # Level-1 tables hash the level-0 tables.  The final word records the
+        # number of data blocks covered by each level-1 table.
+        for table_index in range(_table_count(header, 1)):
+            first_level0 = table_index * 0xAA
+            table_address = _hash_table_address(result, table_index * 0x70E4, header, 1)
+            count = _table_entry_count(header, 1, table_index)
+            for offset in range(count):
+                level0_index = first_level0 + offset
+                level0_address = _hash_table_address(result, level0_index * 0xAA, header, 0)
+                write_hash(table_address + offset * 0x18, bytes(result[level0_address : level0_address + BLOCK_SIZE]))
+            covered = _table_entry_count(header, 2, table_index)
+            result[table_address + 0xFFC : table_address + 0x1000] = covered.to_bytes(4, "little")
+            parent_address = _hash_table_address(result, 0, header, 2)
+            write_hash(parent_address + table_index * 0x18, bytes(result[table_address : table_address + BLOCK_SIZE]))
+
+    top_address = _hash_table_address(result, 0, header, top_level)
+    if top_level >= 1:
+        result[top_address + 0xFFC : top_address + 0x1000] = header.allocated_block_count.to_bytes(4, "little")
+    result[0x381:0x395] = hashlib.sha1(result[top_address : top_address + BLOCK_SIZE]).digest()
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
+    return bytes(result)
 
 
 def _next_block(data: bytes, block: int, header: StfsHeader) -> int:
@@ -486,9 +630,7 @@ def mutate_stfs_entry_same_size(
     if remaining:
         raise ValueError(f"entry {entry.path!r} has a broken block chain")
 
-    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
-    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
-    return bytes(result)
+    return rehash_stfs_hashes(bytes(result), header)
 
 
 def mutate_stfs_metadata(
@@ -515,9 +657,7 @@ def mutate_stfs_metadata(
         if not 0 <= content_type <= 0xFFFFFFFF:
             raise ValueError("content type must fit in an unsigned 32-bit field")
         result[0x344:0x348] = content_type.to_bytes(4, "big")
-    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
-    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
-    return bytes(result)
+    return rehash_stfs_hashes(bytes(result), header)
 
 
 def _stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
@@ -616,18 +756,7 @@ def repack_stfs_entries(
         raw[0x34:0x38] = len(payloads[entry.path]).to_bytes(4, "big")
         result[slot : slot + 0x40] = raw
 
-    changed_blocks = set(reserved)
-    for blocks in allocations.values():
-        changed_blocks.update(blocks)
-    for block in changed_blocks:
-        address = block_offset(block, header.header_size, header.block_separation)
-        record = _hash_record_address(result, block, header)
-        if record < 0 or address + BLOCK_SIZE > len(result):
-            raise ValueError("unable to rebuild an STFS block hash")
-        result[record : record + 0x14] = hashlib.sha1(result[address : address + BLOCK_SIZE]).digest()
-    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
-    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
-    return bytes(result)
+    return rehash_stfs_hashes(bytes(result), header)
 
 
 def verify_stfs_hashes(
@@ -639,6 +768,7 @@ def verify_stfs_hashes(
     header = header or parse_stfs_header(data)
     entries = (entry,) if entry is not None else list_stfs_entries(data, header)
     failures: list[dict] = []
+    hash_table_failures: list[dict] = []
     checked_blocks = 0
     for current in entries:
         if current.is_directory:
@@ -664,10 +794,39 @@ def verify_stfs_hashes(
 
     first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
     header_hash_matches = hashlib.sha1(data[0x344:first_hash_table]).digest() == data[0x32C:0x340]
+    top_level = _top_level(header)
+    for table_index in range(_table_count(header, 0)):
+        level0_address = _hash_table_address(data, table_index * 0xAA, header, 0)
+        actual = hashlib.sha1(data[level0_address : level0_address + BLOCK_SIZE]).digest()
+        if top_level == 1:
+            parent_address = _hash_table_address(data, 0, header, 1)
+            expected = data[parent_address + table_index * 0x18 : parent_address + table_index * 0x18 + 0x14]
+        elif top_level == 2:
+            parent_address = _hash_table_address(data, (table_index // 0xAA) * 0x70E4, header, 1)
+            expected = data[parent_address + (table_index % 0xAA) * 0x18 : parent_address + (table_index % 0xAA) * 0x18 + 0x14]
+        else:
+            expected = actual
+        if actual != expected:
+            hash_table_failures.append({"level": 0, "table": table_index, "reason": "table_hash"})
+
+    if top_level == 2:
+        top_address = _hash_table_address(data, 0, header, 2)
+        for table_index in range(_table_count(header, 1)):
+            level1_address = _hash_table_address(data, table_index * 0x70E4, header, 1)
+            actual = hashlib.sha1(data[level1_address : level1_address + BLOCK_SIZE]).digest()
+            expected = data[top_address + table_index * 0x18 : top_address + table_index * 0x18 + 0x14]
+            if actual != expected:
+                hash_table_failures.append({"level": 1, "table": table_index, "reason": "table_hash"})
+    top_address = _hash_table_address(data, 0, header, top_level)
+    top_hash_matches = (
+        hashlib.sha1(data[top_address : top_address + BLOCK_SIZE]).digest() == data[0x381:0x395]
+    )
     return {
         "checked_blocks": checked_blocks,
         "failures": failures,
+        "hash_table_failures": hash_table_failures,
         "header_hash_matches": header_hash_matches,
+        "top_hash_matches": top_hash_matches,
         "signature_checked": False,
     }
 
