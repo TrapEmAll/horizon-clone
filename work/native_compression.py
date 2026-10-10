@@ -9,6 +9,7 @@ from __future__ import annotations
 import ctypes
 from dataclasses import dataclass
 from pathlib import Path
+from .native_loader import require_compatible_pe_architecture
 from typing import Protocol
 
 
@@ -42,6 +43,7 @@ class CtypesLzoProvider:
             raise ValueError("lzo.dll path must be absolute")
         if not path.is_file():
             raise FileNotFoundError(path)
+        require_compatible_pe_architecture(path)
         loader = getattr(ctypes, "WinDLL", None)
         if loader is None:
             raise OSError("lzo.dll provider requires Windows ctypes.WinDLL")
