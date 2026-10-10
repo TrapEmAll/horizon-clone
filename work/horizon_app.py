@@ -30,6 +30,23 @@ from .horizon_clone import (
 )
 
 
+def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write an artifact through a same-directory replacement."""
+
+    temporary = path.with_name(path.name + ".horizon-tmp")
+    try:
+        temporary.write_bytes(data)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Atomically write a UTF-8 text export."""
+
+    _atomic_write_bytes(path, text.encode("utf-8"))
+
+
 class HorizonApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -223,7 +240,7 @@ class HorizonApp(tk.Tk):
             mutated = mutate_stfs_entry_same_size(
                 self._data, entry, replacement, self._report.stfs_header
             )
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned mutation: {entry.path}")
@@ -259,7 +276,7 @@ class HorizonApp(tk.Tk):
             mutated = repack_stfs_entries(
                 self._data, {entry.path: replacement}, self._report.stfs_header
             )
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned repack: {entry.path}")
@@ -295,7 +312,7 @@ class HorizonApp(tk.Tk):
                 self._report.stfs_header,
                 additions={package_path: Path(source).read_bytes()},
             )
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.tree.delete(*self.tree.get_children())
@@ -328,7 +345,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.tree.delete(*self.tree.get_children())
@@ -357,7 +374,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.tree.delete(*self.tree.get_children())
@@ -391,7 +408,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.tree.delete(*self.tree.get_children())
@@ -428,7 +445,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.tree.delete(*self.tree.get_children())
@@ -510,7 +527,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text="Wrote unsigned metadata edit")
@@ -539,7 +556,7 @@ class HorizonApp(tk.Tk):
         if not target:
             return False
         path = Path(target)
-        path.write_bytes(data)
+        _atomic_write_bytes(path, data)
         self._load_standalone_xdbf(path, data)
         self.status.configure(text=status)
         return True
@@ -639,7 +656,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned achievement edit: {entry.path}")
@@ -675,7 +692,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text="Wrote unsigned thumbnail mutation")
@@ -703,8 +720,8 @@ class HorizonApp(tk.Tk):
             )
             if not title_path:
                 return
-            Path(thumbnail_path).write_bytes(thumbnails.thumbnail)
-            Path(title_path).write_bytes(thumbnails.title_thumbnail)
+            _atomic_write_bytes(Path(thumbnail_path), thumbnails.thumbnail)
+            _atomic_write_bytes(Path(title_path), thumbnails.title_thumbnail)
             self.status.configure(text="Exported thumbnail payloads")
             self._set_details({"thumbnail": thumbnail_path, "title_thumbnail": title_path})
         except (OSError, ValueError) as exc:
@@ -723,7 +740,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_text(json.dumps(achievements, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            _atomic_write_text(Path(target), json.dumps(achievements, indent=2, ensure_ascii=False) + "\n")
             self.status.configure(text=f"Exported {len(achievements)} achievements")
             self._set_details({"path": target, "achievement_count": len(achievements)})
         except (OSError, ValueError, IsADirectoryError) as exc:
@@ -757,7 +774,7 @@ class HorizonApp(tk.Tk):
         if not target:
             return
         try:
-            Path(target).write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            _atomic_write_text(Path(target), json.dumps(inventory, indent=2, ensure_ascii=False) + "\n")
             self.status.configure(text=f"Exported {len(inventory)} XDBF entries")
             self._set_details({"path": target, "xdbf_entry_count": len(inventory)})
         except OSError as exc:
@@ -816,7 +833,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned XDBF entry addition: {entry.path}")
@@ -850,7 +867,7 @@ class HorizonApp(tk.Tk):
             target = filedialog.asksaveasfilename(title="Save embedded XDBF replacement", defaultextension=".con", filetypes=(("Xbox content", "*.con"), ("All files", "*.*")))
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned embedded XDBF replacement: {entry.path}")
@@ -904,7 +921,7 @@ class HorizonApp(tk.Tk):
             )
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned embedded XDBF text edit: {entry.path}")
@@ -937,7 +954,7 @@ class HorizonApp(tk.Tk):
             target = filedialog.asksaveasfilename(title="Save embedded XDBF removal", defaultextension=".con", filetypes=(("Xbox content", "*.con"), ("All files", "*.*")))
             if not target:
                 return
-            Path(target).write_bytes(mutated)
+            _atomic_write_bytes(Path(target), mutated)
             self._data = mutated
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned embedded XDBF removal: {entry.path}")
@@ -954,7 +971,7 @@ class HorizonApp(tk.Tk):
             return
         report = asdict(self._report)
         report["is_container"] = self._report.is_container
-        Path(target).write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        _atomic_write_text(Path(target), json.dumps(report, indent=2, ensure_ascii=False) + "\n")
 
 
 def main() -> int:
