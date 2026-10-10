@@ -79,6 +79,9 @@ def legacy_catalog_report() -> dict[str, object]:
                         "name": name,
                         "field_count": count,
                         "field_names": list(legacy_field_names(item.namespace, name)),
+                        "named_member_count": count - 1,
+                        "value_field_observed": "value__" in legacy_field_names(item.namespace, name),
+                        "backing_type": "i4",
                     }
                     for name, count in item.types
                 ],
