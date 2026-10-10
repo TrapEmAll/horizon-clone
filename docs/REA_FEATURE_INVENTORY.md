@@ -186,6 +186,11 @@ claim that a particular provider reproduces Horizon's codec configuration.
 does not select a provider, infer work-memory requirements, or claim that an
 arbitrary provider matches Horizon's compression configuration.
 
+The supplied x86 DLL was also exercised through the explicit PowerShell bridge
+for both `lzo1x` and `lzo2a`; the `lzo2a_999_compress`/`lzo2a_decompress` pair
+round-tripped with a caller-provided 256 KiB work buffer. This is provider
+evidence, not a claim that every Horizon payload uses that configuration.
+
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
