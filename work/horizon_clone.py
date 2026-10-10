@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import BinaryIO, Iterable
 
 from .editor_inventory import capability_report, catalog_report
-from .native_surface import managed_native_import_report, native_export_contract_report, native_surface_report
+from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
@@ -2007,6 +2007,7 @@ def main() -> int:
     parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--native-exports", action="store_true", help="Inspect named PE exports without loading the image")
     parser.add_argument("--native-contract", action="store_true", help="Compare a supplied DLL with its REA-observed export contract")
+    parser.add_argument("--native-installation", type=Path, metavar="DIRECTORY", help="Inventory expected native Horizon DLLs without loading them")
     parser.add_argument("--native-import-bundle", type=Path, help="Read the complete REA managed P/Invoke inventory")
     parser.add_argument("--native-import-pattern", help="Case-insensitive regex for --native-import-bundle scope!name")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
@@ -2187,6 +2188,12 @@ def main() -> int:
     if args.native_contract:
         try:
             print(json.dumps(native_export_contract_report(args.path), indent=2, ensure_ascii=False))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        return 0
+    if args.native_installation:
+        try:
+            print(json.dumps(native_installation_report(args.native_installation), indent=2, ensure_ascii=False))
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         return 0
