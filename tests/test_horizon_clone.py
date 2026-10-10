@@ -2151,6 +2151,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertGreater(report["changed_outside_signature_regions"], 0)
         self.assertTrue(report["stored_signature_bytes_unchanged"])
         self.assertFalse(report["console_validity_checked"])
+        self.assertTrue(report["hash_tree"]["verified"])
+        self.assertEqual(report["hash_tree"]["failures"], [])
 
     def test_repacks_entry_with_a_different_size(self):
         path = supplied_fixture()
