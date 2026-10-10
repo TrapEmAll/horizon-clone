@@ -51,7 +51,7 @@ from work.profile_model import ProfileData
 from work.editors import AccountEditor, EditorContext, EditorRegistry, HaloMetadataEditor, ManagedSurfaceEditor, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
-from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids
+from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids, resolve_gears_entry_id, validate_gears_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
@@ -916,6 +916,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Opaque Account editor dispatch"]["status"], "implemented")
         self.assertEqual(by_name["Halo typed metadata validation"]["status"], "metadata-only")
         self.assertEqual(by_name["Halo metadata editor dispatch"]["status"], "metadata-only")
+        self.assertEqual(by_name["Gears EntryID validation"]["status"], "metadata-only")
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
@@ -1132,6 +1133,10 @@ class ContainerInspectionTests(unittest.TestCase):
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
         self.assertEqual(gears_entry_id_values()["SyncID"], 1)
+        self.assertEqual(resolve_gears_entry_id("SyncID"), 1)
+        self.assertEqual(validate_gears_entry_ids({"SyncID": 1}), {"SyncID": 1})
+        with self.assertRaises(ValueError):
+            validate_gears_entry_ids({"SyncID": 2})
         self.assertTrue(catalog_report("gears")["summary"]["constant_values_observed"])
         self.assertEqual(len(catalog_report("halo")["types"]), 103)
         self.assertEqual(len(catalog_report("halo")["property_names"]), 140)
