@@ -1180,6 +1180,28 @@ def list_embedded_achievements(
     return tuple(records)
 
 
+def mutate_profile_achievement_flags(
+    data: bytes,
+    mask: int,
+    *,
+    mode: str = "or",
+) -> bytes:
+    """Apply an explicit raw achievement-flags mask across embedded GPDs."""
+
+    header = parse_stfs_header(data)
+    replacements: dict[str, bytes] = {}
+    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
+        if Path(file_entry.path).suffix.lower() != ".gpd":
+            continue
+        if not any(item.achievement is not None for item in xdbf_entries):
+            continue
+        payload = read_stfs_entry(data, file_entry, header)
+        replacements[file_entry.path] = mutate_xdbf_achievement_flags(payload, mask, mode=mode)
+    if not replacements:
+        raise ValueError("STFS contains no embedded GPD achievement payloads")
+    return repack_stfs_entries(data, replacements, header)
+
+
 def summarize_profile_achievements(
     data: bytes, header: StfsHeader | None = None
 ) -> dict[str, object]:
@@ -1943,6 +1965,8 @@ def main() -> int:
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
     parser.add_argument("--achievement-flags-or", type=lambda value: int(value, 0), help="Set a raw 16-bit flags mask on every observed achievement in one XDBF payload")
     parser.add_argument("--achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask on every observed achievement in one XDBF payload")
+    parser.add_argument("--profile-achievement-flags-or", type=lambda value: int(value, 0), help="Set a raw 16-bit flags mask across every observed achievement in embedded GPDs")
+    parser.add_argument("--profile-achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask across every observed achievement in embedded GPDs")
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
     parser.add_argument("--achievement-unlock-utc", help="Replace the achievement unlock time with a timezone-aware ISO-8601 UTC value")
     parser.add_argument("--achievement-name")
@@ -2235,6 +2259,22 @@ def main() -> int:
 
     try:
         raw = args.path.read_bytes()
+        profile_flags_requested = args.profile_achievement_flags_or is not None or args.profile_achievement_flags_and_not is not None
+        if args.profile_achievement_flags_or is not None and args.profile_achievement_flags_and_not is not None:
+            parser.error("choose one of --profile-achievement-flags-or or --profile-achievement-flags-and-not")
+        if profile_flags_requested:
+            if raw[:4] not in STFS_MAGICS:
+                parser.error("profile achievement flag editing requires an STFS container")
+            if not write_target:
+                parser.error("profile achievement flag editing requires --write or --in-place")
+            raw = mutate_profile_achievement_flags(
+                raw,
+                args.profile_achievement_flags_or if args.profile_achievement_flags_or is not None else args.profile_achievement_flags_and_not,
+                mode="or" if args.profile_achievement_flags_or is not None else "and-not",
+            )
+            write_mutation(raw)
+            mutation_written = True
+            print(f"Wrote profile achievement flag mutation to {write_target}")
         if raw[:4] == b"XDBF":
             achievement_requested = args.achievement is not None
             bulk_flags_requested = args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
