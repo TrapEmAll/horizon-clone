@@ -1350,6 +1350,19 @@ def list_embedded_achievements(
     return tuple(records)
 
 
+def list_embedded_achievement_image_links(
+    data: bytes, header: StfsHeader | None = None
+) -> tuple[dict[str, object], ...]:
+    """Return image links for every parseable embedded GPD/FIT payload."""
+
+    records: list[dict[str, object]] = []
+    for file_entry, _xdbf_entries in list_embedded_xdbf(data, header):
+        payload = read_stfs_entry(data, file_entry, header)
+        for link in xdbf_achievement_image_links(payload):
+            records.append({"file": file_entry.path, **link})
+    return tuple(records)
+
+
 def mutate_profile_achievement_flags(
     data: bytes,
     mask: int,
