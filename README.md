@@ -85,9 +85,10 @@ copied implementation code.
 The managed executable declares 14 native module references and 54 P/Invoke
 imports, including `class3.dll` save encrypt/decrypt exports and the
 `Horizon.dll`/`HVMRun64.dll` DNG/HVM exports. `--native-surface` exposes this
-declaration-only inventory. Calling signatures and native protocols remain
-unresolved until authenticated native analysis or a compatible test provider
-is available. REA also resolves the managed `Startup` caller for the runtime
+declaration-only inventory. REA recovers managed declaration shapes for the
+save-crypto, LZO, runtime, and user-string imports, but native protocols and
+parameter semantics remain unresolved until authenticated native analysis or a
+compatible test provider is available. REA also resolves the managed `Startup` caller for the runtime
 checks and the `CheckString` caller for the user-string exports; the clone
 does not load or invoke those DLLs implicitly.
 
