@@ -148,6 +148,9 @@ copied implementation code.
 - Extracts uniquely hash-verified embedded resource payloads with
   `--extract-resources DIR --resource-bundle BUNDLE`; unresolved or ambiguous
   spans are reported without writing unverified bytes.
+- Exposes the same managed-resource extraction flow from the desktop front end
+  through an explicit executable, REA bundle, output directory, and optional
+  resource-name filter.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
