@@ -1001,6 +1001,42 @@ def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | No
     return rehash_stfs_hashes(bytes(result), header)
 
 
+def move_stfs_entry(
+    data: bytes,
+    entry_path: str,
+    destination_directory: str,
+    new_name: str | None = None,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Move an STFS entry to an existing directory without reallocating data."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    entry = next((item for item in entries if item.path == entry_path), None)
+    destination = next((item for item in entries if item.path == destination_directory), None)
+    if entry is None:
+        raise FileNotFoundError(entry_path)
+    if destination is None or not destination.is_directory:
+        raise FileNotFoundError(f"destination directory does not exist: {destination_directory}")
+    if entry.is_directory and (destination_directory == entry_path or destination_directory.startswith(entry_path + "/")):
+        raise ValueError("an STFS directory cannot be moved into itself or its descendants")
+    target_name = new_name or entry.name
+    encoded_name = target_name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS names must be non-empty ASCII basenames of at most 40 bytes")
+    new_path = f"{destination_directory}/{target_name}"
+    if any(item.path == new_path and item.path != entry_path for item in entries):
+        raise ValueError(f"STFS entry already exists: {new_path}")
+    slots = _stfs_file_table_slots(data, header)
+    if entry.index >= len(slots):
+        raise ValueError("STFS entry index does not resolve to a file-table slot")
+    result = bytearray(data)
+    slot = slots[entry.index]
+    result[slot : slot + 0x28] = encoded_name.ljust(0x28, b"\x00")
+    result[slot + 0x28] = (result[slot + 0x28] & 0xC0) | len(encoded_name)
+    result[slot + 0x32 : slot + 0x34] = destination.index.to_bytes(2, "big")
+    return rehash_stfs_hashes(bytes(result), header)
+
+
 def repack_stfs_entries(
     data: bytes,
     replacements: dict[str, bytes],
@@ -1311,6 +1347,8 @@ def main() -> int:
     parser.add_argument("--rename", metavar="ENTRY", help="Rename an STFS file or directory")
     parser.add_argument("--new-name", help="New ASCII basename for --rename")
     parser.add_argument("--mkdir", metavar="PATH", help="Add an empty STFS directory")
+    parser.add_argument("--move", metavar="ENTRY", help="Move an STFS entry to another directory")
+    parser.add_argument("--move-to", metavar="DIRECTORY", help="Destination directory for --move")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument(
         "--in-place",
@@ -1523,6 +1561,19 @@ def main() -> int:
         except (OSError, ValueError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned STFS directory addition to {write_target}")
+
+    if args.move:
+        if not args.move_to or not write_target:
+            parser.error("--move requires --move-to and --write or --in-place")
+        if not report.stfs_header:
+            parser.error("--move requires a readable STFS header")
+        try:
+            raw = move_stfs_entry(raw, args.move, args.move_to, args.new_name, report.stfs_header)
+            write_mutation(raw)
+            mutation_written = True
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned STFS move to {write_target}")
 
     if args.list:
         if not report.entries:
