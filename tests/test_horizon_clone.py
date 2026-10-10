@@ -10,6 +10,7 @@ from pathlib import Path
 from work.horizon_clone import (
     inspect,
     list_stfs_entries,
+    list_embedded_xdbf,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
@@ -339,6 +340,14 @@ class ContainerInspectionTests(unittest.TestCase):
         )
         self.assertIn("FFFE07D1.gpd", result.stdout)
         self.assertIn("string    106", result.stdout)
+
+    def test_lists_embedded_xdbf_library_api(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        embedded = list_embedded_xdbf(path.read_bytes())
+        self.assertTrue(any(entry.path == "FFFE07D1.gpd" for entry, _ in embedded))
+        self.assertTrue(any(item.index == 106 for entry, items in embedded if entry.path == "FFFE07D1.gpd" for item in items))
 
     def test_cli_lists_embedded_achievements(self):
         path = supplied_fixture()
