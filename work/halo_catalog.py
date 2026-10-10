@@ -217,3 +217,30 @@ _HALO_GENERAL_CLASS_FIELD_COUNTS = {
 def halo_general_class_field_counts() -> dict[str, int]:
     return dict(_HALO_GENERAL_CLASS_FIELD_COUNTS)
 
+
+def halo_general_class_method_summary() -> dict[str, object]:
+    """Return aggregate method evidence retained for Halo general classes."""
+
+    return {
+        "method_count": 1102,
+        "unique_getter_setter_property_count": 140,
+        "return_type_counts": {
+            "void": 742,
+            "u1": 65,
+            "bool": 50,
+            "string": 28,
+            "i4": 23,
+            "u1[]": 18,
+            "i1": 14,
+            "native-int": 8,
+        },
+        "top_declaring_types": {
+            "Halo4GameOptionsSingleTeamOptions": 39,
+            "Halo4PlayerTraitsWeapons": 35,
+            "Halo4GameOptionsOrdnanceArea": 35,
+            "MegaloEngineVariant": 32,
+            "HaloReachGameOptionsPowerups": 31,
+        },
+        "status": "metadata-only",
+    }
+
