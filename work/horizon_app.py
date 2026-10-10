@@ -16,6 +16,7 @@ from .horizon_clone import (
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     parse_xdbf,
+    parse_stfs_thumbnails,
     read_stfs_entry,
     repack_xdbf_entries,
     repack_stfs_entries,
@@ -47,6 +48,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace XDBF entry", command=self.replace_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -533,6 +535,33 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "signature_checked": False})
         except (OSError, ValueError) as exc:
             messagebox.showerror("Thumbnail edit failed", str(exc))
+
+    def export_thumbnails(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Thumbnails", "Open a readable STFS container first.")
+            return
+        try:
+            thumbnails = parse_stfs_thumbnails(self._data, self._report.stfs_header)
+            thumbnail_path = filedialog.asksaveasfilename(
+                title="Save thumbnail payload",
+                defaultextension=".bin",
+                filetypes=(("Binary payload", "*.bin"), ("All files", "*.*")),
+            )
+            if not thumbnail_path:
+                return
+            title_path = filedialog.asksaveasfilename(
+                title="Save title-thumbnail payload",
+                defaultextension=".bin",
+                filetypes=(("Binary payload", "*.bin"), ("All files", "*.*")),
+            )
+            if not title_path:
+                return
+            Path(thumbnail_path).write_bytes(thumbnails.thumbnail)
+            Path(title_path).write_bytes(thumbnails.title_thumbnail)
+            self.status.configure(text="Exported thumbnail payloads")
+            self._set_details({"thumbnail": thumbnail_path, "title_thumbnail": title_path})
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Thumbnail export failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
