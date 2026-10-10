@@ -13,6 +13,7 @@ from work.horizon_clone import (
     verify_stfs_hashes,
 )
 from work.signing import RsaPublicKey, sign_with_provider, verify_sha256_pkcs1v15
+from work.profile_model import ProfileData
 
 
 class ContainerInspectionTests(unittest.TestCase):
@@ -92,6 +93,17 @@ class ContainerInspectionTests(unittest.TestCase):
             sign_with_provider(b"test vector", EmptyProvider())
 
         self.assertFalse(verify_sha256_pkcs1v15(b"test vector", b"bad", RsaPublicKey(257, 3)))
+
+    def test_profile_model_round_trips_observed_metadata(self):
+        profile = ProfileData(
+            from_device=True,
+            xuid=0x0123456789ABCDEF,
+            gamertag="Test User",
+            gamer_picture=b"\x01\x02",
+            profile_id=bytes.fromhex("e9ecc9141e317c7b"),
+            favorite=True,
+        )
+        self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
 
 
 if __name__ == "__main__":
