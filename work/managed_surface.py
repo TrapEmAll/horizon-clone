@@ -103,6 +103,7 @@ def managed_schema_report_from_bundle(
     pattern: str | None = None,
     include_bodies: bool = False,
     method_pattern: str | None = None,
+    include_field_accesses: bool = False,
 ) -> dict[str, Any]:
     """Join the observed managed metadata into type-centric editor schemas.
 
@@ -115,6 +116,7 @@ def managed_schema_report_from_bundle(
     types = result.get("types") or []
     fields = result.get("fields") or []
     methods = result.get("methods") or []
+    field_accesses = result.get("field_accesses") or []
     matcher = None
     if pattern is not None:
         try:
@@ -180,6 +182,7 @@ def managed_schema_report_from_bundle(
         "pattern": pattern,
         "include_bodies": include_bodies,
         "method_pattern": method_pattern,
+        "include_field_accesses": include_field_accesses,
         "counts": {
             "matched_types": len(by_type),
             "matched_fields": sum(len(item["fields"]) for item in by_type.values()),
@@ -189,6 +192,22 @@ def managed_schema_report_from_bundle(
             "total_methods": len(methods),
         },
         "types": list(by_type.values()),
+        "field_accesses": (
+            [
+                {
+                    "method": item.get("method"),
+                    "method_token": item.get("method_token"),
+                    "field_name": item.get("field_name"),
+                    "field_token": item.get("field_token"),
+                    "opcode": item.get("opcode"),
+                }
+                for item in field_accesses
+                if isinstance(item, dict)
+                and (method_matcher is None or method_matcher.search(str(item.get("method") or "")))
+            ]
+            if include_field_accesses
+            else []
+        ),
         "limitations": [
             "Managed metadata is not a save-file layout and supplies no field offsets.",
             "The joined schema does not establish serialization, validation, or mutation behavior.",
@@ -202,6 +221,7 @@ def managed_schema_report(
     pattern: str | None = None,
     include_bodies: bool = False,
     method_pattern: str | None = None,
+    include_field_accesses: bool = False,
 ) -> dict[str, Any]:
     """Return joined type/field/method metadata from a retained REA bundle."""
 
@@ -210,5 +230,5 @@ def managed_schema_report(
         bundle = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unable to read evidence bundle: {path}") from exc
-    return managed_schema_report_from_bundle(bundle, pattern, include_bodies, method_pattern)
+    return managed_schema_report_from_bundle(bundle, pattern, include_bodies, method_pattern, include_field_accesses)
 
