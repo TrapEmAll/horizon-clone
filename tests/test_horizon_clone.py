@@ -14,6 +14,7 @@ from work.horizon_clone import (
     list_embedded_achievements,
     rename_stfs_entry,
     add_stfs_directory,
+    move_stfs_entry,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
@@ -269,6 +270,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(next(item for item in entries if item.path == "cache/NewFolder").is_directory)
         self.assertIn("cache/ph.dat", {item.path for item in entries})
         self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+
+    def test_moves_stfs_entry_between_directories_and_rehashes(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        mutated = move_stfs_entry(original, "cache/ph.dat", "AvatarAssets", "ph2.dat", header)
+        mutated_header = parse_stfs_header(mutated)
+        paths = {entry.path for entry in list_stfs_entries(mutated, mutated_header)}
+        self.assertIn("AvatarAssets/ph2.dat", paths)
+        self.assertNotIn("cache/ph.dat", paths)
+        self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+        with self.assertRaises(ValueError):
+            move_stfs_entry(original, "cache", "cache", header=header)
 
     def test_cli_supports_explicit_in_place_mutation(self):
         path = supplied_fixture()
