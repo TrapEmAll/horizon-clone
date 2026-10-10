@@ -23,6 +23,7 @@ from work.horizon_clone import (
     mutate_xdbf_achievement,
     mutate_xdbf_achievement_flags,
     mutate_profile_achievement_flags,
+    mutate_profile_xdbf_text,
     mutate_xdbf_text,
     repack_xdbf_entries,
     repack_stfs_entries,
@@ -917,12 +918,26 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         mutated = mutate_profile_achievement_flags(original, 0x0004, mode="or")
+        self.assertEqual(verify_stfs_hashes(mutated)["failures"], [])
         before = list_embedded_achievements(original)
         after = list_embedded_achievements(mutated)
         self.assertEqual(len(after), len(before))
         self.assertGreater(len(after), 0)
         for left, right in zip(before, after):
             self.assertEqual(right["achievement"]["flags"], left["achievement"]["flags"] | 0x0004)
+
+    def test_profile_xdbf_text_replaces_exact_embedded_matches(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        record = next(entry for _, entries in list_embedded_xdbf(original) for entry in entries if entry.namespace == 5 and entry.text)
+        old_text = record.text
+        mutated = mutate_profile_xdbf_text(original, old_text, old_text + "-edited")
+        self.assertEqual(verify_stfs_hashes(mutated)["failures"], [])
+        before_matches = [item for item in list_embedded_xdbf(original) for item in item[1] if item.namespace == 5 and item.text == old_text]
+        after_matches = [item for item in list_embedded_xdbf(mutated) for item in item[1] if item.namespace == 5 and item.text == old_text + "-edited"]
+        self.assertEqual(len(after_matches), len(before_matches))
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
