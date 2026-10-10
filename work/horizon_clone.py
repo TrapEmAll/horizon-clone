@@ -226,8 +226,18 @@ def sign_detached_signature(region_path: Path, signature_path: Path, label: str,
         raise ValueError("signature region label cannot be empty")
     if region_path.resolve() == signature_path.resolve():
         raise ValueError("signature output must be different from the signed input")
+    return sign_detached_bytes(region_path.read_bytes(), signature_path, label, private_key_path)
+
+
+def sign_detached_bytes(data: bytes, signature_path: Path, label: str, private_key_path: Path) -> dict[str, object]:
+    """Sign already-loaded bytes without creating an intermediate input file."""
+
+    from .signing import SignedRegion, LocalRsaSha256Signer, sign_region
+
+    if not isinstance(data, bytes):
+        raise TypeError("signed data must be bytes")
     key = read_private_key_json(private_key_path)
-    detached = sign_region(SignedRegion(label, region_path.read_bytes()), LocalRsaSha256Signer(key))
+    detached = sign_region(SignedRegion(label, data), LocalRsaSha256Signer(key))
     _atomic_replace_bytes(signature_path, detached.signature)
     return {"algorithm": detached.algorithm, "region_label": detached.region_label, "signature": str(signature_path), "bytes": len(detached.signature)}
 
