@@ -65,6 +65,11 @@ modulus/signature fields, and REA did not authenticate the signed-region
 protocol. The clone therefore deliberately does not guess a package-signature
 layout, verify, or forge console signatures.
 
+An additional retained-member audit found no authenticated Horizon-managed
+STFS entry timestamp, creation-time, or file-attribute contract. The clone
+therefore continues to expose the observed directory/name/size/block fields
+without assigning semantics to the remaining file-table bytes.
+
 REA's managed native-boundary inspection records 14 module references and 54
 P/Invoke declarations. The most relevant editor boundaries are
 `class3.dll`'s `RtsSaveEncrypt`/`RtsSaveDecrypt`, LZO compression imports,
