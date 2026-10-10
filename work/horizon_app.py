@@ -13,6 +13,7 @@ from .horizon_clone import (
     extract_stfs,
     inspect,
     list_embedded_achievements,
+    list_embedded_achievement_image_links,
     list_embedded_xdbf,
     summarize_embedded_xdbf,
     summarize_profile_achievements,
@@ -99,6 +100,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export achievement links", command=self.export_achievement_links).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export profile summary", command=self.export_profile_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export title catalog", command=self.export_title_catalog).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Extract managed resources", command=self.extract_managed_resources).pack(side=tk.LEFT, padx=(8, 0))
@@ -977,6 +979,30 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "achievement_count": len(achievements)})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Achievement export failed", str(exc))
+
+    def export_achievement_links(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Achievement links", "Open a readable STFS profile first.")
+            return
+        try:
+            links = list(list_embedded_achievement_image_links(self._data, self._report.stfs_header))
+            target = filedialog.asksaveasfilename(
+                title="Export achievement image links",
+                defaultextension=".json",
+                filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_text(Path(target), json.dumps(links, indent=2, ensure_ascii=False) + "\n")
+            self.status.configure(text=f"Exported {len(links)} achievement image links")
+            self._set_details({
+                "path": target,
+                "link_count": len(links),
+                "linked": sum(item["status"] == "linked" for item in links),
+                "missing": sum(item["status"] == "missing" for item in links),
+            })
+        except (OSError, ValueError, LookupError, IsADirectoryError) as exc:
+            messagebox.showerror("Achievement link export failed", str(exc))
 
     def export_profile_summary(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
