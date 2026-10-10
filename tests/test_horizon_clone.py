@@ -87,6 +87,11 @@ from work.device_inventory import device_inventory_report, enumerate_host_device
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable, PowerShellNativeRuntimeProvider
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
 from work.account_codec import AccountCodec, AccountKeyProviderUnavailable, CommandAccountKeyProvider
+from work.account_format import (
+    AccountRecord,
+    obfuscate_account,
+    unobfuscate_account,
+)
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
@@ -100,6 +105,36 @@ def supplied_fixture():
 
 
 class ContainerInspectionTests(unittest.TestCase):
+    def test_historical_account_codec_round_trips_supplied_account(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path == "Account")
+        encrypted = read_stfs_entry(original, entry, header)
+        # Public historical reference key from unknownv2/horizon-v3; this is
+        # test evidence only and is not a key-vault or retail signing key.
+        production_key = bytes.fromhex("e1bc159c73b1eae9ab3170f3ad47ebf3")
+        plain = unobfuscate_account(encrypted, production_key)
+        record = AccountRecord.from_bytes(plain)
+
+        self.assertEqual(len(encrypted), 404)
+        self.assertEqual(len(plain), 380)
+        self.assertEqual(record.to_bytes(), plain)
+        self.assertEqual(
+            unobfuscate_account(
+                obfuscate_account(plain, production_key, confounder=b"\x00" * 8),
+                production_key,
+            ),
+            plain,
+        )
+
+        tampered = bytearray(encrypted)
+        tampered[-1] ^= 0x01
+        with self.assertRaises(ValueError):
+            unobfuscate_account(bytes(tampered), production_key)
+
     fixture_dir = Path(__file__).parent / ".tmp"
 
     def test_desktop_atomic_writes_replace_and_clean_temporary_files(self):
