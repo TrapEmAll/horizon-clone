@@ -677,11 +677,39 @@ def _stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
     return tuple(slots)
 
 
+def _stfs_file_table_blocks(data: bytes, header: StfsHeader) -> tuple[int, ...]:
+    """Return the logical blocks in the file-table chain."""
+    blocks: list[int] = []
+    block = header.file_table_block_number
+    for index in range(header.file_table_block_count):
+        if block < 0:
+            raise ValueError("file table chain terminates before its declared length")
+        blocks.append(block)
+        block = _next_block(data, block, header)
+        if index + 1 < header.file_table_block_count and block < 0:
+            raise ValueError("file table chain is incomplete")
+    return tuple(blocks)
+
+
+def _all_stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
+    """Return every physical file-table slot, including empty slots."""
+    slots: list[int] = []
+    block = header.file_table_block_number
+    for table_index in range(header.file_table_block_count):
+        address = block_offset(block, header.header_size, header.block_separation)
+        if address + BLOCK_SIZE > len(data):
+            raise ValueError("file table points beyond the end of the container")
+        slots.extend(address + slot * 0x40 for slot in range(64))
+        block = _next_block(data, block, header)
+    return tuple(slots)
+
+
 def repack_stfs_entries(
     data: bytes,
     replacements: dict[str, bytes],
     header: StfsHeader | None = None,
     remove: Iterable[str] = (),
+    additions: dict[str, bytes] | None = None,
 ) -> bytes:
     """Repack one or more entries within the package's existing block capacity.
 
@@ -692,10 +720,23 @@ def repack_stfs_entries(
     header = header or parse_stfs_header(data)
     entries = list(list_stfs_entries(data, header))
     removals = set(remove)
+    additions = dict(additions or {})
     by_path = {entry.path: entry for entry in entries}
     unknown = sorted((set(replacements) | removals) - set(by_path))
     if unknown:
         raise FileNotFoundError(unknown[0])
+    conflicts = sorted((set(additions) & set(by_path)) | (set(additions) & removals))
+    if conflicts:
+        raise ValueError(f"entry already exists: {conflicts[0]}")
+    if any(not path or path.endswith("/") for path in additions):
+        raise ValueError("added entries must be non-empty file paths")
+    for path in additions:
+        name = path.rsplit("/", 1)[-1]
+        if not name or len(name.encode("ascii", errors="ignore")) != len(name) or len(name) > 0x28:
+            raise ValueError(f"added entry name is not a supported ASCII file name: {path!r}")
+        parent = path.rsplit("/", 1)[0] if "/" in path else ""
+        if parent and (parent not in by_path or not by_path[parent].is_directory):
+            raise FileNotFoundError(f"parent directory does not exist: {parent}")
     for path in removals:
         if by_path[path].is_directory:
             if any(item.path.startswith(path + "/") for item in entries):
@@ -712,10 +753,10 @@ def repack_stfs_entries(
         for entry in entries
         if not entry.is_directory
     }
-    payloads = {**original_payloads, **replacements}
+    payloads = {**original_payloads, **replacements, **additions}
     for path in removals:
         payloads.pop(path, None)
-    reserved = set(range(header.file_table_block_number, header.file_table_block_number + header.file_table_block_count))
+    reserved = set(_stfs_file_table_blocks(data, header))
     available = [block for block in range(header.allocated_block_count) if block not in reserved]
     allocations: dict[str, tuple[int, ...]] = {}
     cursor = 0
@@ -727,6 +768,13 @@ def repack_stfs_entries(
         if len(selected) != block_count:
             raise ValueError("replacement set exceeds the existing STFS allocation capacity")
         allocations[entry.path] = selected
+        cursor += block_count
+    for path, payload in additions.items():
+        block_count = (len(payload) + BLOCK_SIZE - 1) // BLOCK_SIZE
+        selected = tuple(available[cursor : cursor + block_count])
+        if len(selected) != block_count:
+            raise ValueError("addition set exceeds the existing STFS allocation capacity")
+        allocations[path] = selected
         cursor += block_count
 
     result = bytearray(data)
@@ -754,6 +802,26 @@ def repack_stfs_entries(
         raw[0x29:0x2C] = len(blocks).to_bytes(3, "little")
         raw[0x2F:0x32] = (blocks[0] if blocks else 0).to_bytes(3, "little")
         raw[0x34:0x38] = len(payloads[entry.path]).to_bytes(4, "big")
+        result[slot : slot + 0x40] = raw
+
+    all_slots = _all_stfs_file_table_slots(data, header)
+    occupied = set(slots)
+    free_slots = [slot for slot in all_slots if slot not in occupied]
+    if len(free_slots) < len(additions):
+        raise ValueError("file-table capacity is exhausted")
+    entry_indices = {entry.path: entry.index for entry in entries}
+    for (path, payload), slot in zip(additions.items(), free_slots):
+        name = path.rsplit("/", 1)[-1].encode("ascii")
+        parent = path.rsplit("/", 1)[0] if "/" in path else ""
+        parent_index = 0xFFFF if not parent else entry_indices[parent]
+        blocks = allocations[path]
+        raw = bytearray(0x40)
+        raw[: len(name)] = name
+        raw[0x28] = (len(name) | 0x40) & 0x7F
+        raw[0x29:0x2C] = len(blocks).to_bytes(3, "little")
+        raw[0x2F:0x32] = (blocks[0] if blocks else 0).to_bytes(3, "little")
+        raw[0x32:0x34] = parent_index.to_bytes(2, "big")
+        raw[0x34:0x38] = len(payload).to_bytes(4, "big")
         result[slot : slot + 0x40] = raw
 
     return rehash_stfs_hashes(bytes(result), header)
@@ -934,6 +1002,8 @@ def main() -> int:
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
     parser.add_argument("--repack-source", type=Path, help="Raw replacement bytes for --repack")
     parser.add_argument("--remove", action="append", metavar="ENTRY", help="Remove an STFS file-table entry")
+    parser.add_argument("--add", action="append", metavar="ENTRY", help="Add an STFS file-table entry")
+    parser.add_argument("--add-source", action="append", type=Path, help="Raw bytes for --add (repeat in the same order)")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
@@ -1033,8 +1103,8 @@ def main() -> int:
         print(f"Wrote unsigned repacked container to {args.write}")
 
     if args.remove:
-        if args.replace or args.repack or not args.write:
-            parser.error("--remove requires --write and cannot be combined with --replace or --repack")
+        if args.replace or args.repack or args.add or not args.write:
+            parser.error("--remove requires --write and cannot be combined with --replace, --repack, or --add")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         try:
@@ -1043,6 +1113,21 @@ def main() -> int:
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned removal mutation to {args.write}")
+
+    if args.add:
+        if args.replace or args.repack or args.remove or not args.write:
+            parser.error("--add requires --write and cannot be combined with --replace, --repack, or --remove")
+        if not args.add_source or len(args.add_source) != len(args.add):
+            parser.error("each --add requires one corresponding --add-source")
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        try:
+            additions = {path: source.read_bytes() for path, source in zip(args.add, args.add_source)}
+            raw = repack_stfs_entries(raw, {}, header=report.stfs_header, additions=additions)
+            args.write.write_bytes(raw)
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned file addition to {args.write}")
 
     metadata_requested = any(
         value is not None for value in (args.display_name, args.title_id, args.content_type)
