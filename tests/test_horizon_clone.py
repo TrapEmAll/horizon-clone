@@ -782,6 +782,10 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("NinjaGaiden3SkillRyu", catalog_report("legacy")["catalogs"][3]["types"][0]["name"])
         self.assertEqual(legacy_field_names("Bandai", "DBXVAttributes")[1], "MaxHealth")
         self.assertIn("Hatty_Hattington", legacy_field_names("TheBehemoth", "CastleCrashersCharacters"))
+        dbxv = catalog_report("legacy")["catalogs"][0]["types"][0]
+        self.assertEqual(dbxv["backing_type"], "i4")
+        self.assertEqual(dbxv["named_member_count"], 6)
+        self.assertTrue(dbxv["value_field_observed"])
 
     def test_reports_evidence_qualified_capability_ledger(self):
         report = capability_report()
