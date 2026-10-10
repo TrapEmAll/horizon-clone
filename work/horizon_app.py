@@ -17,6 +17,7 @@ from .horizon_clone import (
     mutate_xdbf_achievement,
     parse_xdbf,
     read_stfs_entry,
+    repack_xdbf_entries,
     repack_stfs_entries,
     verify_stfs_hashes,
 )
@@ -45,6 +46,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
         self.status.pack(side=tk.RIGHT)
@@ -452,6 +454,49 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "signature_checked": False})
         except (OSError, ValueError) as exc:
             messagebox.showerror("Thumbnail edit failed", str(exc))
+
+    def add_xdbf_entry(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("XDBF entry", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("XDBF entry", "Select a GPD/XDBF file first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.is_directory:
+            messagebox.showinfo("XDBF entry", "Directories cannot be edited.")
+            return
+        try:
+            payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+            parse_xdbf(payload)
+            namespace_text = simpledialog.askstring("XDBF namespace", "Namespace (integer or hex):", parent=self)
+            entry_id_text = simpledialog.askstring("XDBF entry ID", "Entry ID (integer or hex):", parent=self)
+            if namespace_text is None or entry_id_text is None:
+                return
+            source = filedialog.askopenfilename(title="Choose XDBF payload")
+            if not source:
+                return
+            edited = repack_xdbf_entries(
+                payload,
+                {},
+                additions={(int(namespace_text, 0), int(entry_id_text, 0)): Path(source).read_bytes()},
+            )
+            mutated = mutate_stfs_entry_same_size(self._data, entry, edited, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(
+                title="Save XDBF entry addition",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned XDBF entry addition: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("XDBF entry addition failed", str(exc))
 
     def export_report(self) -> None:
         if not self._report:
