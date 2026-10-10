@@ -102,6 +102,7 @@ python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-remove 5 --write with
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-add-namespace 5 --xdbf-add-id 0x9000 --xdbf-add-source payload.bin --write with-entry.gpd
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-text 5 --xdbf-text-value "Edited label" --write edited-label.gpd
 python -m work.horizon_clone C:\path\to\profile.con --xdbf-file FFFE07D1.gpd --xdbf-text 106 --xdbf-text-value "Edited label" --write edited-profile.con
+python -m work.horizon_clone C:\path\to\profile.con --xdbf-file 4D53082D.gpd --achievement 12 --gamerscore 1000 --achievement-flags 1 --write edited-achievement.con
 python -m work.horizon_clone extracted\FFFE07D1.gpd --achievement 5 --gamerscore 1000 --achievement-flags 1 --write achievement.gpd
 python -m work.horizon_app
 ```
