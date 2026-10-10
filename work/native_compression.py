@@ -7,9 +7,12 @@ module deliberately does not load ``lzo.dll`` or claim codec compatibility.
 from __future__ import annotations
 
 import ctypes
+import base64
+import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from .native_loader import require_compatible_pe_architecture
+from .native_loader import compatible_pe_architecture, require_compatible_pe_architecture
 from typing import Protocol
 
 
@@ -106,6 +109,115 @@ class CtypesLzoProvider:
         return self._invoke("lzo1x_decompress", source, source_length, destination, destination_length, work_memory)
 
     def lzo2a_decompress(self, source: bytes, source_length: int, destination: bytearray, destination_length: Int32Ref, work_memory: bytes) -> int:
+        return self._invoke("lzo2a_decompress", source, source_length, destination, destination_length, work_memory)
+
+
+class PowerShellLzoProvider:
+    """Bridge the x86 LZO DLL through an explicit 32-bit PowerShell host.
+
+    This is for hosts where the application process is x64 but the supplied
+    native DLL is x86.  The DLL path and host path are explicit; no DLL search
+    or Horizon process is used.  Keys and other secrets are not involved.
+    """
+
+    _OPERATIONS = {
+        "lzo1x_1_compress": "lzo1x_1_compress",
+        "lzo2a_999_compress": "lzo2a_999_compress",
+        "lzo1x_decompress": "lzo1x_decompress",
+        "lzo2a_decompress": "lzo2a_decompress",
+    }
+
+    def __init__(self, dll_path: str | Path, powershell_path: str | Path | None = None, timeout: float = 30.0) -> None:
+        path = Path(dll_path)
+        if not path.is_absolute():
+            raise ValueError("lzo.dll path must be absolute")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        architecture, _ = compatible_pe_architecture(path)
+        if architecture != "x86":
+            raise OSError(f"LZO DLL must be x86 for the 32-bit host, got {architecture}")
+        host = Path(powershell_path) if powershell_path else Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not host.is_file():
+            raise FileNotFoundError(host)
+        self.path = path
+        self.powershell_path = host
+        self.timeout = timeout
+        self.architecture = architecture
+
+    def _invoke(self, name: str, source: bytes, source_length: int, destination: bytearray, destination_length: Int32Ref, work_memory: bytes) -> int:
+        if name not in self._OPERATIONS:
+            raise ValueError(f"unknown LZO operation: {name}")
+        if not source or not work_memory:
+            raise ValueError("LZO source/work memory must be non-empty")
+        if source_length < 0 or source_length > len(source):
+            raise ValueError("source_length exceeds source")
+        if destination_length.value < 0 or destination_length.value > len(destination):
+            raise ValueError("destination_length exceeds destination")
+        path_literal = str(self.path).replace('"', '""')
+        code = f'''using System; using System.Runtime.InteropServices; public static class HorizonLzoHost {{
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.Cdecl)] public static extern int lzo1x_1_compress(byte[] s,int sl,byte[] d,ref int dl,byte[] w);
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.Cdecl)] public static extern int lzo2a_999_compress(byte[] s,int sl,byte[] d,ref int dl,byte[] w);
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.Cdecl)] public static extern int lzo1x_decompress(byte[] s,int sl,byte[] d,ref int dl,byte[] w);
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.Cdecl)] public static extern int lzo2a_decompress(byte[] s,int sl,byte[] d,ref int dl,byte[] w); }}'''
+        script = """
+$ErrorActionPreference = 'Stop'
+$code = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__CODE__'))
+Add-Type -TypeDefinition $code
+$request = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$source = [Convert]::FromBase64String($request.source)
+$work = [Convert]::FromBase64String($request.work)
+$destination = New-Object byte[] $request.capacity
+$length = $request.capacity
+$result = [HorizonLzoHost]::$($request.operation)($source, $request.source_length, $destination, [ref]$length, $work)
+if ($length -lt 0 -or $length -gt $destination.Length) { throw 'native LZO returned an invalid output length' }
+[pscustomobject]@{ result = $result; length = $length; output = [Convert]::ToBase64String($destination, 0, $length) } | ConvertTo-Json -Compress
+"""
+        values = {
+            "__CODE__": base64.b64encode(code.encode("utf-8")).decode("ascii"),
+        }
+        for marker, value in values.items():
+            script = script.replace(marker, value)
+        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+        completed = subprocess.run(
+            [str(self.powershell_path), "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            capture_output=True,
+            input=json.dumps({
+                "source": base64.b64encode(source[:source_length]).decode("ascii"),
+                "work": base64.b64encode(work_memory).decode("ascii"),
+                "capacity": destination_length.value,
+                "operation": self._OPERATIONS[name],
+                "source_length": source_length,
+            }),
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        if completed.returncode:
+            detail = " | ".join(part for part in (completed.stderr.strip(), completed.stdout.strip()) if part)
+            raise OSError(f"32-bit LZO provider failed: {detail}")
+        try:
+            result = json.loads(completed.stdout.strip().splitlines()[-1])
+            output = base64.b64decode(result["output"], validate=True)
+            native_length = int(result["length"])
+            status = int(result["result"])
+        except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError, base64.binascii.Error) as exc:
+            raise OSError("32-bit LZO provider returned malformed output") from exc
+        if native_length != len(output) or native_length > len(destination):
+            raise OSError("32-bit LZO provider returned an invalid output length")
+        destination[:native_length] = output
+        destination_length.value = native_length
+        return status
+
+    def lzo1x_1_compress(self, source, source_length, destination, destination_length, work_memory):
+        return self._invoke("lzo1x_1_compress", source, source_length, destination, destination_length, work_memory)
+
+    def lzo2a_999_compress(self, source, source_length, destination, destination_length, work_memory):
+        return self._invoke("lzo2a_999_compress", source, source_length, destination, destination_length, work_memory)
+
+    def lzo1x_decompress(self, source, source_length, destination, destination_length, work_memory):
+        return self._invoke("lzo1x_decompress", source, source_length, destination, destination_length, work_memory)
+
+    def lzo2a_decompress(self, source, source_length, destination, destination_length, work_memory):
         return self._invoke("lzo2a_decompress", source, source_length, destination, destination_length, work_memory)
 
 
