@@ -74,6 +74,12 @@ only the observed managed types and unsigned 64-bit ranges in its metadata
 model; it does not pretend that this validates or rewrites the opaque Account
 payload.
 
+`--managed-io-contract` adds a focused static projection of selected
+`Read`/`Write`/`Load`/`Save` methods, retaining their signatures, CIL anchors,
+field accesses, and call targets. This is reconstruction evidence only; it
+does not turn obfuscated managed tokens into save offsets or executable clone
+logic.
+
 The retained evidence contains no managed `Account` type, Account serializer,
 Account field layout, or Account-specific call edge. The supplied 404-byte
 `Account` entry is therefore an opaque STFS payload; same-size replacement is
