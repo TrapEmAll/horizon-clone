@@ -131,6 +131,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
         self.assertTrue(hasattr(HorizonApp, "export_profile_summary"))
         self.assertTrue(hasattr(HorizonApp, "export_title_catalog"))
+        self.assertTrue(hasattr(HorizonApp, "extract_managed_resources"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
