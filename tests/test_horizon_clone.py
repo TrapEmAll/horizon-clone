@@ -2041,6 +2041,8 @@ class ContainerInspectionTests(unittest.TestCase):
         metadata = parse_stfs_security_metadata(path.read_bytes())
         self.assertEqual(metadata.signature_kind, "console-certificate")
         self.assertEqual(len(metadata.licenses), 16)
+        self.assertEqual((metadata.certificate_signature_offset, metadata.certificate_signature_length), (0xAC, 0x100))
+        self.assertEqual((metadata.package_signature_offset, metadata.package_signature_length), (0x1AC, 0x80))
         self.assertIsNotNone(metadata.package_signature_sha256)
         key = extract_stfs_public_key(path.read_bytes())
         self.assertEqual(key.exponent, 65537)
