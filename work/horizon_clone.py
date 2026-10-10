@@ -22,6 +22,7 @@ from .device_surface import device_surface_report
 from .resource_inventory import observed_resource_surface
 from .managed_surface import managed_surface_report
 from .device_inventory import device_inventory_report
+from .signing import RsaPublicKey
 
 
 MAGIC = b"CON "
@@ -459,6 +460,22 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
         header_sha1_matches=header_sha1_matches,
         licenses=tuple(licenses),
     )
+
+
+def extract_stfs_public_key(data: bytes) -> RsaPublicKey:
+    """Extract the public CON certificate key without checking a signature."""
+
+    header = parse_stfs_header(data)
+    if header.magic != "CON ":
+        raise ValueError("public certificate key extraction requires a CON container")
+    exponent = int.from_bytes(data[0x28:0x2C], "big")
+    modulus_bytes = data[0x2C:0xAC]
+    if len(modulus_bytes) != 0x80 or exponent <= 1:
+        raise ValueError("CON certificate does not contain a complete public key")
+    modulus = int.from_bytes(modulus_bytes, "big")
+    if modulus <= 0:
+        raise ValueError("CON certificate contains an empty public modulus")
+    return RsaPublicKey(modulus=modulus, exponent=exponent)
 
 
 def _backing_block(block: int, shift: int) -> int:
@@ -1441,6 +1458,7 @@ def main() -> int:
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
+    parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
@@ -1770,6 +1788,14 @@ def main() -> int:
         if not report.stfs_security:
             parser.error("the file does not contain readable STFS security metadata")
         print(json.dumps(asdict(report.stfs_security), indent=2))
+
+    if args.public_key:
+        try:
+            key = extract_stfs_public_key(raw)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps({"exponent": key.exponent, "modulus_hex": f"{key.modulus:0256x}"}, indent=2))
+        return 0
 
     if args.replace:
         if not args.replacement or not write_target:
