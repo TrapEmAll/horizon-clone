@@ -6,6 +6,7 @@ from work.horizon_clone import (
     inspect,
     list_stfs_entries,
     mutate_stfs_entry_same_size,
+    mutate_xdbf_entry_same_size,
     parse_stfs_header,
     parse_xdbf,
     read_stfs_entry,
@@ -56,6 +57,13 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(data_base, 50)
         self.assertEqual(parsed[0].namespace, 5)
         self.assertEqual(parsed[0].text, "Dashboard")
+        mutated = mutate_xdbf_entry_same_size(
+            data, parsed[0], "Settings!".encode("utf-16-be") + b"\x00\x00"
+        )
+        self.assertEqual(parse_xdbf(mutated)[0].text, "Settings!")
+
+        with self.assertRaises(ValueError):
+            mutate_xdbf_entry_same_size(data, parsed[0], b"short")
 
     def test_mutates_and_rehashes_supplied_profile_fixture(self):
         path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
