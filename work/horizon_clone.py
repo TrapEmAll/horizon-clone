@@ -727,11 +727,25 @@ def main() -> int:
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
     parser.add_argument("--content-type", type=lambda value: int(value, 0), help="Replace the STFS content type")
+    parser.add_argument("--xdbf-replace", type=int, metavar="INDEX", help="Replace one XDBF entry")
+    parser.add_argument("--xdbf-source", type=Path, help="Raw replacement bytes for --xdbf-replace")
+    parser.add_argument("--xdbf-remove", type=int, action="append", metavar="INDEX", help="Remove an XDBF entry")
     args = parser.parse_args()
 
     try:
         raw = args.path.read_bytes()
         if raw[:4] == b"XDBF":
+            if args.xdbf_replace is not None or args.xdbf_remove:
+                if not args.write:
+                    parser.error("XDBF mutation requires --write")
+                if args.xdbf_replace is not None and not args.xdbf_source:
+                    parser.error("--xdbf-replace requires --xdbf-source")
+                replacements = {}
+                if args.xdbf_replace is not None:
+                    replacements[args.xdbf_replace] = args.xdbf_source.read_bytes()
+                raw = repack_xdbf_entries(raw, replacements, remove=args.xdbf_remove or ())
+                args.write.write_bytes(raw)
+                print(f"Wrote XDBF mutation to {args.write}")
             payload = json.dumps(_json_xdbf(raw, args.path), indent=2, ensure_ascii=False)
             if args.output:
                 args.output.write_text(payload + "\n", encoding="utf-8")
