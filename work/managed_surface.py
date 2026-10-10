@@ -30,6 +30,70 @@ def _member_record(bundle: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _artifact_record(bundle: dict[str, Any]) -> dict[str, Any]:
+    records = bundle.get("records")
+    if not isinstance(records, list):
+        raise ValueError("evidence bundle does not contain a records array")
+    candidates = [
+        record for record in records
+        if isinstance(record, dict) and record.get("operation") == "inspect_managed_artifact"
+    ]
+    if not candidates:
+        raise ValueError("evidence bundle has no inspect_managed_artifact record")
+    return max(candidates, key=lambda record: len(record.get("normalized_result", {}).get("references", [])))
+
+
+def managed_reference_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
+    """Return the authenticated assembly-reference surface from REA evidence."""
+
+    record = _artifact_record(bundle)
+    result = record.get("normalized_result") or {}
+    references = [item for item in result.get("references") or [] if isinstance(item, dict)]
+    matcher = None
+    if pattern is not None:
+        try:
+            matcher = re.compile(pattern, re.IGNORECASE)
+        except re.error as exc:
+            raise ValueError(f"invalid managed-reference regex: {pattern}") from exc
+    selected = [
+        {
+            "name": item.get("name"),
+            "version": item.get("version"),
+            "culture": item.get("culture"),
+            "flags": item.get("flags"),
+            "public_key_or_token": item.get("public_key_or_token"),
+            "token": item.get("token"),
+        }
+        for item in references
+        if matcher is None or matcher.search(str(item.get("name") or ""))
+    ]
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "artifact": result.get("artifact"),
+        "assembly": result.get("assembly"),
+        "pattern": pattern,
+        "counts": {"matched": len(selected), "total": len(references)},
+        "references": selected,
+        "limitations": [
+            "Assembly references authenticate declared dependency metadata only; they do not prove that a file is present or loaded.",
+            "No assembly was loaded, resolved through a CLR, or executed by this report.",
+        ],
+    }
+
+
+def managed_reference_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return declared assembly references from a retained REA artifact bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-artifact bundle: {path}") from exc
+    return managed_reference_report_from_bundle(bundle, pattern)
+
+
 def managed_surface_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
     """Return an observed managed surface from an already-decoded bundle."""
 
