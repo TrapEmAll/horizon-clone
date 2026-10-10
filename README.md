@@ -50,6 +50,9 @@ copied implementation code.
   and write explicit metadata edits to a separate output path.
 - Edits observed namespace-5 XDBF UTF-16BE string entries with bounded repacking.
 - Supports same-size raw XDBF entry replacement while preserving table layout.
+- The desktop front end exposes an explicit, confirmation-gated in-place
+  same-size STFS entry replacement; writes remain atomic and the container is
+  reparsed afterward. The result is unsigned until an authorized signing step.
 - Repackages XDBF entries to different payload sizes within existing data
   capacity and can remove entries while rebuilding free-space metadata.
 - Edits observed achievement payload fields: achievement ID, image ID,
