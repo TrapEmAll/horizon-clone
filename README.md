@@ -27,6 +27,9 @@ copied implementation code.
 - Provides a registry/plugin boundary for title-specific package editors.
 - Provides a functional XDBF/GPD editor plugin API for inspection, entry
   replacement, bounded repacking, observed text edits, and achievement edits.
+- Exposes a complete XDBF payload surface (`--xdbf-surface`) with offsets,
+  lengths, SHA-256 digests, and evidence-qualified text/achievement/opaque
+  classification for future title-specific fixtures.
 - Exposes REA-observed Skyrim Shout, Perk, and Magic enum names and authenticated
   Constant-table numeric values; save offsets and mutation behavior remain
   unclaimed until fixture evidence establishes them.
