@@ -2371,6 +2371,21 @@ def native_runtime_operation_report(
     if not operation.startswith("get-user-string") and arguments:
         raise ValueError(f"{operation} does not accept arguments")
     if provider is None:
+        expected_architecture = "x86_64" if operation.endswith("64") else "x86"
+        image_architecture, _process_architecture = compatible_pe_architecture(dll_path)
+        if image_architecture != expected_architecture:
+            raise OSError(
+                f"{operation} requires an {expected_architecture} runtime image, got {image_architecture}"
+            )
+        required_export = {
+            "check-runtime": "DNG_Runtime",
+            "check-runtime64": "DNG_Runtime",
+            "run-hvm": "RunHVM",
+            "get-user-string": "GetUserString",
+            "get-user-string64": "GetUserString",
+        }[operation]
+        if required_export not in pe_export_names(dll_path):
+            raise OSError(f"{dll_path} does not export {required_export}")
         provider = PowerShellNativeRuntimeProvider(dll_path, powershell_path=powershell_path)
     binding = NativeRuntimeBinding(provider)
     if operation == "check-runtime":
