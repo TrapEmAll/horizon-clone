@@ -15,6 +15,8 @@ copied implementation code.
 - Supports same-size raw XDBF entry replacement while preserving table layout.
 - Repackages XDBF entries to different payload sizes within existing data
   capacity and can remove entries while rebuilding free-space metadata.
+- Edits observed achievement payload fields: achievement ID, image ID,
+  gamerscore, flags, and bounded UTF-16LE name changes.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
