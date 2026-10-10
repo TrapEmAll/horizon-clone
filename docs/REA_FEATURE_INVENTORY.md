@@ -47,7 +47,9 @@ P/Invoke declarations. The most relevant editor boundaries are
 device `CreateFile`/`DeviceIoControl`, and `Horizon.dll`/`HVMRun64.dll`
 `DNG_Runtime`, `RunHVM`, and `GetUserString` imports. The clone exposes these
 as a declaration-only native-surface report; their calling signatures and
-protocols are not inferred.
+protocols are not inferred. The retained call-edge evidence does resolve the
+obfuscated managed `Startup` method to both runtime checks and `CheckString`
+to both user-string exports; it also shows `ZYXDNGuard` initializing LZO.
 
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
