@@ -21,6 +21,7 @@ from work.horizon_clone import (
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
+    mutate_xdbf_achievement_flags,
     mutate_xdbf_text,
     repack_xdbf_entries,
     repack_stfs_entries,
@@ -820,6 +821,25 @@ class ContainerInspectionTests(unittest.TestCase):
         )
         utc_entry = next(item for item in parse_xdbf(utc_changed) if item.index == achievement.index)
         self.assertEqual(utc_entry.achievement["unlock_time_filetime"], 0x01DB50E713A9BC80)
+
+    def test_bulk_achievement_flags_apply_explicit_raw_mask(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        gpd = next(item for item in list_stfs_entries(data, header) if item.name == "415607E7.gpd")
+        payload = read_stfs_entry(data, gpd, header)
+        achievements = [item for item in parse_xdbf(payload) if item.achievement is not None]
+        changed = mutate_xdbf_achievement_flags(payload, 0x0004, mode="or")
+        changed_entries = [item for item in parse_xdbf(changed) if item.achievement is not None]
+        self.assertEqual(len(changed_entries), len(achievements))
+        for before, after in zip(achievements, changed_entries):
+            self.assertEqual(after.achievement["flags"], before.achievement["flags"] | 0x0004)
+        restored = mutate_xdbf_achievement_flags(changed, 0x0004, mode="and-not")
+        restored_entries = [item for item in parse_xdbf(restored) if item.achievement is not None]
+        for before, after in zip(achievements, restored_entries):
+            self.assertEqual(after.achievement["flags"], before.achievement["flags"] & ~0x0004)
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
