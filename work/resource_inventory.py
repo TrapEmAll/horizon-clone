@@ -10,9 +10,11 @@ from __future__ import annotations
 
 def observed_resource_surface() -> dict[str, int]:
     return {
+        "metadata_resource_record_count": 206,
         "resource_count": 205,
         "total_bytes": 4_017_795,
         "distinct_payload_hashes": 30,
         "embedded_resource_count": 205,
+        "nonembedded_unresolved_count": 1,
     }
 
