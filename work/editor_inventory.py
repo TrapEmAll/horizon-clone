@@ -62,6 +62,7 @@ _CAPABILITIES = (
     Capability("STFS hash verification", "implemented", "three-level STFS hash-tree implementation", ("verify_stfs_hashes", "rehash_stfs_hashes")),
     Capability("STFS metadata and thumbnails", "implemented", "observed STFS metadata fields and bounded thumbnail regions", ("mutate_stfs_metadata", "mutate_stfs_thumbnails")),
     Capability("STFS file management", "implemented", "observed file-table mutation substrate", ("repack_stfs_entries", "add_stfs_directory", "move_stfs_entry", "rename_stfs_entry")),
+    Capability("Desktop atomic artifact writes", "implemented", "same-directory replacement for GUI mutations and exports", ("_atomic_write_bytes", "_atomic_write_text")),
     Capability("XDBF/GPD inspection", "implemented", "observed XDBF entry and namespace-5/achievement payloads", ("parse_xdbf", "list_embedded_xdbf", "list_embedded_achievements")),
     Capability("XDBF/GPD mutation", "implemented", "bounded XDBF repacking and observed achievement edits", ("repack_xdbf_entries", "mutate_xdbf_text", "mutate_xdbf_achievement")),
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
