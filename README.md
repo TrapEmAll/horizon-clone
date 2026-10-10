@@ -108,6 +108,10 @@ device thumbnail properties and the `i8` `DeviceSize` property. Device
 enumeration, FATX/USB behavior, and IOCTL semantics remain provider-boundary
 items.
 
+`DeviceBinding` exposes the observed signed-64-bit `DeviceSize` property
+through an explicit provider boundary; it never opens or enumerates a
+physical device.
+
 The recovered DNG/HVM declarations are exposed through an explicit
 `NativeRuntimeBinding` provider boundary. It never loads the original runtime
 implicitly and leaves native argument semantics to the supplied provider.
