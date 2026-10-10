@@ -69,6 +69,11 @@ but does not infer Xbox signed regions. This clean-room project does not
 contain private Xbox/Microsoft signing keys and does not claim that a rewritten
 package is console-valid until an authorized provider signs it.
 
+`--in-place` is an explicit destructive opt-in for local development: it
+overwrites the input container after the same rehashing pipeline used by
+`--write`. Mutated packages remain unsigned unless an authorized provider
+performs the required signing step.
+
 ## Usage
 
 ```powershell
@@ -79,6 +84,7 @@ python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
+python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place
 python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile" --write renamed.con
 python -m work.horizon_clone C:\path\to\container --repack Account --repack-source account.bin --write repacked.con
 python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
