@@ -237,6 +237,49 @@ if ($length -lt 0 -or $length -gt $destination.Length) { throw 'native LZO retur
         destination_length.value = native_length
         return status
 
+    def _invoke_version(self, name: str) -> str:
+        if name not in {"lzo_version_string", "lzo_version_date"}:
+            raise ValueError(f"unknown LZO version operation: {name}")
+        path_literal = str(self.path).replace('"', '""')
+        code = f'''using System; using System.Runtime.InteropServices; public static class HorizonLzoVersionHost {{
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.Cdecl)] public static extern IntPtr lzo_version_string();
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.Cdecl)] public static extern IntPtr lzo_version_date(); }}'''
+        script = """
+$ErrorActionPreference = 'Stop'
+$code = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__CODE__'))
+Add-Type -TypeDefinition $code
+$request = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$pointer = [HorizonLzoVersionHost]::$($request.operation)()
+if ($pointer -eq [IntPtr]::Zero) { throw 'native LZO returned a null version pointer' }
+[pscustomobject]@{ value = [Runtime.InteropServices.Marshal]::PtrToStringAnsi($pointer) } | ConvertTo-Json -Compress
+"""
+        script = script.replace("__CODE__", base64.b64encode(code.encode("utf-8")).decode("ascii"))
+        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+        completed = subprocess.run(
+            [str(self.powershell_path), "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            capture_output=True,
+            input=json.dumps({"operation": name}),
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        if completed.returncode:
+            detail = " | ".join(part for part in (completed.stderr.strip(), completed.stdout.strip()) if part)
+            raise OSError(f"32-bit LZO version provider failed: {detail}")
+        try:
+            value = json.loads(completed.stdout.strip().splitlines()[-1])["value"]
+        except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise OSError("32-bit LZO version provider returned malformed output") from exc
+        if not isinstance(value, str) or not value:
+            raise OSError("32-bit LZO version provider returned an invalid value")
+        return value
+
+    def lzo_version_string(self) -> str:
+        return self._invoke_version("lzo_version_string")
+
+    def lzo_version_date(self) -> str:
+        return self._invoke_version("lzo_version_date")
+
     def lzo1x_1_compress(self, source, source_length, destination, destination_length, work_memory):
         return self._invoke("lzo1x_1_compress", source, source_length, destination, destination_length, work_memory)
 
