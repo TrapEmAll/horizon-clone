@@ -21,3 +21,10 @@ It does not yet claim parity for the game-specific editors above. Each editor
 requires format fixtures and behavioral tests before it can be implemented
 without guessing opaque fields.
 
+## Security observations
+
+REA’s managed static evidence for the shipped executable records debugger and
+IL-inspection-related metadata attributes and a `ZYXDNGuarder` type. These are
+recorded as observations only. The reconstruction does not execute Horizon,
+patch its protections, or implement anti-debugging bypasses.
+
