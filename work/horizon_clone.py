@@ -595,6 +595,27 @@ def xdbf_achievement_image_links(data: bytes) -> tuple[dict[str, object], ...]:
     return tuple(links)
 
 
+def xdbf_achievement_image_payload(data: bytes, achievement_entry_index: int) -> bytes:
+    """Return the exact same-file PNG referenced by an achievement entry."""
+
+    entries = parse_xdbf(data)
+    try:
+        achievement = next(item for item in entries if item.index == achievement_entry_index)
+    except StopIteration as exc:
+        raise IndexError(f"unknown XDBF achievement entry index: {achievement_entry_index}") from exc
+    if achievement.achievement is None:
+        raise ValueError("XDBF entry is not an observed achievement payload")
+    image_id = achievement.achievement["image_id"]
+    for image in entries:
+        if image.namespace != 2 or image.entry_id != image_id:
+            continue
+        payload = data[image.data_offset : image.data_offset + image.length]
+        if resource_payload_metadata(payload).get("kind") != "png":
+            raise ValueError(f"XDBF image entry {image.index} is not a PNG payload")
+        return payload
+    raise LookupError(f"achievement image_id {image_id} is missing from this XDBF")
+
+
 def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: bytes) -> bytes:
     """Replace an XDBF payload without changing its table allocation."""
     if len(replacement) != entry.length:
