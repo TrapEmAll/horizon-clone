@@ -171,17 +171,18 @@ class ContainerInspectionTests(unittest.TestCase):
                 "normalized_result": {
                     "types": [{"full_name": "Demo.Editor", "token": "0x02000001"}],
                     "fields": [{"declaring_type": "Demo.Editor", "name": "Value", "token": "0x04000001", "signature": {"field_type": "i4"}}],
-                    "methods": [{"declaring_type": "Demo.Editor", "name": "Save", "token": "0x06000001", "signature": {"return_type": "void"}}],
+                    "methods": [{"declaring_type": "Demo.Editor", "name": "Save", "token": "0x06000001", "signature": {"return_type": "void"}, "body": {"status": "present", "opcode_counts": {"ret": 1}}}],
                 },
             }]
         }), encoding="utf-8")
         try:
-            report = managed_schema_report(bundle, "Demo\\.Editor")
+            report = managed_schema_report(bundle, "Demo\\.Editor", include_bodies=True)
         finally:
             bundle.unlink(missing_ok=True)
         self.assertEqual(report["counts"]["matched_types"], 1)
         self.assertEqual(report["counts"]["matched_fields"], 1)
         self.assertEqual(report["types"][0]["methods"][0]["name"], "Save")
+        self.assertEqual(report["types"][0]["methods"][0]["body"]["status"], "present")
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
