@@ -184,6 +184,8 @@ copied implementation code.
 - Runtime adapters enforce the observed x86 versus x64 image boundary; the
   supplied installation currently lacks `HVMRun64.dll`, so x64 operations fail
   explicitly until that authorized artifact is provided.
+- Runtime CLI calls statically preflight the required export and image width
+  before launching the explicit native provider.
 - Tracks the REA-observed managed-resource surface as 206 metadata records,
   205 embedded payloads, and one non-embedded unresolved record, separately
   from implementation claims.
