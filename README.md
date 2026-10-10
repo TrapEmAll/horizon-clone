@@ -251,6 +251,7 @@ items.
 `--device-inventory` adds a read-only inventory of host-visible Windows logical
 volumes and capacity. It does not claim Xbox FATX support or open a volume for
 mutation.
+The desktop front end exposes the same read-only inventory action.
 
 `DeviceBinding` exposes the observed signed-64-bit `DeviceSize` property
 through an explicit provider boundary; it never opens or enumerates a
