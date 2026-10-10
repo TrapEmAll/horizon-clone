@@ -13,6 +13,7 @@ from work.horizon_clone import (
     list_embedded_xdbf,
     summarize_embedded_xdbf,
     list_embedded_achievements,
+    summarize_profile_achievements,
     rename_stfs_entry,
     add_stfs_directory,
     move_stfs_entry,
@@ -576,10 +577,20 @@ class ContainerInspectionTests(unittest.TestCase):
             records = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertTrue(records)
             self.assertIn("achievement", records[0])
+
             self.assertIn("file", records[0])
         finally:
             output_path.unlink(missing_ok=True)
             directory.rmdir()
+
+    def test_profile_summary_aggregates_observed_achievement_fields(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        summary = summarize_profile_achievements(path.read_bytes())
+        self.assertGreater(summary["gpd_count"], 0)
+        self.assertEqual(summary["achievement_entry_count"], len(list_embedded_achievements(path.read_bytes())))
+        self.assertIn("raw nonzero flag count", summary["flag_semantics"])
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
