@@ -150,6 +150,8 @@ The clone now provides `--device-inventory` for the separately verifiable
 read-only host-volume portion of this surface. It reports logical-drive type,
 label, filesystem, serial, and capacity when Windows exposes them, while
 keeping Xbox-specific FATX and IOCTL behavior unresolved.
+The desktop front end now exposes this same host-volume report without opening
+or mutating Xbox-specific devices.
 
 `DeviceBinding` models the observed signed-64-bit `DeviceSize` getter/setter
 behind an explicit provider. It does not enumerate devices, open USB/FATX
