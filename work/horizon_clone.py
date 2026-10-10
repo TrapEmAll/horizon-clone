@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 23222)
-Total output lines: 2018
+Warning: truncated output (original token count: 23345)
+Total output lines: 2026
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -22,7 +22,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import native_surface_report
 from .device_surface import device_surface_report
-from .resource_inventory import observed_resource_surface, resource_surface_report
+from .resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
@@ -896,17 +896,7 @@ def mutate_stfs_entry_same_size(
     data: bytes,
     entry: StfsEntry,
     replacement: bytes,
-    header: StfsHeader | None = None,
-) -> bytes:
-    """Replace one …5222 tokens truncated…ive else _next_block(data, block, header)
-        if remaining:
-            failures.append({"entry": current.path, "block": block, "reason": "broken_chain"})
-
-    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
-    header_hash_matches = hashlib.sha1(data[0x344:first_hash_table]).digest() == data[0x32C:0x340]
-    top_level = _top_level(header)
-    for table_index in range(_table_count(header, 0)):
-        level0_address = _hash_table_address(data, table_index * 0xAA, header, 0)
+    header: StfsHeader | None = Non…5345 tokens truncated…data, table_index * 0xAA, header, 0)
         actual = hashlib.sha1(data[level0_address : level0_address + BLOCK_SIZE]).digest()
         if top_level == 1:
             parent_address = _hash_table_address(data, 0, header, 1)
@@ -1046,6 +1036,7 @@ def main() -> int:
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
     parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
+    parser.add_argument("--verify-resources", type=Path, metavar="BUNDLE", help="Verify shipped managed-resource hashes against an REA bundle")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
@@ -1147,6 +1138,13 @@ def main() -> int:
         try:
             report = resource_surface_report(args.resource_bundle, args.resource_pattern)
         except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.verify_resources:
+        try:
+            report = verify_managed_resource_payloads(args.path, args.verify_resources, args.resource_pattern)
+        except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
