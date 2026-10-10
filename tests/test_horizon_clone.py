@@ -759,6 +759,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["STFS hash verification"]["status"], "implemented")
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
+        self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
