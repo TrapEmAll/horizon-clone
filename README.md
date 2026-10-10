@@ -33,6 +33,8 @@ copied implementation code.
 - Provides a registry/plugin boundary for title-specific package editors.
 - Provides a functional XDBF/GPD editor plugin API for inspection, entry
   replacement, bounded repacking, observed text edits, and achievement edits.
+- Registers a read-only REA managed-surface editor for inspecting exported
+  managed-members evidence through the same dispatch API.
 - Exposes a complete XDBF payload surface (`--xdbf-surface`) with offsets,
   lengths, SHA-256 digests, and evidence-qualified text/achievement/opaque
   classification for future title-specific fixtures.
