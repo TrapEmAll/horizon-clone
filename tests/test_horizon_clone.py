@@ -35,6 +35,7 @@ from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_regi
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.observed_members import observed_fields, observed_profile_data_fields
+from work.editor_inventory import inventory_summary, observed_editor_inventory
 
 
 def supplied_fixture():
@@ -218,6 +219,16 @@ class ContainerInspectionTests(unittest.TestCase):
             ],
         )
         self.assertEqual(observed_fields("Horizon.ProfileData"), fields)
+
+    def test_reports_aggregate_title_editor_inventory(self):
+        inventory = observed_editor_inventory()
+        self.assertEqual(
+            {item.name: item.observed_type_count for item in inventory},
+            {"Skyrim": 3, "Gears of War 3": 1, "Halo general classes": 103},
+        )
+        summary = inventory_summary()
+        self.assertEqual(summary["managed_type_count"], 7693)
+        self.assertTrue(all(item["implementation_status"] == "catalog-only" for item in summary["editors"]))
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
