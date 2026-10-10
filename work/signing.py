@@ -30,6 +30,23 @@ class RsaPrivateKey:
     private_exponent: int
 
 
+@dataclass(frozen=True)
+class SignedRegion:
+    """Caller-labeled bytes presented to an authorized signing provider."""
+
+    label: str
+    data: bytes
+
+
+@dataclass(frozen=True)
+class DetachedSignature:
+    """A detached development signature and the algorithm used to make it."""
+
+    region_label: str
+    algorithm: str
+    signature: bytes
+
+
 class SigningProvider(Protocol):
     """Authorized provider boundary; implementations must keep secrets local."""
 
@@ -53,7 +70,14 @@ class LocalRsaSha256Signer:
 def verify_sha256_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
     """Verify a detached SHA-256 RSA PKCS#1 v1.5 signature."""
     size = (key.modulus.bit_length() + 7) // 8
-    if len(signature) != size or key.modulus <= 0 or key.exponent <= 1:
+    minimum_size = len(SHA256_DIGEST_INFO_PREFIX) + hashlib.sha256().digest_size + 11
+    if (
+        len(signature) != size
+        or key.modulus <= 0
+        or key.exponent <= 1
+        or size < minimum_size
+        or int.from_bytes(signature, "big") >= key.modulus
+    ):
         return False
     encoded = pow(int.from_bytes(signature, "big"), key.exponent, key.modulus).to_bytes(size, "big")
     digest_info = SHA256_DIGEST_INFO_PREFIX + hashlib.sha256(message).digest()
@@ -67,4 +91,28 @@ def sign_with_provider(message: bytes, provider: SigningProvider) -> bytes:
     if not isinstance(signature, bytes) or not signature:
         raise ValueError("signing provider returned no signature bytes")
     return signature
+
+
+def sign_region(region: SignedRegion, provider: SigningProvider) -> DetachedSignature:
+    """Sign explicitly supplied bytes without inferring a package layout."""
+    if not region.label.strip():
+        raise ValueError("signed region label cannot be empty")
+    return DetachedSignature(
+        region_label=region.label,
+        algorithm="RSA-SHA256-PKCS1v1.5",
+        signature=sign_with_provider(region.data, provider),
+    )
+
+
+def verify_region(
+    region: SignedRegion,
+    detached: DetachedSignature,
+    key: RsaPublicKey,
+) -> bool:
+    """Verify a detached signature only when its caller label matches."""
+    return (
+        detached.region_label == region.label
+        and detached.algorithm == "RSA-SHA256-PKCS1v1.5"
+        and verify_sha256_pkcs1v15(region.data, detached.signature, key)
+    )
 
