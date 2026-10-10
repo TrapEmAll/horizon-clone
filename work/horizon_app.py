@@ -12,6 +12,7 @@ from .horizon_clone import (
     inspect,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     parse_xdbf,
     read_stfs_entry,
@@ -41,6 +42,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
@@ -413,6 +415,42 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "xdbf_index": index, "signature_checked": False})
         except (OSError, ValueError, StopIteration, IsADirectoryError) as exc:
             messagebox.showerror("Achievement edit failed", str(exc))
+
+    def edit_thumbnails(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Thumbnails", "Open a readable STFS container first.")
+            return
+        try:
+            thumbnail_path = filedialog.askopenfilename(
+                title="Choose thumbnail (Cancel to keep current)",
+                filetypes=(("Image files", "*.png *.jpg *.jpeg *.bmp"), ("All files", "*.*")),
+            )
+            title_thumbnail_path = filedialog.askopenfilename(
+                title="Choose title thumbnail (Cancel to keep current)",
+                filetypes=(("Image files", "*.png *.jpg *.jpeg *.bmp"), ("All files", "*.*")),
+            )
+            if not thumbnail_path and not title_thumbnail_path:
+                return
+            mutated = mutate_stfs_thumbnails(
+                self._data,
+                thumbnail=Path(thumbnail_path).read_bytes() if thumbnail_path else None,
+                title_thumbnail=Path(title_thumbnail_path).read_bytes() if title_thumbnail_path else None,
+                header=self._report.stfs_header,
+            )
+            target = filedialog.asksaveasfilename(
+                title="Save thumbnail edit",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text="Wrote unsigned thumbnail mutation")
+            self._set_details({"path": target, "signature_checked": False})
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Thumbnail edit failed", str(exc))
 
     def export_report(self) -> None:
         if not self._report:
