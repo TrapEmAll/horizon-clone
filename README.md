@@ -109,6 +109,8 @@ copied implementation code.
   it does not store keys or claim Account serialization semantics.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
+- Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
+  the supplied `lzo.dll` only through a caller-selected 32-bit PowerShell host.
 - Provides `LzoCodec`, a validated high-level compression/decompression bridge
   for explicit providers while preserving the observed variant names.
 - Tracks the REA-observed managed-resource surface as 206 metadata records,
