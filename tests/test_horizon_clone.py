@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 18109)
-Total output lines: 1430
+Warning: truncated output (original token count: 18293)
+Total output lines: 1444
 
 import hashlib
 import json
@@ -33,6 +33,7 @@ from work.horizon_clone import (
     validate_stfs_mutation,
     profile_data_report,
     editor_inspect_report,
+    editor_edit_values,
     block_offset,
     parse_stfs_header,
     parse_stfs_security_metadata,
@@ -729,23 +730,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     str(title_path),
                 ],
                 check=True,
-                capture_output=True,
-          …109 tokens truncated…ath.unlink(missing_ok=True)
-            title_path.unlink(missing_ok=True)
-            directory.rmdir()
-
-    def test_rehashes_and_verifies_the_complete_stfs_tree(self):
-        path = supplied_fixture()
-        if path is None or not path.exists():
-            self.skipTest("supplied STFS profile fixture is not available")
-        original = path.read_bytes()
-        header = parse_stfs_header(original)
-        rebuilt = rehash_stfs_hashes(original, header)
-        result = verify_stfs_hashes(rebuilt, header=parse_stfs_header(rebuilt))
-        self.assertEqual(result["failures"], [])
-        self.assertEqual(result["hash_table_failures"], [])
-        self.assertTrue(result["header_hash_matches"])
-        self.assertTrue(result["top_hash_matches"])
+                capture…293 tokens truncated…    self.assertTrue(result["top_hash_matches"])
 
     def test_signing_provider_boundary_rejects_empty_signatures(self):
         class EmptyProvider:
@@ -819,6 +804,19 @@ class ContainerInspectionTests(unittest.TestCase):
             path.unlink(missing_ok=True)
         self.assertEqual(report["editor"], "ProfileData metadata editor")
         self.assertEqual(report["result"]["values"]["xuid"], 9)
+
+    def test_editor_edit_values_uses_declared_profile_plugin(self):
+        source = self.fixture_dir / "editor-edit-profile.json"
+        values = self.fixture_dir / "editor-edit-values.json"
+        source.write_text(json.dumps({"editor": "profile-data", "values": {"xuid": 1}}), encoding="utf-8")
+        values.write_text(json.dumps({"xuid": 2, "gamertag": "Edited"}), encoding="utf-8")
+        try:
+            editor_name, edited = editor_edit_values(source, values)
+        finally:
+            source.unlink(missing_ok=True)
+            values.unlink(missing_ok=True)
+        self.assertEqual(editor_name, "ProfileData metadata editor")
+        self.assertEqual(json.loads(edited)["values"]["xuid"], 2)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
