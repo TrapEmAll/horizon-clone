@@ -173,7 +173,7 @@ def extract_managed_resource_payloads(
         if output_path.exists():
             raise FileExistsError(output_path)
         output_path.write_bytes(payload)
-        results.append({"name": name, "status": "extracted", "path": str(output_path), "bytes": len(payload), "sha256": expected, "source": kind})
+        results.append({"name": name, "status": "extracted", "path": str(output_path), "bytes": len(payload), "sha256": expected, "source": kind, "payload_kind": classify_resource_payload(payload)})
     extracted = sum(item["status"] == "extracted" for item in results)
     unresolved = len(results) - extracted
     return {
@@ -199,6 +199,32 @@ def _resource_payload_candidates(data: bytes, blob_offset: int, blob_size: int, 
     if 0 <= offset <= blob_size and prefix_end <= blob_offset + blob_size:
         candidates.append(("length-prefixed-payload", data[raw_start + 4:prefix_end]))
     return candidates
+
+
+def classify_resource_payload(payload: bytes) -> str:
+    """Classify an extracted payload by an exact, non-executing magic check."""
+
+    if payload.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if payload.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if payload.startswith((b"GIF87a", b"GIF89a")):
+        return "gif"
+    if payload.startswith(b"BM"):
+        return "bmp"
+    if payload.startswith(b"\x00\x00\x01\x00"):
+        return "ico"
+    if payload.startswith(b"RIFF") and len(payload) >= 12 and payload[8:12] == b"WAVE":
+        return "wav"
+    if payload.startswith(b"PK\x03\x04"):
+        return "zip"
+    if payload.startswith(b"\x1f\x8b"):
+        return "gzip"
+    if payload.startswith(b"MZ"):
+        return "pe-or-dos"
+    if payload.startswith(b"\xce\xca\xef\xbe"):
+        return "dotnet-resources"
+    return "binary"
 
 
 def _managed_resource_blob(data: bytes) -> tuple[int, int]:
