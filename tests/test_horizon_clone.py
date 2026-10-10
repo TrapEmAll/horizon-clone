@@ -657,6 +657,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["managed_method_count"], 37401)
         self.assertEqual(by_name["STFS hash verification"]["status"], "implemented")
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
+        self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
