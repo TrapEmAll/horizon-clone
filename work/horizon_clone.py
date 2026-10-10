@@ -1,8 +1,8 @@
 """Clean-room Xbox 360 content-container inspector.
 
-This module intentionally limits itself to evidence-backed, non-destructive
-inspection.  It does not copy Horizon code/resources and does not claim to
-re-sign or rewrite a container.
+This module intentionally limits itself to evidence-backed reconstruction.  It
+does not copy Horizon code/resources and does not claim retail signing or
+console validity for caller-requested mutations.
 """
 
 from __future__ import annotations
