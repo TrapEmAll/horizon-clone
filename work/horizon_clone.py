@@ -23,6 +23,7 @@ from .resource_inventory import observed_resource_surface
 from .managed_surface import managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
+from .native_loader import compatible_pe_architecture
 
 
 def _atomic_replace_bytes(path: Path, data: bytes) -> None:
@@ -1465,6 +1466,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--capabilities", action="store_true", help="Print the evidence-qualified implementation capability ledger")
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
+    parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
@@ -1538,6 +1540,13 @@ def main() -> int:
         print(json.dumps(native_surface_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
+    if args.native_architecture:
+        try:
+            image, process = compatible_pe_architecture(args.path)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({"path": str(args.path), "image_architecture": image, "process_architecture": process}, indent=2))
+        return 0
     if args.device_surface:
         print(json.dumps(device_surface_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
