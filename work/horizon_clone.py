@@ -853,6 +853,41 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
     )
 
 
+def stfs_signature_region_report(data: bytes) -> dict[str, object]:
+    """Describe stored STFS signature ranges without verifying them."""
+
+    metadata = parse_stfs_security_metadata(data)
+    regions: list[dict[str, object]] = []
+    if metadata.certificate_signature_offset is not None and metadata.certificate_signature_length is not None:
+        offset = metadata.certificate_signature_offset
+        length = metadata.certificate_signature_length
+        regions.append({
+            "name": "certificate-signature",
+            "offset": offset,
+            "length": length,
+            "sha256": hashlib.sha256(data[offset:offset + length]).hexdigest(),
+        })
+    offset = metadata.package_signature_offset
+    length = metadata.package_signature_length
+    regions.append({
+        "name": "package-signature",
+        "offset": offset,
+        "length": length,
+        "sha256": hashlib.sha256(data[offset:offset + length]).hexdigest(),
+    })
+    key = extract_stfs_public_key(data) if metadata.signature_kind == "console-certificate" else None
+    return {
+        "status": "metadata-only",
+        "signature_kind": metadata.signature_kind,
+        "regions": regions,
+        "public_key": ({"modulus_bits": key.modulus.bit_length(), "exponent": key.exponent} if key else None),
+        "limitations": [
+            "The report identifies stored signature bytes only; it does not infer the signed-region digest input.",
+            "Console-valid signing still requires an authorized compatible signing provider.",
+        ],
+    }
+
+
 def extract_stfs_public_key(data: bytes) -> RsaPublicKey:
     """Extract the public CON certificate key without checking a signature."""
 
@@ -1983,6 +2018,7 @@ def main() -> int:
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
+    parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
@@ -2642,6 +2678,13 @@ def main() -> int:
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps({"exponent": key.exponent, "modulus_hex": f"{key.modulus:0256x}"}, indent=2))
+        return 0
+
+    if args.signature_regions:
+        try:
+            print(json.dumps(stfs_signature_region_report(raw), indent=2))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
         return 0
 
     if args.replace:
