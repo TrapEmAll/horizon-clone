@@ -130,6 +130,10 @@ copied implementation code.
   field inspection with an explicit caller-supplied 16-byte key; secrets are
   returned only as field values in the caller's local JSON output and are not
   persisted by the clone.
+- Supports explicit historical Account field mutation through
+  `--historical-account-edit JSON --historical-account-key-hex KEY` together
+  with `--write` or `--in-place`; the STFS hash tree is rebuilt, while the
+  result remains explicitly unsigned and non-console-valid.
 - Provides `AccountKeyProvider` integration for caller-owned key-vault or
   development-key services; keys are requested per operation and payload digest
   and are not persisted by the clone.
@@ -368,6 +372,7 @@ python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
 python -m work.horizon_clone C:\path\to\profile.con --historical-account-inspect --historical-account-key-hex e1bc159c73b1eae9ab3170f3ad47ebf3
+python -m work.horizon_clone C:\path\to\profile.con --historical-account-edit account-edit.json --historical-account-key-hex e1bc159c73b1eae9ab3170f3ad47ebf3 --write edited-profile.con
 python -m work.horizon_clone C:\path\to\container --security
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place
