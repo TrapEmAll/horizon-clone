@@ -30,6 +30,7 @@ copied implementation code.
 - Exposes a complete XDBF payload surface (`--xdbf-surface`) with offsets,
   lengths, SHA-256 digests, and evidence-qualified text/achievement/opaque
   classification for future title-specific fixtures.
+- Exposes the same XDBF payload surface export from the desktop front end.
 - Exposes REA-observed Skyrim Shout, Perk, and Magic enum names and authenticated
   Constant-table numeric values; save offsets and mutation behavior remain
   unclaimed until fixture evidence establishes them.
