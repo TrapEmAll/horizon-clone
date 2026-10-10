@@ -6,6 +6,7 @@ from work.horizon_clone import (
     inspect,
     list_stfs_entries,
     mutate_stfs_entry_same_size,
+    mutate_stfs_metadata,
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
     parse_xdbf,
@@ -104,6 +105,23 @@ class ContainerInspectionTests(unittest.TestCase):
             favorite=True,
         )
         self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
+
+    def test_mutates_fixed_width_stfs_metadata(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        mutated = mutate_stfs_metadata(
+            original,
+            display_name="Edited Profile",
+            title_id=0x12345678,
+            header=header,
+        )
+        parsed = parse_stfs_header(mutated)
+        self.assertEqual(parsed.display_name, "Edited Profile")
+        self.assertEqual(parsed.title_id, 0x12345678)
+        self.assertTrue(verify_stfs_hashes(mutated, header=parsed)["header_hash_matches"])
 
 
 if __name__ == "__main__":
