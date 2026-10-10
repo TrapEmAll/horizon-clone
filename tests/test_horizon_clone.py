@@ -55,7 +55,7 @@ from work.skyrim_catalog import enum_member_names, enum_member_values, observed_
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids, resolve_gears_entry_id, validate_gears_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
-from work.resource_inventory import observed_resource_surface, resource_surface_report
+from work.resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
@@ -1199,6 +1199,15 @@ class ContainerInspectionTests(unittest.TestCase):
             path.unlink(missing_ok=True)
         self.assertEqual(report["counts"], {"matched": 1, "total": 2})
         self.assertEqual(report["resources"][0]["data_sha256"], "abc")
+
+    def test_verifies_shipped_managed_resource_hashes_against_rea_bundle(self):
+        executable = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.exe")
+        bundle = Path("work/rea-managed-members-latest.json")
+        if not executable.exists() or not bundle.exists():
+            self.skipTest("supplied Horizon.exe and retained REA bundle are not available")
+        report = verify_managed_resource_payloads(executable, bundle, "A\\.c298")
+        self.assertEqual(report["counts"], {"verified": 1, "unresolved": 0})
+        self.assertEqual(report["resources"][0]["status"], "verified")
 
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
