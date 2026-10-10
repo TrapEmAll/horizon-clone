@@ -89,7 +89,7 @@ _CAPABILITIES = (
     Capability("Device exploration surface", "provider-boundary", "REA observed device thumbnail properties and an i8 DeviceSize property; device protocols unresolved", ("device_surface_report", "DeviceBinding")),
     Capability("Host volume inventory", "implemented", "Read-only Windows logical-volume identity and capacity inventory", ("device_inventory_report", "--device-inventory")),
     Capability("DNG/HVM runtime adapter", "provider-boundary", "REA recovered CheckRuntime, RunHVM, and GetUserString declarations; native argument semantics unresolved", ("NativeRuntimeBinding",)),
-    Capability("Console signing", "provider-boundary", "public signature metadata observed; private signing material and console validity unavailable", ("sign_with_provider", "verify_detached_signature", "--verify-detached-signature")),
+    Capability("Console signing", "provider-boundary", "public signature metadata observed; explicit caller-bounded RSA verification is available, but package layout and console validity remain unresolved", ("sign_with_provider", "verify_detached_signature", "verify_embedded_signature_region", "--verify-embedded-signature")),
     Capability("CON public-key extraction", "implemented", "Extracts the public RSA modulus and exponent from an observed CON certificate", ("extract_stfs_public_key", "--public-key")),
 )
 
