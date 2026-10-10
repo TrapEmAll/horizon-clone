@@ -31,6 +31,7 @@ copied implementation code.
   mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
   capacity, updating file-table records and hashes.
+- Resolves level-2 STFS hash-table indirection for large allocations.
 - Removes file-table entries safely when the resulting package fits the
   existing allocation capacity.
 
