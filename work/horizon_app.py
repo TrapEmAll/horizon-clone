@@ -35,6 +35,7 @@ from .horizon_clone import (
     extract_managed_resource_payloads,
     anti_analysis_report,
     sign_detached_bytes,
+    device_inventory_report,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -78,6 +79,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
@@ -273,6 +275,16 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Anti-analysis report failed", str(exc))
+
+    def show_device_inventory(self) -> None:
+        """Display read-only host-visible volume inventory."""
+
+        try:
+            report = device_inventory_report()
+            self.status.configure(text=f"Displayed {len(report.get('volumes', []))} host volumes")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Device inventory failed", str(exc))
 
     def show_selected(self, _event=None) -> None:
         if not self._data or not self._report:
