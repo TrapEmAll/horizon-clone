@@ -46,6 +46,8 @@ copied implementation code.
 - Provides `NativeSaveBinding`, an explicit provider-only model of the
   recovered `RtsSaveDecrypt`/`RtsSaveEncrypt` signatures; it does not load
   `class3.dll` or infer the save-crypto protocol.
+- Provides `LzoBinding`, an explicit provider-only model of the four recovered
+  LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Tracks the REA-observed embedded managed-resource surface (205 payloads)
   separately from implementation claims.
 - Exposes that resource-surface report through `--resource-surface` without
