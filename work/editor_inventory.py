@@ -121,5 +121,9 @@ def catalog_report(name: str) -> dict[str, object]:
         from .legacy_catalog import legacy_catalog_report
 
         return legacy_catalog_report()
+    if name == "global":
+        from .global_catalog import global_catalog_report
+
+        return global_catalog_report()
     raise KeyError(f"unknown catalog: {name}")
 
