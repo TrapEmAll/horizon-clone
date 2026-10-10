@@ -164,6 +164,9 @@ copied implementation code.
 - Provides a provider-oriented RSA PKCS#1 v1.5/SHA-256 signing boundary and
   SHA-256/SHA-1 detached verification primitives for authorized local test or
   development keys.
+- Provides `--sign-detached-signature` with a caller-supplied private-key JSON
+  file for authorized development signing; private material is read only for
+  the operation and is not included in reports.
 - Provides `--verify-embedded-signature` for caller-specified in-container
   signature and signed-region offsets; it deliberately does not infer Xbox
   package layout or claim console validity.
