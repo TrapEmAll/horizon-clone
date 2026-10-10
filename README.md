@@ -163,6 +163,10 @@ copied implementation code.
 - Exposes the complete 54-row REA managed P/Invoke inventory through
   `--native-import-bundle`, including import scopes, names, calling metadata,
   and declaration-only verification state.
+- Exposes `--native-installation DIRECTORY`, a read-only inventory of the
+  observed `class3.dll`, `lzo.dll`, `Horizon.dll`, and `HVMRun64.dll` deployment
+  contracts, including PE architecture and named exports; missing runtime
+  helpers are reported as partial rather than silently emulated.
 - Exposes joined type-centric managed editor schemas through
   `--managed-schema` and `--schema-pattern`, linking every matched observed
   type to its fields and methods without inferring save offsets or serializers.
