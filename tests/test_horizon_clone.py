@@ -46,6 +46,7 @@ from work.horizon_clone import (
     stfs_signature_region_report,
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
+    stfs_content_type_name,
     stfs_magic_filename,
     stfs_fatx_device_path,
     read_private_key_json,
@@ -2316,6 +2317,13 @@ class ContainerInspectionTests(unittest.TestCase):
             stfs_fatx_device_path(header),
             "Content\\E9ECC9141E317C7B\\FFFE07D1\\00010000\\E9ECC9141E317C7B",
         )
+
+    def test_labels_observed_and_unknown_stfs_content_types(self):
+        self.assertEqual(stfs_content_type_name(0x00010000), "Profile")
+        self.assertEqual(stfs_content_type_name(0x000E0000), "XNA")
+        self.assertEqual(stfs_content_type_name(0x12345678), "Unknown")
+        with self.assertRaises(ValueError):
+            stfs_content_type_name(-1)
 
     def test_compares_stfs_mutations_without_claiming_console_validity(self):
         path = supplied_fixture()
