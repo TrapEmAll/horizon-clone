@@ -26,6 +26,9 @@ copied implementation code.
 - Exposes REA-observed Skyrim enum member names for Shouts, Perks, and Magic;
   numeric values and save offsets remain intentionally unclaimed until fixture
   evidence establishes them.
+- Exposes the retained REA-observed Gears of War 3 `EntryID` labels; numeric
+  values and save offsets remain unclaimed until fixture evidence establishes
+  them.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
   `SaveEntryCategory`; enum values and package offsets remain unclaimed until
   fixture evidence establishes them.
