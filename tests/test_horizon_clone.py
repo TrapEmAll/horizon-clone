@@ -903,6 +903,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(length.value, 2)
         with self.assertRaises(ValueError):
             bound.encrypt(b"in", output, 0x1_0000_0000, b"key")
+        with self.assertRaises(ValueError):
+            bound.encrypt(b"in", output, 3, b"key")
 
     def test_lzo_requires_explicit_provider_and_preserves_observed_shapes(self):
         binding = LzoBinding()
@@ -933,6 +935,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(length.value, 2)
         with self.assertRaises(ValueError):
             bound.compress("unknown", b"in", 2, output, length, b"work")
+        with self.assertRaises(ValueError):
+            bound.compress("lzo1x_1", b"in", 3, output, length, b"work")
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
