@@ -21,6 +21,7 @@ from .horizon_clone import (
 )
 from .managed_surface import managed_surface_report_from_bundle
 from .halo_catalog import validate_halo_metadata_values
+from .profile_model import ProfileData
 
 
 @dataclass(frozen=True)
@@ -133,6 +134,68 @@ class AccountEditor:
         if len(data) != len(replacement):
             raise ValueError("opaque Account replacement must preserve byte length")
         return bytes(replacement)
+
+
+@dataclass(frozen=True)
+class ProfileDataEditor:
+    """Validate the authenticated ``Horizon.ProfileData`` metadata contract."""
+
+    name: str = "ProfileData metadata editor"
+
+    @staticmethod
+    def _decode(data: bytes) -> tuple[dict[str, Any], ProfileData]:
+        import json
+
+        try:
+            envelope = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("ProfileData input must be UTF-8 JSON") from exc
+        if not isinstance(envelope, dict) or envelope.get("editor") != "profile-data":
+            raise ValueError("expected an explicit profile-data envelope")
+        values = envelope.get("values")
+        if not isinstance(values, dict):
+            raise ValueError("ProfileData requires an object-valued values member")
+        allowed = {"from_device", "xuid", "gamertag", "gamer_picture", "profile_id", "favorite"}
+        unknown = sorted(set(values) - allowed)
+        if unknown:
+            raise ValueError(f"unknown ProfileData members: {', '.join(unknown)}")
+        try:
+            profile = ProfileData.from_dict(values)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid ProfileData values: {exc}") from exc
+        return envelope, profile
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        if not data.lstrip().startswith(b"{"):
+            return False
+        try:
+            self._decode(data)
+        except ValueError:
+            return False
+        return True
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, object]:
+        _envelope, profile = self._decode(data)
+        return {
+            "status": "metadata-only",
+            "values": profile.to_dict(),
+            "resource_getters": ["get_GoWJ_Thumb_New", "get_GrayDot"],
+            "limitations": [
+                "The six ProfileData fields are authenticated managed metadata.",
+                "The opaque Account binary layout and serializer remain unresolved.",
+                "Resource getter return type class:957 remains unresolved.",
+            ],
+        }
+
+    def edit_values(self, data: bytes, values: dict[str, object]) -> bytes:
+        import json
+
+        envelope, _profile = self._decode(data)
+        try:
+            envelope["values"] = ProfileData.from_dict(values).to_dict()
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid ProfileData values: {exc}") from exc
+        return (json.dumps(envelope, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 @dataclass(frozen=True)
@@ -294,6 +357,7 @@ def default_registry() -> EditorRegistry:
     registry.register(XdbfEditor())
     registry.register(ManagedSurfaceEditor())
     registry.register(AccountEditor())
+    registry.register(ProfileDataEditor())
     registry.register(HaloMetadataEditor())
     registry.register(ConstantCatalogEditor())
     return registry
