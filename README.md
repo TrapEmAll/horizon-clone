@@ -12,6 +12,7 @@ copied implementation code.
 - Parses the STFS metadata header and file table for `CON`, `LIVE`, and `PIRS`.
 - Lists entries and extracts files with path traversal protection.
 - Parses extracted XDBF/GPD indexes and common string entries.
+- Supports same-size raw XDBF entry replacement while preserving table layout.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
