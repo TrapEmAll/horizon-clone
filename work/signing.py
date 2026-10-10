@@ -16,6 +16,9 @@ from typing import Protocol
 SHA256_DIGEST_INFO_PREFIX = bytes.fromhex(
     "3031300d060960864801650304020105000420"
 )
+SHA1_DIGEST_INFO_PREFIX = bytes.fromhex(
+    "3021300906052b0e03021a05000414"
+)
 
 
 @dataclass(frozen=True)
@@ -69,8 +72,18 @@ class LocalRsaSha256Signer:
 
 def verify_sha256_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
     """Verify a detached SHA-256 RSA PKCS#1 v1.5 signature."""
+    return _verify_pkcs1v15(message, signature, key, hashlib.sha256, SHA256_DIGEST_INFO_PREFIX)
+
+
+def verify_sha1_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
+    """Verify a detached SHA-1 RSA PKCS#1 v1.5 signature."""
+    return _verify_pkcs1v15(message, signature, key, hashlib.sha1, SHA1_DIGEST_INFO_PREFIX)
+
+
+def _verify_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey, digest_algorithm: object, digest_info_prefix: bytes) -> bool:
+    digest = digest_algorithm(message).digest()
     size = (key.modulus.bit_length() + 7) // 8
-    minimum_size = len(SHA256_DIGEST_INFO_PREFIX) + hashlib.sha256().digest_size + 11
+    minimum_size = len(digest_info_prefix) + len(digest) + 11
     if (
         len(signature) != size
         or key.modulus <= 0
@@ -80,7 +93,7 @@ def verify_sha256_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) 
     ):
         return False
     encoded = pow(int.from_bytes(signature, "big"), key.exponent, key.modulus).to_bytes(size, "big")
-    digest_info = SHA256_DIGEST_INFO_PREFIX + hashlib.sha256(message).digest()
+    digest_info = digest_info_prefix + digest
     expected = b"\x00\x01" + b"\xff" * (size - len(digest_info) - 3) + b"\x00" + digest_info
     return encoded == expected
 
@@ -110,9 +123,11 @@ def verify_region(
     key: RsaPublicKey,
 ) -> bool:
     """Verify a detached signature only when its caller label matches."""
-    return (
-        detached.region_label == region.label
-        and detached.algorithm == "RSA-SHA256-PKCS1v1.5"
-        and verify_sha256_pkcs1v15(region.data, detached.signature, key)
-    )
+    if detached.region_label != region.label:
+        return False
+    if detached.algorithm == "RSA-SHA256-PKCS1v1.5":
+        return verify_sha256_pkcs1v15(region.data, detached.signature, key)
+    if detached.algorithm == "RSA-SHA1-PKCS1v1.5":
+        return verify_sha1_pkcs1v15(region.data, detached.signature, key)
+    return False
 
