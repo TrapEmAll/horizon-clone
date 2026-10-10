@@ -14,6 +14,7 @@ from work.horizon_clone import (
     summarize_embedded_xdbf,
     list_embedded_achievements,
     list_embedded_achievement_image_links,
+    extract_embedded_achievement_images,
     summarize_profile_achievements,
     rename_stfs_entry,
     add_stfs_directory,
@@ -154,6 +155,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_image"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_links"))
+        self.assertTrue(hasattr(HorizonApp, "extract_achievement_images"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
     def test_device_inventory_is_read_only_and_explicitly_bounded(self):
@@ -914,6 +916,19 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(links), 2339)
         self.assertEqual(sum(item["status"] == "linked" for item in links), 623)
         self.assertEqual(sum(item["status"] == "missing" for item in links), 1716)
+
+    def test_extracts_unique_embedded_achievement_images(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        output = self.fixture_dir / "achievement-images"
+        try:
+            result = extract_embedded_achievement_images(path.read_bytes(), output)
+            self.assertEqual(result["linked_references"], 623)
+            self.assertGreater(result["unique_images"], 0)
+            self.assertEqual(len(list(output.glob("*.png"))), result["unique_images"])
+        finally:
+            shutil.rmtree(output, ignore_errors=True)
 
     def test_cli_lists_embedded_achievements(self):
         path = supplied_fixture()
