@@ -1154,6 +1154,11 @@ def main() -> int:
     parser.add_argument("--add", action="append", metavar="ENTRY", help="Add an STFS file-table entry")
     parser.add_argument("--add-source", action="append", type=Path, help="Raw bytes for --add (repeat in the same order)")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
+    parser.add_argument(
+        "--in-place",
+        action="store_true",
+        help="Overwrite the input container with a mutation (explicit destructive opt-in)",
+    )
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--display-description", help="Replace the first STFS display-description locale")
     parser.add_argument("--publisher-name", help="Replace the STFS publisher name")
@@ -1173,14 +1178,17 @@ def main() -> int:
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
     parser.add_argument("--achievement-name")
     args = parser.parse_args()
+    if args.write and args.in_place:
+        parser.error("--write and --in-place cannot be combined")
+    write_target = args.path if args.in_place else args.write
 
     try:
         raw = args.path.read_bytes()
         if raw[:4] == b"XDBF":
             achievement_requested = args.achievement is not None
             if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested:
-                if not args.write:
-                    parser.error("XDBF mutation requires --write")
+                if not write_target:
+                    parser.error("XDBF mutation requires --write or --in-place")
                 if args.xdbf_replace is not None and not args.xdbf_source:
                     parser.error("--xdbf-replace requires --xdbf-source")
                 replacements = {}
@@ -1197,8 +1205,8 @@ def main() -> int:
                         flags=args.achievement_flags,
                         name=args.achievement_name,
                     )
-                args.write.write_bytes(raw)
-                print(f"Wrote XDBF mutation to {args.write}")
+                write_target.write_bytes(raw)
+                print(f"Wrote XDBF mutation to {write_target}")
             payload = json.dumps(_json_xdbf(raw, args.path), indent=2, ensure_ascii=False)
             if args.output:
                 args.output.write_text(payload + "\n", encoding="utf-8")
@@ -1226,8 +1234,8 @@ def main() -> int:
         print(json.dumps(verification, indent=2))
 
     if args.replace:
-        if not args.replacement or not args.write:
-            parser.error("--replace requires both --replacement and --write")
+        if not args.replacement or not write_target:
+            parser.error("--replace requires --replacement and --write or --in-place")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         entry = next((item for item in report.entries if item.path == args.replace), None)
@@ -1236,14 +1244,14 @@ def main() -> int:
         try:
             replacement = args.replacement.read_bytes()
             mutated = mutate_stfs_entry_same_size(raw, entry, replacement, report.stfs_header)
-            args.write.write_bytes(mutated)
+            write_target.write_bytes(mutated)
         except (OSError, ValueError, IsADirectoryError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned in-place mutation to {args.write}")
+        print(f"Wrote unsigned in-place mutation to {write_target}")
 
     if args.repack:
-        if args.replace or not args.repack_source or not args.write:
-            parser.error("--repack requires --repack-source and --write, and cannot be combined with --replace")
+        if args.replace or not args.repack_source or not write_target:
+            parser.error("--repack requires --repack-source and --write or --in-place, and cannot be combined with --replace")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         try:
@@ -1252,26 +1260,26 @@ def main() -> int:
                 {args.repack: args.repack_source.read_bytes()},
                 report.stfs_header,
             )
-            args.write.write_bytes(raw)
+            write_target.write_bytes(raw)
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned repacked container to {args.write}")
+        print(f"Wrote unsigned repacked container to {write_target}")
 
     if args.remove:
-        if args.replace or args.repack or args.add or not args.write:
-            parser.error("--remove requires --write and cannot be combined with --replace, --repack, or --add")
+        if args.replace or args.repack or args.add or not write_target:
+            parser.error("--remove requires --write or --in-place and cannot be combined with --replace, --repack, or --add")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         try:
             raw = repack_stfs_entries(raw, {}, remove=args.remove, header=report.stfs_header)
-            args.write.write_bytes(raw)
+            write_target.write_bytes(raw)
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned removal mutation to {args.write}")
+        print(f"Wrote unsigned removal mutation to {write_target}")
 
     if args.add:
-        if args.replace or args.repack or args.remove or not args.write:
-            parser.error("--add requires --write and cannot be combined with --replace, --repack, or --remove")
+        if args.replace or args.repack or args.remove or not write_target:
+            parser.error("--add requires --write or --in-place and cannot be combined with --replace, --repack, or --remove")
         if not args.add_source or len(args.add_source) != len(args.add):
             parser.error("each --add requires one corresponding --add-source")
         if not report.stfs_header:
@@ -1279,10 +1287,10 @@ def main() -> int:
         try:
             additions = {path: source.read_bytes() for path, source in zip(args.add, args.add_source)}
             raw = repack_stfs_entries(raw, {}, header=report.stfs_header, additions=additions)
-            args.write.write_bytes(raw)
+            write_target.write_bytes(raw)
         except (OSError, ValueError, FileNotFoundError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned file addition to {args.write}")
+        print(f"Wrote unsigned file addition to {write_target}")
 
     metadata_requested = any(
         value is not None
@@ -1297,8 +1305,8 @@ def main() -> int:
         )
     )
     if metadata_requested:
-        if not args.write:
-            parser.error("metadata mutation requires --write")
+        if not write_target:
+            parser.error("metadata mutation requires --write or --in-place")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         try:
@@ -1313,15 +1321,15 @@ def main() -> int:
                 content_type=args.content_type,
                 header=report.stfs_header,
             )
-            args.write.write_bytes(raw)
+            write_target.write_bytes(raw)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned metadata mutation to {args.write}")
+        print(f"Wrote unsigned metadata mutation to {write_target}")
 
     thumbnails_requested = args.thumbnail_source is not None or args.title_thumbnail_source is not None
     if thumbnails_requested:
-        if not args.write:
-            parser.error("thumbnail mutation requires --write")
+        if not write_target:
+            parser.error("thumbnail mutation requires --write or --in-place")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         try:
@@ -1331,10 +1339,10 @@ def main() -> int:
                 title_thumbnail=args.title_thumbnail_source.read_bytes() if args.title_thumbnail_source else None,
                 header=parse_stfs_header(raw),
             )
-            args.write.write_bytes(raw)
+            write_target.write_bytes(raw)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned thumbnail mutation to {args.write}")
+        print(f"Wrote unsigned thumbnail mutation to {write_target}")
 
     payload = json.dumps(_json_report(report), indent=2, ensure_ascii=False)
     if args.output:
