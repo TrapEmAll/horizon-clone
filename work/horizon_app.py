@@ -15,6 +15,7 @@ from .horizon_clone import (
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
+    mutate_xdbf_text,
     parse_xdbf,
     parse_stfs_thumbnails,
     read_stfs_entry,
@@ -52,6 +53,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace XDBF entry", command=self.replace_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Edit XDBF text", command=self.edit_xdbf_text).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove XDBF entry", command=self.remove_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
@@ -641,6 +643,27 @@ class HorizonApp(tk.Tk):
             self._save_standalone_xdbf(edited, "Save standalone XDBF replacement", "Wrote unsigned standalone XDBF replacement")
         except (OSError, ValueError, IndexError) as exc:
             messagebox.showerror("XDBF replacement failed", str(exc))
+
+    def edit_xdbf_text(self) -> None:
+        if not self._standalone_xdbf:
+            messagebox.showinfo("XDBF text", "Open a standalone GPD/XDBF file first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("XDBF text", "Select an XDBF entry first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.text is None:
+            messagebox.showinfo("XDBF text", "The selected entry is not an observed namespace-5 string.")
+            return
+        value = simpledialog.askstring("XDBF text", "Replacement text:", initialvalue=entry.text, parent=self)
+        if value is None:
+            return
+        try:
+            edited = mutate_xdbf_text(self._data, entry.index, value)
+            self._save_standalone_xdbf(edited, "Save standalone XDBF text edit", "Wrote unsigned standalone XDBF text edit")
+        except (OSError, ValueError, IndexError) as exc:
+            messagebox.showerror("XDBF text edit failed", str(exc))
 
     def remove_xdbf_entry(self) -> None:
         if not self._standalone_xdbf:
