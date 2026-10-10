@@ -31,6 +31,8 @@ copied implementation code.
 - Applies the same explicit raw mask across every embedded GPD with
   `mutate_profile_achievement_flags` or the corresponding profile CLI options,
   preserving the STFS hash-tree rewrite path.
+- Replaces exact observed namespace-5 XDBF text matches across embedded GPD/FIT
+  files with `mutate_profile_xdbf_text` and the corresponding profile CLI options.
 - Exposes the same profile summary export from the desktop front end.
 - Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
   legacy, and global catalogs from the desktop front end.
