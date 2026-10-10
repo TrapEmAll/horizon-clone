@@ -19,6 +19,7 @@ from .horizon_clone import (
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     mutate_xdbf_text,
+    move_stfs_entry,
     rename_stfs_entry,
     parse_xdbf,
     parse_stfs_thumbnails,
@@ -54,6 +55,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Add directory", command=self.add_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove file", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Rename file", command=self.rename_file).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Move entry", command=self.move_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
@@ -401,6 +403,44 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "new_name": new_name, "signature_checked": False})
         except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
             messagebox.showerror("Rename file failed", str(exc))
+
+    def move_entry(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
+            messagebox.showinfo("Move entry", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Move entry", "Select an entry first.")
+            return
+        entry = self._entries[selected[0]]
+        destination = simpledialog.askstring("Move entry", "Destination directory path:", parent=self)
+        if not destination:
+            return
+        new_name = simpledialog.askstring("Move entry", "New ASCII basename (blank keeps current name):", initialvalue=entry.name, parent=self)
+        if new_name is None:
+            return
+        try:
+            mutated = move_stfs_entry(self._data, entry.path, destination, new_name or None, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(
+                title="Save moved container",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.tree.delete(*self.tree.get_children())
+            self._entries.clear()
+            for item in self._report.entries:
+                tree_item = self.tree.insert("", tk.END, text=item.path, values=(item.size, "DIR" if item.is_directory else "FILE"))
+                self._entries[tree_item] = item
+            final_name = new_name or entry.name
+            self.status.configure(text=f"Wrote unsigned entry move: {entry.path} -> {destination}/{final_name}")
+            self._set_details({"path": target, "entry": entry.path, "destination": destination, "new_name": final_name, "signature_checked": False})
+        except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
+            messagebox.showerror("Move entry failed", str(exc))
 
     def edit_metadata(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
