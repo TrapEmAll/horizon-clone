@@ -223,6 +223,9 @@ copied implementation code.
 - Groups that authenticated managed surface into queryable editor families with
   `--managed-editor-families` and optional `--family-pattern`, without inferring
   registration, save offsets, or serializers.
+- Summarizes stable named title namespaces with `--managed-named-namespaces`,
+  excluding obfuscated/compiler-generated names while retaining the evidence
+  boundary for follow-on editor reconstruction.
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
 - Supports bounded display-description, publisher-name, title-name, and
