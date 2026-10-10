@@ -329,6 +329,17 @@ class ContainerInspectionTests(unittest.TestCase):
             output_path.unlink(missing_ok=True)
             directory.rmdir()
 
+    def test_cli_lists_embedded_xdbf_entries(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--list-xdbf"],
+            check=True, capture_output=True, text=True,
+        )
+        self.assertIn("FFFE07D1.gpd", result.stdout)
+        self.assertIn("string    106", result.stdout)
+
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
         if path is None or not path.exists():
