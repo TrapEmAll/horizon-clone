@@ -43,7 +43,7 @@ from work.signing import (
 )
 from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
-from work.skyrim_catalog import enum_member_names, observed_skyrim_enum_summary, observed_skyrim_enums
+from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_of_war_3_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types
@@ -59,6 +59,7 @@ from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
+from work.managed_surface import managed_surface_report
 
 
 def supplied_fixture():
@@ -86,6 +87,29 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_desktop_exposes_bulk_gpd_summary_export(self):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
+
+    def test_reports_selected_managed_surface_from_exported_evidence(self):
+        bundle = self.fixture_dir / "managed-surface.json"
+        bundle.parent.mkdir(exist_ok=True)
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_test",
+                "normalized_result": {
+                    "artifact": {"sha256": "abc", "path": "Horizon.exe"},
+                    "identity_scope": {"requires_artifact_sha256": "abc"},
+                    "types": [{"full_name": "Horizon.PackageEditors.Skyrim.Save", "field_list": {"count": 2}, "method_list": {"count": 3}}],
+                    "fields": [{"declaring_type": "Horizon.PackageEditors.Skyrim.Save", "name": "Gold", "token": "0x04000001", "signature": {"field_type": "System.Int32"}}],
+                    "methods": [{"declaring_type": "Horizon.PackageEditors.Skyrim.Save", "name": "Save", "token": "0x06000001", "signature": {"return_type": "System.Void"}}],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_surface_report(bundle, r"Skyrim|Gold")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["counts"], {"types": 1, "fields": 1, "methods": 1})
+        self.assertEqual(report["methods"][0]["name"], "Save")
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
@@ -703,11 +727,13 @@ class ContainerInspectionTests(unittest.TestCase):
         enums = observed_skyrim_enums()
         self.assertEqual({item.name for item in enums}, {"ShoutEnums", "PerkEnums", "MagicEnums"})
         self.assertEqual(len(enum_member_names("ShoutEnums")), 27)
-        self.assertFalse(any(item.values_observed for item in enums))
+        self.assertTrue(all(item.values_observed for item in enums))
+        self.assertTrue(all(set(item.members) == set(item.values or {}) for item in enums))
         summary = observed_skyrim_enum_summary()
         self.assertEqual(summary["underlying_type"], "i4")
         self.assertEqual(summary["enums"]["PerkEnums"]["named_member_count"], 273)
-        self.assertFalse(summary["constant_values_observed"])
+        self.assertTrue(summary["constant_values_observed"])
+        self.assertEqual(enum_member_values("ShoutEnums")["AnimalAllegiance"], 392311)
 
     def test_exposes_observed_gears_entry_id_names_without_guessing_values(self):
         entries = gears_of_war_3_entry_ids()
@@ -991,6 +1017,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(catalog_report("halo")["types"]), 103)
         self.assertEqual(len(catalog_report("halo")["property_names"]), 140)
         self.assertIn("ShoutEnums", catalog_report("skyrim"))
+        self.assertEqual(catalog_report("skyrim")["values"]["ShoutEnums"]["AnimalAllegiance"], 392311)
         self.assertIn("SaveEntryCategory", catalog_report("shared"))
 
     def test_exposes_global_namespace_rows_without_merging_duplicates(self):
