@@ -20,7 +20,7 @@ from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
-from .managed_surface import managed_surface_report
+from .managed_surface import managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
 from .native_loader import compatible_pe_architecture, pe_export_names
@@ -1575,6 +1575,8 @@ def main() -> int:
     parser.add_argument("--verify-resources", type=Path, metavar="BUNDLE", help="Verify shipped managed-resource hashes against an REA bundle")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
+    parser.add_argument("--managed-schema", type=Path, help="Read joined type/field/method metadata from an REA bundle")
+    parser.add_argument("--schema-pattern", help="Case-insensitive regex for managed-schema type names")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
     parser.add_argument("--profile-data", action="store_true", help="Inspect an explicit ProfileData metadata envelope")
     parser.add_argument("--editor-inspect", action="store_true", help="Dispatch the input through the clean-room editor registry")
@@ -1709,6 +1711,13 @@ def main() -> int:
     if args.managed_surface:
         try:
             report = managed_surface_report(args.managed_surface, args.surface_pattern)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.managed_schema:
+        try:
+            report = managed_schema_report(args.managed_schema, args.schema_pattern)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
