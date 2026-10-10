@@ -371,7 +371,14 @@ def parse_dotnet_resources(data: bytes) -> dict[str, Any]:
         item["data_length"] = len(payload)
         item["data_sha256"] = hashlib.sha256(payload).hexdigest()
         item["payload_kind"] = classify_resource_payload(payload)
-        item["value"] = decode_safe_value(payload)
+        try:
+            item["value"] = decode_safe_value(payload)
+        except ValueError as exc:
+            item["value"] = {
+                "decoded": False,
+                "opaque_reason": "resource value could not be decoded safely",
+                "decode_error": str(exc),
+            }
 
     return {
         "status": "observed-index",
