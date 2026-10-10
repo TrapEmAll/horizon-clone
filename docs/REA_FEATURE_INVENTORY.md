@@ -42,8 +42,13 @@ authenticated Constant-table values; save offsets remain unresolved.
 
 The shared managed-member evidence also exposes `ProfileLoadout` with its
 `All_Loadouts` member and `SaveEntryCategory` with observed audio, graphics,
-controls, game, campaign, campaign-level, and unknown-category labels. Their
-numeric values and binary offsets remain unresolved for the same reason.
+controls, game, campaign, campaign-level, and unknown-category labels. The
+authenticated Constant table recovers values 0 through 10 for
+`SaveEntryCategory`; package offsets and mutation behavior remain unresolved.
+
+The same Constant table recovers the global `XGearSlot` values (`Null=0`,
+`Hat=10`, `Shirt=11`, `Boots=12`, `Pants=13`). These are metadata values, not
+proof of a complete title save layout.
 
 The retained member evidence identifies the six `Horizon.ProfileData` fields
 (`FromDevice`, `XUID`, `Gamertag`, `Gamerpicture`, `ProfileId`, and `Favorite`)
