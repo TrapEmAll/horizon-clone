@@ -60,7 +60,7 @@ from work.observed_members import observed_fields, observed_profile_data_fields,
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
-from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
+from work.native_surface import native_export_contract_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
@@ -1098,6 +1098,9 @@ class ContainerInspectionTests(unittest.TestCase):
             check=True,
         )
         self.assertIn("RtsSaveDecrypt", json.loads(result.stdout)["exports"])
+        contract = native_export_contract_report(path)
+        self.assertEqual(contract["status"], "verified")
+        self.assertEqual(contract["missing_exports"], [])
 
     def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
         with self.assertRaises(NativeSaveUnavailable):
