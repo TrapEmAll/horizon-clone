@@ -32,6 +32,7 @@ class HorizonApp(tk.Tk):
         self._data: bytes | None = None
         self._report = None
         self._entries = {}
+        self._standalone_xdbf = False
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -93,6 +94,21 @@ class HorizonApp(tk.Tk):
             self._report = inspect(path)
             self.tree.delete(*self.tree.get_children())
             self._entries.clear()
+            self._standalone_xdbf = self._data[:4] == b"XDBF"
+            if self._standalone_xdbf:
+                xdbf_entries = parse_xdbf(self._data)
+                for entry in xdbf_entries:
+                    label = entry.text or (entry.achievement or {}).get("name") or ""
+                    item = self.tree.insert(
+                        "",
+                        tk.END,
+                        text=f"XDBF[{entry.index}] {label}",
+                        values=(entry.length, "XDBF"),
+                    )
+                    self._entries[item] = entry
+                self.status.configure(text=f"Standalone XDBF: {len(xdbf_entries)} entries")
+                self._set_details({"path": str(path), "xdbf_entries": xdbf_entries})
+                return
             for entry in self._report.entries:
                 item = self.tree.insert("", tk.END, text=entry.path, values=(entry.size, "DIR" if entry.is_directory else "FILE"))
                 self._entries[item] = entry
@@ -108,6 +124,9 @@ class HorizonApp(tk.Tk):
         if not selected:
             return
         entry = self._entries[selected[0]]
+        if self._standalone_xdbf:
+            self._set_details({"xdbf_entry": entry})
+            return
         try:
             payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
             if payload[:4] == b"XDBF":
