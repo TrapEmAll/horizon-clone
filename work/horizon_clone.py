@@ -19,7 +19,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_surface_report
 from .device_surface import device_surface_report
-from .resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
+from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
@@ -1617,6 +1617,7 @@ def main() -> int:
     parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
     parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
     parser.add_argument("--verify-resources", type=Path, metavar="BUNDLE", help="Verify shipped managed-resource hashes against an REA bundle")
+    parser.add_argument("--extract-resources", type=Path, metavar="DIR", help="Extract uniquely hash-verified embedded resources from --path using --resource-bundle")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--managed-schema", type=Path, help="Read joined type/field/method metadata from an REA bundle")
@@ -1755,6 +1756,15 @@ def main() -> int:
     if args.verify_resources:
         try:
             report = verify_managed_resource_payloads(args.path, args.verify_resources, args.resource_pattern)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.extract_resources:
+        if not args.resource_bundle:
+            parser.error("--extract-resources requires --resource-bundle")
+        try:
+            report = extract_managed_resource_payloads(args.path, args.resource_bundle, args.extract_resources, args.resource_pattern)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
