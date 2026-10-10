@@ -67,6 +67,7 @@ from work.horizon_clone import (
     read_stfs_entry,
     verify_stfs_hashes,
     native_runtime_operation_report,
+    native_lzo_operation_report,
 )
 from work.signing import (
     DetachedSignature,
@@ -1831,6 +1832,34 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["arguments"], [9, 2, 1])
         with self.assertRaises(ValueError):
             native_runtime_operation_report(Path("C:/explicit/Horizon.dll"), "run-hvm", (1,), provider=Provider())
+
+    def test_native_lzo_operation_report_preserves_provider_output(self):
+        class Provider:
+            def lzo_version_string(self):
+                return "test-lzo"
+
+            def lzo_version_date(self):
+                return "test-date"
+
+            def lzo1x_1_compress(self, source, source_length, destination, destination_length, work_memory):
+                destination[:source_length] = source[:source_length]
+                destination_length.value = source_length
+                return 0
+
+            def lzo1x_decompress(self, source, source_length, destination, destination_length, work_memory):
+                destination[:source_length] = source[:source_length]
+                destination_length.value = source_length
+                return 0
+
+        report = native_lzo_operation_report(
+            Path("C:/explicit/lzo.dll"), "compress", source=b"abc", output_capacity=16, provider=Provider()
+        )
+        self.assertEqual(report["result"]["output_length"], 3)
+        self.assertEqual(report["output"], b"abc")
+        self.assertEqual(
+            native_lzo_operation_report(Path("C:/explicit/lzo.dll"), "version-string", provider=Provider())["result"],
+            "test-lzo",
+        )
 
     def test_native_runtime_operation_preflights_supplied_image_without_execution(self):
         dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
