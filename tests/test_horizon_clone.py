@@ -10,6 +10,7 @@ from work.horizon_clone import (
     mutate_xdbf_achievement,
     repack_xdbf_entries,
     repack_stfs_entries,
+    rehash_stfs_hashes,
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
     parse_xdbf,
@@ -111,8 +112,23 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(read_stfs_entry(mutated, entry, header), replacement)
         result = verify_stfs_hashes(mutated, entry, header)
         self.assertEqual(result["failures"], [])
+        self.assertEqual(result["hash_table_failures"], [])
         self.assertTrue(result["header_hash_matches"])
+        self.assertTrue(result["top_hash_matches"])
         self.assertFalse(result["signature_checked"])
+
+    def test_rehashes_and_verifies_the_complete_stfs_tree(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        rebuilt = rehash_stfs_hashes(original, header)
+        result = verify_stfs_hashes(rebuilt, header=parse_stfs_header(rebuilt))
+        self.assertEqual(result["failures"], [])
+        self.assertEqual(result["hash_table_failures"], [])
+        self.assertTrue(result["header_hash_matches"])
+        self.assertTrue(result["top_hash_matches"])
 
     def test_signing_provider_boundary_rejects_empty_signatures(self):
         class EmptyProvider:
