@@ -244,3 +244,41 @@ def halo_general_class_method_summary() -> dict[str, object]:
         "status": "metadata-only",
     }
 
+
+_HALO_GENERAL_CLASS_PROPERTY_NAMES = (
+    "ActiveCamo", "Alpha", "Ammopack", "AssassinationImmunity", "Aura", "AuralEnhancement",
+    "AutomaticMomentumUsage", "BattleAwareness", "BitStreamData", "Blue", "BodyMultiplier",
+    "BodyRechargeRate", "c09521bc19ea8141a547e37f5ed091fcf", "c0bd6bd14a26ad3bf3602578abb7d2452",
+    "c16498ca2febe71be8f33f39c992ceb3c", "c2402ce1daadcd3031f38cffd17d9aa89",
+    "c26a570c4ca79e5839fa760938e283020", "c274f7e9c4a6b96d7aeef2e41f1ddee55",
+    "c3ad596b08358facb5157a397df11a716", "c4436144cc0d60bc0e69a6a2fdc850d01",
+    "c511c78325de7a961851b2bb984e702ad", "c535906cbcf536d6b661c9a9743cca796",
+    "c9b9699e919cbfc2781159c8209a3b030", "ca46dfab5b362a9a26dee9c8473f56671",
+    "ca61c05db915d9bb5f162b067cd3e1206", "cb314eada6ff4b8bbe789648d7190b724",
+    "cc257b935fa49da7a1119f23015bea4d2", "cc99f7fb1d6d092545c67ed6d75ad30c4",
+    "ce5a54ac5d994ca1ed85972740fe9301a", "ceb180ec35301e66ee1b7280bdfb47601",
+    "cfa671c2ed611f7e9191c607e04fe820c", "ContentLength", "Creator", "DamageMod0", "DamageMod1",
+    "DamageResistance", "DeathEffect", "Deathless", "DescriptionStringIndex", "DirectionalDamageIndicator",
+    "DoubleJump", "EngineVariant", "Enum2", "EquipmentDrop", "EquipmentUsage",
+    "EquipmentUsageExceptingAutoTurret", "ExplodeOnDeathMod", "FastTrackArmor", "Footer", "ForcedChangeColor",
+    "Game", "Game_Version", "GamertagVisible", "GameVariant", "GameVersion", "GoofList", "Gravity", "Green",
+    "Grenadier", "Has_Custom", "Has_Defaults", "Hash", "Header", "HeadshotImmunity", "ImmuneToAssassination",
+    "ImmuneToHeadshots", "InfiniteAmmo", "InfiniteEquipment", "InitialEquipment", "InitialGrenadeCount",
+    "InitialPrimaryWeapon", "InitialSecondaryWeapon", "InitialSupportUpgrade", "InitialTacticalPackage",
+    "InterfaceLayout", "InterfaceMegalo", "InterfaceStrings", "IO", "Is_Currently_Custom", "IsUnused", "IsValid",
+    "ItemAlignment", "ItemData", "Items", "ItemSignature", "ItemSize", "ItemVersion", "JumpHeight", "Label_Text",
+    "LinkInterface", "LoopingEffect", "menuHistory", "MenuInterface", "ModelVariant", "Modifier", "Modifiers",
+    "MotionTracker", "MotionTrackerRange", "MotionTrackerWhileZoomed", "NameStringIndex", "Nemesis",
+    "OptionInformation", "OptionsContainer", "OrdnanceDisabled", "OrdnanceMarkersVisible", "Padding0", "ParentArray",
+    "ParentOptions", "PowerupCancellation", "PrimaryColor", "RealArray", "RealValue", "RechargingGrenades", "Red",
+    "RemainingData", "Resourceful", "SecondaryColor", "ShieldHUD", "ShieldMultiplier", "ShieldRechargeRate0",
+    "ShieldRechargeRate1", "SilyList", "Speed", "SprintUsage", "Stealthy", "StringIdIndex", "ThreatView", "Traits",
+    "Unknown0", "Unknown01", "Value", "Value_Type", "ValueInterface", "Vampirism", "VaultingEnabled", "VehicleUsage",
+    "VisionMode", "Waypoint", "WeaponPickupAllowed", "WellEquipped",
+)
+
+
+def halo_general_class_property_names() -> tuple[str, ...]:
+    """Return unique getter/setter property names observed by REA."""
+    return _HALO_GENERAL_CLASS_PROPERTY_NAMES
+
