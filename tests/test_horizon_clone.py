@@ -93,7 +93,7 @@ from work.legacy_catalog import legacy_catalog_report, legacy_field_names, obser
 from work.global_catalog import global_catalog_report, observed_global_types
 from work.native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
-from work.device_binding import DeviceBinding, DeviceProviderUnavailable
+from work.device_binding import DeviceBinding, DeviceIoBinding, DeviceProviderUnavailable, WindowsDeviceIoProvider
 from work.device_inventory import device_inventory_report, enumerate_host_device_entries
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable, PowerShellNativeRuntimeProvider
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
@@ -1640,6 +1640,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("CtypesNativeSaveProvider", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("LzoBinding", by_name["Native save/runtime boundaries"]["entry_points"])
+        self.assertIn("DeviceIoBinding", by_name["Device exploration surface"]["entry_points"])
         self.assertIn("--native-installation", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("--resource-surface", by_name["Embedded UI/resource surface"]["entry_points"])
 
@@ -1705,6 +1706,29 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(bound.get_device_size(), -1)
         with self.assertRaises(ValueError):
             bound.set_device_size(0x8000_0000_0000_0000)
+
+    def test_device_io_binding_requires_explicit_provider_and_preserves_raw_bytes(self):
+        binding = DeviceIoBinding()
+        self.assertEqual(binding.status, "unavailable")
+        with self.assertRaises(DeviceProviderUnavailable):
+            binding.open_read_only(r"\\.\PhysicalDrive0")
+
+        class Provider:
+            def open_read_only(self, device_path):
+                self.path = device_path
+                return 7
+
+            def device_io_control(self, handle, control_code, input_data, output_capacity):
+                self.call = (handle, control_code, input_data, output_capacity)
+                return b"raw-response"
+
+            def close(self, handle):
+                self.closed = handle
+
+        bound = DeviceIoBinding(Provider())
+        self.assertEqual(bound.open_read_only(r"\\.\PhysicalDrive0"), 7)
+        self.assertEqual(bound.device_io_control(7, 0x222000, b"request", 64), b"raw-response")
+        bound.close(7)
 
     def test_native_runtime_requires_explicit_provider(self):
         binding = NativeRuntimeBinding()
