@@ -67,6 +67,7 @@ copied implementation code.
   both the CLI and desktop front end.
 - Adds empty STFS directories when file-table capacity permits, from both the
   CLI and desktop front end.
+- Removes empty STFS directories through the same entry-removal workflow.
 - Resolves and rehashes level-2 STFS hash-table indirection for large
   allocations without growing the package's physical allocation.
 - Removes file-table entries safely when the resulting package fits the
