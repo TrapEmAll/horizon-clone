@@ -70,7 +70,7 @@ _CAPABILITIES = (
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
     Capability("Account serialization", "unresolved", "supplied Account payload is opaque; REA exposed no managed Account type, serializer, field offsets, or Account-specific call edge", ("mutate_stfs_entry_same_size",)),
     Capability("Account crypto provider bridge", "provider-boundary", "Connects opaque Account payloads to the authenticated class3 save signatures without loading DLLs or storing keys", ("AccountCodec", "NativeSaveBinding")),
-    Capability("Skyrim enum catalogs", "catalog-only", "REA-managed Constant rows authenticate named enum values; save layouts and editor behavior remain unresolved", ("enum_member_values", "observed_skyrim_enum_summary")),
+    Capability("Skyrim enum catalogs", "metadata-only", "REA-managed Constant rows authenticate named enum values; save layouts and editor behavior remain unresolved", ("enum_member_values", "resolve_skyrim_enum_member", "validate_skyrim_enum_values")),
     Capability("Gears/Halo title editors", "catalog-only", "REA observed type and member names without authenticated field layouts or behavioral replay", ("observed_editor_inventory", "halo_general_class_types")),
     Capability("Halo typed metadata validation", "metadata-only", "Validates values against the authenticated REA field-type slice without assigning save offsets", ("validate_halo_metadata_values",)),
     Capability("Halo metadata editor dispatch", "metadata-only", "Validates and edits explicit Halo metadata JSON envelopes without binary serialization", ("HaloMetadataEditor",)),
