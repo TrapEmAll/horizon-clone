@@ -10,7 +10,9 @@ from __future__ import annotations
 import ctypes
 import os
 import shutil
+import stat
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -22,6 +24,17 @@ class DeviceVolume:
     serial_number: int | None
     total_bytes: int | None
     free_bytes: int | None
+
+
+@dataclass(frozen=True)
+class HostDeviceEntry:
+    """Read-only directory entry exposed by the host device explorer."""
+
+    name: str
+    relative_path: str
+    is_directory: bool
+    size: int | None
+    modified_ns: int | None
 
 
 _DRIVE_TYPES = {0: "unknown", 1: "no-root", 2: "removable", 3: "fixed", 4: "remote", 5: "cdrom", 6: "ramdisk"}
@@ -78,4 +91,46 @@ def device_inventory_report() -> dict[str, object]:
             "No volume is opened for mutation by this API.",
         ],
     }
+
+
+def enumerate_host_device_entries(root: str | Path, relative: str | Path = ".") -> tuple[HostDeviceEntry, ...]:
+    """List one host-visible directory without allowing path escape.
+
+    This is deliberately read-only and does not follow directory entries while
+    enumerating.  It models the safe host portion of Horizon's explorer; FATX
+    directory records and device IOCTLs remain provider-specific.
+    """
+
+    root_path = Path(root)
+    if not root_path.is_absolute():
+        raise ValueError("device explorer root must be absolute")
+    root_path = Path(os.path.abspath(root_path))
+    if not root_path.is_dir():
+        raise NotADirectoryError(root_path)
+    target = Path(os.path.abspath(root_path / relative))
+    try:
+        target.relative_to(root_path)
+    except ValueError as exc:
+        raise ValueError("device explorer path escapes its root") from exc
+    if not target.is_dir():
+        raise NotADirectoryError(target)
+
+    entries: list[HostDeviceEntry] = []
+    for item in sorted(target.iterdir(), key=lambda value: value.name.casefold()):
+        try:
+            stat = item.stat(follow_symlinks=False)
+            is_directory = stat.S_ISDIR(stat.st_mode)
+            size = None if is_directory else stat.st_size
+            modified_ns = stat.st_mtime_ns
+        except OSError:
+            size = modified_ns = None
+            is_directory = item.is_dir()
+        entries.append(HostDeviceEntry(
+            name=item.name,
+            relative_path=item.relative_to(root_path).as_posix(),
+            is_directory=is_directory,
+            size=size,
+            modified_ns=modified_ns,
+        ))
+    return tuple(entries)
 
