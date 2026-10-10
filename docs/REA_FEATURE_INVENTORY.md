@@ -27,7 +27,9 @@ JSON bundle produced by REA's `inspect_managed_members`, it reports the
 authenticated artifact identity and can filter observed type, field, and method
 records locally. This preserves build-local token identity and does not load or
 execute Horizon.exe.
-It does not yet claim parity for the game-specific editors above. Each editor
+The editor registry can now dispatch these bundles through a read-only managed
+surface plugin as well as the XDBF/GPD plugin. It does not yet claim parity for
+the game-specific editors above. Each editor
 requires format fixtures and behavioral tests before it can be implemented
 without guessing opaque fields.
 
