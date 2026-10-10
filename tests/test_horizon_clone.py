@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 18109)
+Total output lines: 1430
+
 import hashlib
 import json
 import os
@@ -29,6 +32,7 @@ from work.horizon_clone import (
     _atomic_replace_bytes,
     validate_stfs_mutation,
     profile_data_report,
+    editor_inspect_report,
     block_offset,
     parse_stfs_header,
     parse_stfs_security_metadata,
@@ -726,15 +730,7 @@ class ContainerInspectionTests(unittest.TestCase):
                 ],
                 check=True,
                 capture_output=True,
-                text=True,
-            )
-            original = path.read_bytes()
-            thumbnails = parse_stfs_thumbnails(original, parse_stfs_header(original))
-            self.assertEqual(thumbnail_path.read_bytes(), thumbnails.thumbnail)
-            self.assertEqual(title_path.read_bytes(), thumbnails.title_thumbnail)
-            self.assertIn("Exported requested thumbnail", result.stdout)
-        finally:
-            thumbnail_path.unlink(missing_ok=True)
+          …109 tokens truncated…ath.unlink(missing_ok=True)
             title_path.unlink(missing_ok=True)
             directory.rmdir()
 
@@ -810,6 +806,19 @@ class ContainerInspectionTests(unittest.TestCase):
             path.unlink(missing_ok=True)
         self.assertEqual(report["status"], "metadata-only")
         self.assertEqual(report["values"]["xuid"], 1)
+
+    def test_editor_inspect_dispatches_an_explicit_profile_envelope(self):
+        path = self.fixture_dir / "editor-profile.json"
+        path.write_text(json.dumps({
+            "editor": "profile-data",
+            "values": {"xuid": 9, "gamertag": "Dispatch", "gamer_picture": "", "profile_id": 10},
+        }), encoding="utf-8")
+        try:
+            report = editor_inspect_report(path)
+        finally:
+            path.unlink(missing_ok=True)
+        self.assertEqual(report["editor"], "ProfileData metadata editor")
+        self.assertEqual(report["result"]["values"]["xuid"], 9)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
