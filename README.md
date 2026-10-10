@@ -228,6 +228,9 @@ physical device.
 The recovered DNG/HVM declarations are exposed through an explicit
 `NativeRuntimeBinding` provider boundary. It never loads the original runtime
 implicitly and leaves native argument semantics to the supplied provider.
+`PowerShellNativeRuntimeProvider` adds an explicit path-bound bridge through a
+matching Windows PowerShell host, preserving raw boolean/native-integer return
+values without inferring the native handle or string protocol.
 
 RSA signing remains behind an authorized signing-provider boundary. The
 library supports detached signatures over caller-labeled development regions,
