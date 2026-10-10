@@ -52,8 +52,8 @@ copied implementation code.
   and selected options/traits classes; field names remain build-local and no
   save offsets are inferred.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
-  `SaveEntryCategory`; enum values and package offsets remain unclaimed until
-  fixture evidence establishes them.
+  `SaveEntryCategory`, including the authenticated Constant values for the
+  latter; package offsets and mutation behavior remain unclaimed.
 - Exposes seven additional REA-observed title catalogs (Dragon Ball Xenoverse,
   Code Veronica X, Devil May Cry, Ninja Gaiden 3, State of Decay, Castle
   Crashers, and Saints Row) with authenticated type/field names; enum values
