@@ -1177,6 +1177,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
+    parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
@@ -1379,6 +1380,21 @@ def main() -> int:
         for entry in report.entries:
             kind = "DIR " if entry.is_directory else "FILE"
             print(f"{kind} {entry.size:>10} {entry.path}")
+    if args.list_xdbf:
+        if not report.stfs_header:
+            parser.error("--list-xdbf requires a readable STFS header")
+        for file_entry in report.entries:
+            if file_entry.is_directory or not file_entry.path.lower().endswith(".gpd"):
+                continue
+            try:
+                xdbf_entries = parse_xdbf(read_stfs_entry(raw, file_entry, report.stfs_header))
+            except (OSError, ValueError, IsADirectoryError):
+                continue
+            for xdbf_entry in xdbf_entries:
+                kind = "achievement" if xdbf_entry.achievement is not None else "string" if xdbf_entry.text is not None else "entry"
+                label = xdbf_entry.text or (xdbf_entry.achievement or {}).get("name") or ""
+                safe_label = str(label).encode("ascii", errors="backslashreplace").decode("ascii")
+                print(f"{file_entry.path} {kind} {xdbf_entry.index:>6} ns={xdbf_entry.namespace:>5} id=0x{xdbf_entry.entry_id:X} size={xdbf_entry.length:>8} {safe_label}")
     if args.extract_dir:
         written = extract_stfs(raw, args.extract_dir, selected_path=args.extract)
         print(f"Extracted {len(written)} file(s) to {args.extract_dir}")
