@@ -708,6 +708,14 @@ class ContainerInspectionTests(unittest.TestCase):
         )
         self.assertEqual(observed_fields("Horizon.ProfileData"), fields)
 
+    def test_profile_data_enforces_observed_unsigned_64_bit_fields(self):
+        with self.assertRaises(ValueError):
+            ProfileData(xuid=-1)
+        with self.assertRaises(ValueError):
+            ProfileData(profile_id=0x1_0000_0000_0000_0000)
+        with self.assertRaises(TypeError):
+            ProfileData(gamer_picture="not-bytes")
+
     def test_reports_aggregate_title_editor_inventory(self):
         inventory = observed_editor_inventory()
         self.assertEqual(
