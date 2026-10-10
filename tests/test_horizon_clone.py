@@ -51,6 +51,7 @@ from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
+from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 
 
 def supplied_fixture():
@@ -767,6 +768,28 @@ class ContainerInspectionTests(unittest.TestCase):
         members = {(item.declaring_type, item.name) for item in observed_device_members()}
         self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24"), members)
+
+    def test_native_runtime_requires_explicit_provider(self):
+        binding = NativeRuntimeBinding()
+        self.assertEqual(binding.status, "unavailable")
+        with self.assertRaises(NativeRuntimeUnavailable):
+            binding.check_runtime()
+
+        class Provider:
+            def check_runtime(self):
+                return True
+
+            def run_hvm(self):
+                return 7
+
+            def get_user_string(self, arg0, arg1, arg2):
+                return arg0 + arg1 + arg2
+
+        bound = NativeRuntimeBinding(Provider())
+        self.assertEqual(bound.status, "provider-bound")
+        self.assertTrue(bound.check_runtime())
+        self.assertEqual(bound.run_hvm(), 7)
+        self.assertEqual(bound.get_user_string(1, 2, 3), 6)
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
