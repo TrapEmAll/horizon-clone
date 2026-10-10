@@ -22,6 +22,8 @@ from .native_surface import managed_native_import_report, native_export_contract
 from .device_surface import device_surface_report
 from .device_binding import DeviceIoBinding, WindowsDeviceIoProvider
 from .native_runtime import NativeRuntimeBinding, PowerShellNativeRuntimeProvider
+from .native_compression import LzoBinding, PowerShellLzoProvider
+from .lzo_codec import LzoCodec
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
@@ -2411,6 +2413,60 @@ def native_runtime_operation_report(
     }
 
 
+def native_lzo_operation_report(
+    dll_path: Path,
+    operation: str,
+    *,
+    source: bytes = b"",
+    variant: str = "lzo1x_1",
+    output_capacity: int = 0,
+    work_memory_size: int | None = None,
+    powershell_path: Path | None = None,
+    provider=None,
+) -> dict[str, object]:
+    """Run one explicit REA-observed LZO operation through a caller DLL."""
+
+    if operation not in {"version-string", "version-date", "compress", "decompress"}:
+        raise ValueError(f"unsupported native LZO operation: {operation}")
+    if provider is None:
+        provider = PowerShellLzoProvider(dll_path, powershell_path=powershell_path)
+    binding = LzoBinding(provider)
+    if operation == "version-string":
+        result: object = binding.version_string()
+        output = b""
+    elif operation == "version-date":
+        result = binding.version_date()
+        output = b""
+    else:
+        if not source:
+            raise ValueError(f"{operation} requires non-empty source bytes")
+        if output_capacity <= 0:
+            raise ValueError(f"{operation} requires a positive output capacity")
+        if work_memory_size is None:
+            work_memory_size = 262144 if variant == "lzo2a_999" else 65536
+        if work_memory_size <= 0:
+            raise ValueError("work_memory_size must be positive")
+        codec = LzoCodec(binding)
+        if operation == "compress":
+            output = codec.compress(variant, source, output_capacity, bytes(work_memory_size))
+        else:
+            output = codec.decompress(variant, source, output_capacity, bytes(work_memory_size))
+        result = {"output_length": len(output), "output_sha256": hashlib.sha256(output).hexdigest()}
+    return {
+        "dll": str(dll_path),
+        "operation": operation,
+        "variant": variant if operation in {"compress", "decompress"} else None,
+        "source_length": len(source),
+        "result": result,
+        "status": "provider-bound-raw-result",
+        "limitations": [
+            "The native provider is caller-selected and the compression variant is explicit.",
+            "LZO output is returned by digest and length; use the CLI output path for bytes.",
+        ],
+        "output": output,
+    }
+
+
 def _json_report(report: ContainerReport) -> dict:
     result = asdict(report)
     result["is_container"] = report.is_container
@@ -2445,6 +2501,14 @@ def main() -> int:
     parser.add_argument("--native-runtime-operation", choices=("check-runtime", "check-runtime64", "run-hvm", "get-user-string", "get-user-string64"), help="Invoke one explicit Horizon/HVM runtime export on the positional DLL")
     parser.add_argument("--native-runtime-args", nargs=3, type=lambda value: int(value, 0), metavar=("ARG0", "ARG1", "ARG2"), help="Three raw integer arguments for a GetUserString operation")
     parser.add_argument("--native-runtime-powershell", type=Path, help="Explicit matching PowerShell host for --native-runtime-operation")
+    parser.add_argument("--lzo-operation", choices=("version-string", "version-date", "compress", "decompress"), help="Invoke one explicit LZO operation")
+    parser.add_argument("--lzo-dll", type=Path, help="Absolute x86 lzo.dll path for --lzo-operation")
+    parser.add_argument("--lzo-powershell", type=Path, help="Explicit 32-bit PowerShell host for --lzo-operation")
+    parser.add_argument("--lzo-source", type=Path, help="Input bytes for a compress/decompress LZO operation")
+    parser.add_argument("--lzo-output", type=Path, help="Write compress/decompress output bytes")
+    parser.add_argument("--lzo-variant", choices=("lzo1x_1", "lzo2a_999", "lzo1x", "lzo2a"), default="lzo1x_1")
+    parser.add_argument("--lzo-output-capacity", type=int, default=0)
+    parser.add_argument("--lzo-work-memory", type=int)
     parser.add_argument("--native-installation", type=Path, metavar="DIRECTORY", help="Inventory expected native Horizon DLLs without loading them")
     parser.add_argument("--native-import-bundle", type=Path, help="Read the complete REA managed P/Invoke inventory")
     parser.add_argument("--native-import-pattern", help="Case-insensitive regex for --native-import-bundle scope!name")
@@ -2590,6 +2654,33 @@ def main() -> int:
     args = parser.parse_args()
     if args.rea_feature_ledger:
         print(json.dumps(rea_feature_ledger(), indent=2, ensure_ascii=False))
+        return 0
+    if args.lzo_operation:
+        if not args.lzo_dll:
+            parser.error("--lzo-operation requires --lzo-dll")
+        source = b""
+        if args.lzo_source:
+            try:
+                source = args.lzo_source.read_bytes()
+            except OSError as exc:
+                parser.error(str(exc))
+        try:
+            report = native_lzo_operation_report(
+                args.lzo_dll,
+                args.lzo_operation,
+                source=source,
+                variant=args.lzo_variant,
+                output_capacity=args.lzo_output_capacity,
+                work_memory_size=args.lzo_work_memory,
+                powershell_path=args.lzo_powershell,
+            )
+            output = report.pop("output")
+            if args.lzo_output and output:
+                _atomic_replace_bytes(args.lzo_output, output)
+                report["output_path"] = str(args.lzo_output)
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
         return 0
     if args.capabilities:
         print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
