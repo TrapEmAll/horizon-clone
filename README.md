@@ -169,6 +169,10 @@ copied implementation code.
   values are preserved without inferring Account serialization.
 - Provides `LzoCodec`, a validated high-level compression/decompression bridge
   for explicit providers while preserving the observed variant names.
+- Exposes the authenticated Windows device boundary through `--device-ioctl`:
+  one caller-selected IOCTL is forwarded over a read-only handle with input
+  and output bytes represented as hex; FATX command values and safety
+  semantics remain caller-resolved.
 - Tracks the REA-observed managed-resource surface as 206 metadata records,
   205 embedded payloads, and one non-embedded unresolved record, separately
   from implementation claims.
