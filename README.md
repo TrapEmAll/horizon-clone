@@ -29,6 +29,9 @@ copied implementation code.
   authorized local test or development keys.
 - Exposes STFS hash verification and same-size replacement from the desktop
   front end with explicit unsigned-mutation status.
+- Exposes variable-size STFS repacking and fixed-width display-name/title-ID
+  metadata editing from the desktop front end, also with explicit
+  unsigned-mutation status.
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
