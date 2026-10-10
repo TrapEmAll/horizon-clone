@@ -13,6 +13,8 @@ copied implementation code.
 - Lists entries and extracts files with path traversal protection.
 - Parses extracted XDBF/GPD indexes and common string entries.
 - Supports same-size raw XDBF entry replacement while preserving table layout.
+- Repackages XDBF entries to different payload sizes within existing data
+  capacity and can remove entries while rebuilding free-space metadata.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
