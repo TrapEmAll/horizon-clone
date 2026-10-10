@@ -31,6 +31,7 @@ from .horizon_clone import (
     repack_stfs_entries,
     verify_stfs_hashes,
 )
+from .editor_inventory import catalog_report
 
 
 def _atomic_write_bytes(path: Path, data: bytes) -> None:
@@ -81,6 +82,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export profile summary", command=self.export_profile_summary).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export title catalog", command=self.export_title_catalog).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF surface", command=self.export_xdbf_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
@@ -770,6 +772,29 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "summary": summary})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Profile summary export failed", str(exc))
+
+    def export_title_catalog(self) -> None:
+        catalog_name = simpledialog.askstring(
+            "Title catalog",
+            "Catalog name (shared, skyrim, gears, halo, legacy, or global):",
+            parent=self,
+        )
+        if not catalog_name:
+            return
+        try:
+            catalog = catalog_report(catalog_name.strip().lower())
+            target = filedialog.asksaveasfilename(
+                title=f"Export {catalog_name} catalog",
+                defaultextension=".json",
+                filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_text(Path(target), json.dumps(catalog, indent=2, ensure_ascii=False) + "\n")
+            self.status.configure(text=f"Exported {catalog_name} catalog")
+            self._set_details({"path": target, "catalog": catalog_name, "catalog_keys": list(catalog)})
+        except (KeyError, OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("Catalog export failed", str(exc))
 
     def export_xdbf_inventory(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
