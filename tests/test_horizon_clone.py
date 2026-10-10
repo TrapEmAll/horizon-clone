@@ -58,7 +58,7 @@ from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
-from work.horizon_app import _atomic_write_bytes, _atomic_write_text
+from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 
 
 def supplied_fixture():
@@ -83,6 +83,9 @@ class ContainerInspectionTests(unittest.TestCase):
         finally:
             binary.unlink(missing_ok=True)
             text.unlink(missing_ok=True)
+
+    def test_desktop_exposes_bulk_gpd_summary_export(self):
+        self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
