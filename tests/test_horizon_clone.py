@@ -9,6 +9,7 @@ from pathlib import Path
 
 from work.horizon_clone import (
     inspect,
+    _json_report,
     list_stfs_entries,
     list_embedded_xdbf,
     summarize_embedded_xdbf,
@@ -2317,6 +2318,14 @@ class ContainerInspectionTests(unittest.TestCase):
             stfs_fatx_device_path(header),
             "Content\\E9ECC9141E317C7B\\FFFE07D1\\00010000\\E9ECC9141E317C7B",
         )
+
+    def test_json_report_includes_content_type_name(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        report = _json_report(inspect(path))
+        self.assertEqual(report["stfs_header"]["content_type"], 0x00010000)
+        self.assertEqual(report["stfs_header"]["content_type_name"], "Profile")
 
     def test_labels_observed_and_unknown_stfs_content_types(self):
         self.assertEqual(stfs_content_type_name(0x00010000), "Profile")
