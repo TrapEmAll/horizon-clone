@@ -1527,6 +1527,8 @@ class ContainerInspectionTests(unittest.TestCase):
         restored_length = Int32Ref(len(restored))
         self.assertEqual(provider.lzo2a_decompress(bytes(compressed[:compressed_length.value]), compressed_length.value, restored, restored_length, work_memory), 0)
         self.assertEqual(bytes(restored[:restored_length.value]), source)
+        with self.assertRaises(ValueError):
+            provider.lzo2a_999_compress(source, len(source), bytearray(4096), Int32Ref(4096), bytes(65536))
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
