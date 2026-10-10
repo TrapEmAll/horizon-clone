@@ -110,6 +110,9 @@ copied implementation code.
   payloads once an authorized class3-compatible provider and key are supplied;
   `encrypt_raw` preserves native status and the caller-sized output buffer;
   encryption length and Account serialization remain caller-resolved.
+- Provides `AccountKeyProvider` integration for caller-owned key-vault or
+  development-key services; keys are requested per operation and payload digest
+  and are not persisted by the clone.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
