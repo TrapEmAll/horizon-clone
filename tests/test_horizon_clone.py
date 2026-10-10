@@ -278,6 +278,20 @@ class ContainerInspectionTests(unittest.TestCase):
             backup_path.unlink(missing_ok=True)
             directory.rmdir()
 
+    def test_cli_exposes_stfs_security_metadata(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--security"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        security, _ = json.JSONDecoder().raw_decode(result.stdout.lstrip())
+        self.assertEqual(security["signature_kind"], "console-certificate")
+        self.assertEqual(len(security["licenses"]), 16)
+
     def test_rehashes_and_verifies_the_complete_stfs_tree(self):
         path = supplied_fixture()
         if path is None or not path.exists():
