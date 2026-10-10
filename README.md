@@ -33,6 +33,8 @@ copied implementation code.
   preserving the STFS hash-tree rewrite path.
 - Replaces exact observed namespace-5 XDBF text matches across embedded GPD/FIT
   files with `mutate_profile_xdbf_text` and the corresponding profile CLI options.
+- Uses authenticated same-size STFS mutation for profile-wide edits and verifies
+  general repack results by reading modified entries back before returning them.
 - Exposes the same profile summary export from the desktop front end.
 - Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
   legacy, and global catalogs from the desktop front end.
