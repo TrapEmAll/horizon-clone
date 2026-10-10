@@ -46,7 +46,13 @@ class CtypesLzoProvider:
         if loader is None:
             raise OSError("lzo.dll provider requires Windows ctypes.WinDLL")
         self.path = path
-        self._dll = loader(str(path))
+        try:
+            self._dll = loader(str(path))
+        except OSError as exc:
+            raise OSError(
+                f"unable to load explicit lzo.dll provider {path}; "
+                "verify that the DLL architecture matches the Python process"
+            ) from exc
         self._functions = {
             name: self._bind(name)
             for name in (
