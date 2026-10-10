@@ -1341,8 +1341,12 @@ class ContainerInspectionTests(unittest.TestCase):
                 return input_length
 
         codec = AccountCodec(NativeSaveBinding(Provider()))
-        encrypted = codec.encrypt(b"profile", b"dev-key", 32)
-        self.assertNotEqual(encrypted, b"profile")
+        status, raw_encrypted = codec.encrypt_raw(b"profile", b"dev-key", 32)
+        self.assertEqual(status, 7)
+        encrypted = codec.encrypt(b"profile", b"dev-key", 32, output_length=7)
+        self.assertEqual(encrypted, raw_encrypted[:7])
+        with self.assertRaises(ValueError):
+            codec.encrypt(b"profile", b"dev-key", 32)
         self.assertEqual(codec.decrypt(encrypted, b"dev-key", 32), b"profile")
 
     def test_lzo_requires_explicit_provider_and_preserves_observed_shapes(self):
