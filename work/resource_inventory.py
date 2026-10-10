@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import re
+import hashlib
+import struct
 from pathlib import Path
 from typing import Any
 
@@ -84,4 +86,101 @@ def resource_surface_report(bundle_path: str | Path, pattern: str | None = None)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unable to read evidence bundle: {path}") from exc
     return resource_surface_report_from_bundle(bundle, pattern)
+
+
+def verify_managed_resource_payloads(
+    executable_path: str | Path,
+    bundle_path: str | Path,
+    pattern: str | None = None,
+) -> dict[str, Any]:
+    """Compare file-backed managed-resource candidates with REA hashes.
+
+    The verifier is deliberately read-only.  It checks both the raw declared
+    span and the standard four-byte length-prefixed payload candidate, and
+    reports ambiguity instead of choosing an unverified layout.
+    """
+
+    report = resource_surface_report(bundle_path, pattern)
+    data = Path(executable_path).read_bytes()
+    blob_offset, blob_size = _managed_resource_blob(data)
+    results: list[dict[str, Any]] = []
+    for item in report["resources"]:
+        if not item.get("embedded") or not isinstance(item.get("declared_offset"), int) or not isinstance(item.get("data_length"), int):
+            results.append({"name": item.get("name"), "status": "unresolved", "reason": "resource is not an embedded file-backed payload"})
+            continue
+        offset = item["declared_offset"]
+        length = item["data_length"]
+        expected = item.get("data_sha256")
+        candidates: list[tuple[str, bytes]] = []
+        raw_start = blob_offset + offset
+        raw_end = raw_start + length
+        if 0 <= offset <= blob_size and raw_end <= blob_offset + blob_size:
+            candidates.append(("raw-span", data[raw_start:raw_end]))
+        prefix_end = raw_start + 4 + length
+        if 0 <= offset <= blob_size and prefix_end <= blob_offset + blob_size:
+            candidates.append(("length-prefixed-payload", data[raw_start + 4:prefix_end]))
+        matches = [kind for kind, payload in candidates if hashlib.sha256(payload).hexdigest() == expected]
+        results.append({
+            "name": item.get("name"),
+            "declared_offset": offset,
+            "data_length": length,
+            "expected_sha256": expected,
+            "status": "verified" if len(matches) == 1 else "unresolved",
+            "matching_candidates": matches,
+            "candidate_count": len(candidates),
+        })
+    return {
+        "status": "verified" if results and all(item["status"] == "verified" for item in results) else "partial",
+        "executable": str(executable_path),
+        "resource_blob": {"file_offset": blob_offset, "byte_length": blob_size},
+        "counts": {
+            "verified": sum(item["status"] == "verified" for item in results),
+            "unresolved": sum(item["status"] != "verified" for item in results),
+        },
+        "resources": results,
+        "limitations": [
+            "Verification compares authenticated REA hashes only; it does not deserialize or execute resources.",
+            "A resource is unresolved when neither tested byte-span candidate matches uniquely.",
+        ],
+    }
+
+
+def _managed_resource_blob(data: bytes) -> tuple[int, int]:
+    if data[:2] != b"MZ" or len(data) < 0x40:
+        raise ValueError("input is not a readable PE image")
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    if pe_offset + 24 > len(data) or data[pe_offset:pe_offset + 4] != b"PE\0\0":
+        raise ValueError("input has an invalid PE signature")
+    optional = pe_offset + 24
+    magic = struct.unpack_from("<H", data, optional)[0]
+    directory = optional + (96 if magic == 0x10B else 112 if magic == 0x20B else -1)
+    if directory < 0 or directory + 15 * 8 > len(data):
+        raise ValueError("input has an unsupported PE optional header")
+    cli_rva, _cli_size = struct.unpack_from("<II", data, directory + 14 * 8)
+    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    section_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    section_table = optional + section_size
+
+    def rva_to_offset(rva: int) -> int:
+        for index in range(section_count):
+            current = section_table + index * 40
+            if current + 40 > len(data):
+                break
+            virtual_size, virtual_address, raw_size, raw_pointer = struct.unpack_from("<IIII", data, current + 8)
+            if virtual_address <= rva < virtual_address + max(virtual_size, raw_size):
+                offset = raw_pointer + rva - virtual_address
+                if offset < len(data):
+                    return offset
+        raise ValueError(f"RVA 0x{rva:x} is not mapped to file data")
+
+    cli_offset = rva_to_offset(cli_rva)
+    if cli_offset + 32 > len(data):
+        raise ValueError("input has a truncated CLI header")
+    resources_rva, resources_size = struct.unpack_from("<II", data, cli_offset + 24)
+    if not resources_rva or not resources_size:
+        raise ValueError("input has no managed resource blob")
+    blob_offset = rva_to_offset(resources_rva)
+    if blob_offset + resources_size > len(data):
+        raise ValueError("managed resource blob exceeds the PE image")
+    return blob_offset, resources_size
 
