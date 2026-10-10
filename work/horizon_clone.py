@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 24246)
-Total output lines: 2096
+Warning: truncated output (original token count: 24800)
+Total output lines: 2140
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -105,6 +105,29 @@ def editor_edit_values(path: Path, values_path: Path) -> tuple[str, bytes]:
     if not isinstance(edited, bytes):
         raise TypeError(f"editor {plugin.name} returned non-byte output")
     return plugin.name, edited
+
+
+def verify_detached_signature(
+    region_path: Path,
+    signature_path: Path,
+    label: str,
+    algorithm: str,
+    modulus: int,
+    exponent: int = 65537,
+) -> bool:
+    """Verify a caller-labeled development signature without package inference."""
+
+    from .signing import DetachedSignature, RsaPublicKey, SignedRegion, verify_region
+
+    if not label.strip():
+        raise ValueError("signature region label cannot be empty")
+    if not isinstance(modulus, int) or isinstance(modulus, bool) or modulus <= 0:
+        raise ValueError("public-key modulus must be a positive integer")
+    return verify_region(
+        SignedRegion(label, region_path.read_bytes()),
+        DetachedSignature(label, algorithm, signature_path.read_bytes()),
+        RsaPublicKey(modulus, exponent),
+    )
 
 
 MAGIC = b"CON "
@@ -869,61 +892,7 @@ def list_embedded_achievements(
     records: list[dict[str, object]] = []
     for entry, xdbf_entries in list_embedded_xdbf(data, header):
         for xdbf_entry in xdbf_entries:
-            if xdbf_entry.achievement is None:
-                continue
-            records.append(
-                {
-                    "file": entry.path,
-                    "index": xdbf_entry.index,
-                    "namespace": xdbf_entry.namespace,
-                    "entry_id": xdbf_entry.entry_id,
-                    "achievement": xdbf_entry.achievement,
-                }
-            )
-    return tuple(records)
-
-
-def summarize_profile_achievements(
-    data: bytes, header: StfsHeader | None = None
-) -> dict[str, object]:
-    """Aggregate observed achievement fields across embedded GPDs."""
-
-    per_file: list[dict[str, object]] = []
-    total_entries = total_gamerscore = nonzero_flags = 0
-    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
-        achieveme…6246 tokens truncated…signature_checked": False,
-    }
-
-
-def extract_stfs(data: bytes, output_dir: Path, *, selected_path: str | None = None) -> tuple[Path, ...]:
-    """Extract entries without allowing an entry name to escape output_dir."""
-    header = parse_stfs_header(data)
-    entries = list_stfs_entries(data, header)
-    output_dir = output_dir.resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    written: list[Path] = []
-    for entry in entries:
-        if entry.is_directory or (selected_path and entry.path != selected_path):
-            continue
-        destination = (output_dir / Path(entry.path)).resolve()
-        if output_dir not in destination.parents:
-            raise ValueError(f"unsafe entry path: {entry.path!r}")
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(read_stfs_entry(data, entry, header))
-        written.append(destination)
-    if selected_path and not written:
-        raise FileNotFoundError(selected_path)
-    return tuple(written)
-
-
-def _strings(data: bytes, encoding: str) -> Iterable[ExtractedString]:
-    if encoding == "utf-16-le":
-        # The container includes arbitrary binary bytes, so decoding the
-        # entire file as UTF-16 produces false positives. Restrict this first
-        # pass to the printable ASCII subset commonly used by metadata.
-        for offset in range(0, len(data) - 1, 2):
-            end = offset
-            while end + 1 < len(data):
+    …6800 tokens truncated…     while end + 1 < len(data):
                 low, high = data[end], data[end + 1]
                 if high != 0 or not 0x20 <= low <= 0x7E:
                     break
@@ -1009,6 +978,11 @@ def main() -> int:
     parser.add_argument("--editor-inspect", action="store_true", help="Dispatch the input through the clean-room editor registry")
     parser.add_argument("--editor-edit-values", type=Path, metavar="JSON", help="Apply registry metadata edits from a JSON object")
     parser.add_argument("--editor-edit-output", type=Path, metavar="FILE", help="Output path for --editor-edit-values")
+    parser.add_argument("--verify-detached-signature", type=Path, metavar="SIGNATURE", help="Verify a detached development signature over the input bytes")
+    parser.add_argument("--signature-label", help="Caller-defined label for --verify-detached-signature")
+    parser.add_argument("--signature-algorithm", choices=("RSA-SHA256-PKCS1v1.5", "RSA-SHA1-PKCS1v1.5"), default="RSA-SHA256-PKCS1v1.5")
+    parser.add_argument("--public-key-modulus", type=lambda value: int(value, 0), help="Public RSA modulus for detached verification")
+    parser.add_argument("--public-key-exponent", type=lambda value: int(value, 0), default=65537)
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1158,6 +1132,22 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps({"editor": editor_name, "input": str(args.path), "output": str(args.editor_edit_output), "bytes": len(edited)}, indent=2))
         return 0
+    if args.verify_detached_signature:
+        if not args.signature_label or args.public_key_modulus is None:
+            parser.error("--verify-detached-signature requires --signature-label and --public-key-modulus")
+        try:
+            verified = verify_detached_signature(
+                args.path,
+                args.verify_detached_signature,
+                args.signature_label,
+                args.signature_algorithm,
+                args.public_key_modulus,
+                args.public_key_exponent,
+            )
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({"verified": verified, "algorithm": args.signature_algorithm, "region_label": args.signature_label}, indent=2))
+        return 0 if verified else 1
     if args.achievements_output:
         args.list_achievements = True
     if args.write and args.in_place:
