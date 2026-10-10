@@ -90,6 +90,7 @@ valid with `--in-place`.
 
 ```powershell
 python -m work.horizon_clone C:\path\to\container --json
+python -m work.horizon_clone C:\path\to\container --capabilities
 python -m work.horizon_clone C:\path\to\container --output report.json
 python -m work.horizon_clone C:\path\to\container --list
 python -m work.horizon_clone C:\path\to\profile.con --list-xdbf
