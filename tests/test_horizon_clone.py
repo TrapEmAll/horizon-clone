@@ -1945,6 +1945,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(bound.compress("lzo1x_1", b"in", 2, output, length, b"work"), 0)
         self.assertEqual(output[:2], b"in")
         self.assertEqual(length.value, 2)
+        with self.assertRaises(LzoUnavailable):
+            bound.version_string()
         with self.assertRaises(ValueError):
             bound.compress("unknown", b"in", 2, output, length, b"work")
         with self.assertRaises(ValueError):
