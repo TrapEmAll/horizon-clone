@@ -40,9 +40,9 @@ copied implementation code.
 - Exposes REA-observed Skyrim Shout, Perk, and Magic enum names and authenticated
   Constant-table numeric values; save offsets and mutation behavior remain
   unclaimed until fixture evidence establishes them.
-- Exposes the retained REA-observed Gears of War 3 `EntryID` labels; numeric
-  values and save offsets remain unclaimed until fixture evidence establishes
-  them.
+- Exposes the retained REA-observed Gears of War 3 `EntryID` labels and
+  authenticated Constant-table numeric values; save offsets remain unclaimed
+  until fixture evidence establishes them.
 - Exposes the 103 retained REA-observed Halo general-class type names; field
   layouts, save offsets, and mutation behavior remain unclaimed. It also
   exposes observed per-type field counts and an aggregate 1,102-method/
