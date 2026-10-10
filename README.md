@@ -370,6 +370,11 @@ certificate. This clean-room project does not contain private Xbox/Microsoft
 signing keys and does not claim that a rewritten package is console-valid
 under retail policy.
 
+`--sign-written-package OUTPUT --private-key-json KEY` composes with
+`--write` or `--in-place`: after each completed mutation, it signs the exact
+CON bytes written to the mutation target and verifies the resulting package
+signature into the separate output path.
+
 `--in-place` is an explicit destructive opt-in for local development: it
 overwrites the input container after the same rehashing pipeline used by
 `--write`. Mutated packages remain unsigned unless an authorized provider
