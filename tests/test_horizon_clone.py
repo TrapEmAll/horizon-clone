@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 18923)
-Total output lines: 1492
+Warning: truncated output (original token count: 19077)
+Total output lines: 1502
 
 import hashlib
 import json
@@ -65,6 +65,7 @@ from work.halo_catalog import halo_general_class_field_counts, halo_general_clas
 from work.resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
+from work.anti_analysis import anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
 from work.native_surface import native_export_contract_report, native_surface_report, observed_native_imports, observed_native_callers
@@ -728,22 +729,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     str(path),
                     "--thumbnail-output",
                     str(thumbnail_path),
-                    "--title-thumbnail-output",
-                    str(title_path),
-             …923 tokens truncated…data-only")
-        self.assertEqual(report["values"]["xuid"], 1)
-
-    def test_editor_inspect_dispatches_an_explicit_profile_envelope(self):
-        path = self.fixture_dir / "editor-profile.json"
-        path.write_text(json.dumps({
-            "editor": "profile-data",
-            "values": {"xuid": 9, "gamertag": "Dispatch", "gamer_picture": "", "profile_id": 10},
-        }), encoding="utf-8")
-        try:
-            report = editor_inspect_report(path)
-        finally:
-            path.unlink(missing_ok=True)
-        self.assertEqual(report["editor"], "ProfileData metadata editor")
+                    "--title-thumbnail-output"…1077 tokens truncated… "ProfileData metadata editor")
         self.assertEqual(report["result"]["values"]["xuid"], 9)
 
     def test_editor_edit_values_uses_declared_profile_plugin(self):
@@ -794,6 +780,15 @@ class ContainerInspectionTests(unittest.TestCase):
             self.assertEqual(read_public_key_json(path), (257, 3))
         finally:
             path.unlink(missing_ok=True)
+
+    def test_reports_observed_anti_analysis_markers_without_bypassing_them(self):
+        bundle = Path("work/rea-managed-members-latest.json")
+        if not bundle.exists():
+            self.skipTest("retained REA bundle is not available")
+        report = anti_analysis_report(bundle)
+        self.assertEqual(report["status"], "observed-only")
+        self.assertTrue(any("Debugger" in str(item["type_name"]) for item in report["attribute_markers"]))
+        self.assertTrue(any("ZYXDNGuarder" in str(item["full_name"]) for item in report["guarded_types"]))
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
