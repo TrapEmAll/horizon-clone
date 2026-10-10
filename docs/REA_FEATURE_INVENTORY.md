@@ -107,6 +107,12 @@ War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
 package-format parity.
 
+The retained metadata also contains seven additional catalog-only title
+families: Dragon Ball Xenoverse (1 type), Code Veronica X (1), Devil May Cry
+(1), Ninja Gaiden 3 (2), State of Decay (1), Castle Crashers (1), and Saints
+Row (3). Together they contribute 10 types and 150 observed fields; their
+values, layouts, and mutation behavior remain unresolved.
+
 The 205 embedded managed resources are available through the clone's
 `--resource-surface` inspection command. Resource names are largely obfuscated
 and the evidence only establishes aggregate counts and payload digests; the
