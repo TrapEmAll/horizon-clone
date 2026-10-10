@@ -32,6 +32,8 @@ copied implementation code.
   distributions, text counts, and achievement counts through the library and
   `--xdbf-summary` CLI option.
 - Exposes the same GPD summary export from the desktop front end.
+- The desktop front end can inspect registry-supported JSON editor artifacts
+  and write explicit metadata edits to a separate output path.
 - Edits observed namespace-5 XDBF UTF-16BE string entries with bounded repacking.
 - Supports same-size raw XDBF entry replacement while preserving table layout.
 - Repackages XDBF entries to different payload sizes within existing data
