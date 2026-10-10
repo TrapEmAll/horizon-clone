@@ -32,6 +32,7 @@ from .horizon_clone import (
     verify_stfs_hashes,
     editor_edit_values,
     editor_inspect_report,
+    extract_managed_resource_payloads,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -87,6 +88,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export profile summary", command=self.export_profile_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export title catalog", command=self.export_title_catalog).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Extract managed resources", command=self.extract_managed_resources).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF surface", command=self.export_xdbf_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
@@ -857,6 +859,36 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "catalog": catalog_name, "catalog_keys": list(catalog)})
         except (KeyError, OSError, TypeError, ValueError) as exc:
             messagebox.showerror("Catalog export failed", str(exc))
+
+    def extract_managed_resources(self) -> None:
+        """Export only REA-hash-verified managed resources from Horizon.exe."""
+
+        executable = filedialog.askopenfilename(
+            title="Choose Horizon executable",
+            filetypes=(("Horizon executable", "Horizon.exe"), ("PE files", "*.exe"), ("All files", "*.*")),
+        )
+        if not executable:
+            return
+        bundle = filedialog.askopenfilename(
+            title="Choose REA managed-resource bundle",
+            filetypes=(("JSON evidence", "*.json"), ("All files", "*.*")),
+        )
+        if not bundle:
+            return
+        output_dir = filedialog.askdirectory(title="Choose resource output directory")
+        if not output_dir:
+            return
+        pattern = simpledialog.askstring(
+            "Resource filter",
+            "Optional case-insensitive resource-name regex (leave blank for all):",
+            parent=self,
+        )
+        try:
+            report = extract_managed_resource_payloads(executable, bundle, output_dir, pattern or None)
+            self.status.configure(text=f"Extracted {report['counts']['extracted']} managed resources")
+            self._set_details(report)
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("Managed-resource extraction failed", str(exc))
 
     def export_xdbf_inventory(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
