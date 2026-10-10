@@ -10,7 +10,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .horizon_clone import XdbfEntry, parse_xdbf
+from .horizon_clone import (
+    XdbfEntry,
+    mutate_xdbf_achievement,
+    mutate_xdbf_entry_same_size,
+    parse_xdbf,
+    repack_xdbf_entries,
+)
 
 
 @dataclass(frozen=True)
@@ -39,6 +45,26 @@ class XdbfEditor:
 
     def inspect(self, context: EditorContext, data: bytes) -> tuple[XdbfEntry, ...]:
         return parse_xdbf(data)
+
+    def replace_entry(self, data: bytes, entry_index: int, replacement: bytes) -> bytes:
+        """Replace an XDBF payload without changing its allocation."""
+        entry = next((item for item in parse_xdbf(data) if item.index == entry_index), None)
+        if entry is None:
+            raise IndexError(f"unknown XDBF entry index: {entry_index}")
+        return mutate_xdbf_entry_same_size(data, entry, replacement)
+
+    def repack(
+        self,
+        data: bytes,
+        replacements: dict[int, bytes],
+        remove: tuple[int, ...] = (),
+    ) -> bytes:
+        """Repack XDBF payloads within the existing table/data capacity."""
+        return repack_xdbf_entries(data, replacements, remove=remove)
+
+    def edit_achievement(self, data: bytes, entry_index: int, **changes: object) -> bytes:
+        """Edit the observed achievement fields through the editor boundary."""
+        return mutate_xdbf_achievement(data, entry_index, **changes)
 
 
 class EditorRegistry:
