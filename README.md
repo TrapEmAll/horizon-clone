@@ -28,6 +28,9 @@ copied implementation code.
   `--profile-summary` CLI option.
 - Provides explicit raw achievement-flag mask operations across one XDBF payload
   through `mutate_xdbf_achievement_flags`; flag-bit meanings remain unlabeled.
+- Applies the same explicit raw mask across every embedded GPD with
+  `mutate_profile_achievement_flags` or the corresponding profile CLI options,
+  preserving the STFS hash-tree rewrite path.
 - Exposes the same profile summary export from the desktop front end.
 - Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
   legacy, and global catalogs from the desktop front end.
