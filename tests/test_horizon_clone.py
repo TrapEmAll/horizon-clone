@@ -936,7 +936,9 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
+        self.assertEqual(surface["metadata_resource_record_count"], 206)
         self.assertEqual(surface["resource_count"], 205)
+        self.assertEqual(surface["nonembedded_unresolved_count"], 1)
         self.assertEqual(surface["distinct_payload_hashes"], 30)
 
     def test_cli_exports_observed_resource_surface(self):
