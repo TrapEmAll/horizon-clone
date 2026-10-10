@@ -724,6 +724,27 @@ def list_embedded_xdbf(
     return tuple(result)
 
 
+def list_embedded_achievements(
+    data: bytes, header: StfsHeader | None = None
+) -> tuple[dict[str, object], ...]:
+    """Return normalized observed achievement records from embedded GPDs."""
+    records: list[dict[str, object]] = []
+    for entry, xdbf_entries in list_embedded_xdbf(data, header):
+        for xdbf_entry in xdbf_entries:
+            if xdbf_entry.achievement is None:
+                continue
+            records.append(
+                {
+                    "file": entry.path,
+                    "index": xdbf_entry.index,
+                    "namespace": xdbf_entry.namespace,
+                    "entry_id": xdbf_entry.entry_id,
+                    "achievement": xdbf_entry.achievement,
+                }
+            )
+    return tuple(records)
+
+
 def mutate_stfs_entry_same_size(
     data: bytes,
     entry: StfsEntry,
