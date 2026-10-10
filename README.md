@@ -39,7 +39,8 @@ copied implementation code.
   fixture evidence establishes them.
 - Exposes seven additional REA-observed title catalogs (Dragon Ball Xenoverse,
   Code Veronica X, Devil May Cry, Ninja Gaiden 3, State of Decay, Castle
-  Crashers, and Saints Row) with type/field counts only.
+  Crashers, and Saints Row) with authenticated type/field names; enum values
+  and mutation behavior remain unresolved.
 - Exposes the observed six-field `Horizon.ProfileData` member contract as
   typed metadata without claiming its opaque Account-file layout.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
