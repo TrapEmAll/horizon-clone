@@ -1090,6 +1090,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["observed_namespace_type_count"], 632)
         self.assertTrue(report["values_observed"])
         self.assertEqual(report["values"]["XGearSlot"]["Pants"], 13)
+        self.assertEqual(report["values"]["GeneralContentTypes"]["Title_Updates"], 7)
+        self.assertEqual(report["values"]["DifficultyOption"]["Hard"], 2)
+        self.assertEqual(report["values"]["XOnlineLanguage"]["Japanese"], 2)
         self.assertEqual(catalog_report("global")["status"], "catalog-only")
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
