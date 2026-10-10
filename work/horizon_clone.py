@@ -192,9 +192,15 @@ def repack_xdbf_entries(
     data: bytes,
     replacements: dict[int, bytes],
     remove: Iterable[int] = (),
+    additions: dict[tuple[int, int], bytes] | None = None,
 ) -> bytes:
-    """Repack XDBF payloads while preserving the existing table capacity."""
+    """Repack XDBF payloads while preserving existing table/data capacity.
+
+    ``additions`` maps caller-supplied ``(namespace, entry_id)`` pairs to
+    payloads. The caller owns the title-specific meaning of those identifiers.
+    """
     entries = list(parse_xdbf(data))
+    additions = additions or {}
     by_index = {entry.index: entry for entry in entries}
     removals = set(remove)
     unknown = sorted((set(replacements) | removals) - set(by_index))
@@ -209,12 +215,18 @@ def repack_xdbf_entries(
     free_offset = table_offset + table_length * 0x12
     data_base = free_offset + free_length * 8
     retained = [entry for entry in entries if entry.index not in removals]
-    if len(retained) > table_length:
+    if len(retained) + len(additions) > table_length:
         raise ValueError("XDBF entry table capacity is exhausted")
 
     payloads: list[bytes] = []
     for entry in retained:
         payloads.append(replacements.get(entry.index, data[entry.data_offset : entry.data_offset + entry.length]))
+    for (namespace, entry_id), payload in additions.items():
+        if not 0 <= namespace <= 0xFFFF:
+            raise ValueError("XDBF addition namespace must fit in an unsigned 16-bit field")
+        if not 0 <= entry_id <= 0xFFFFFFFFFFFFFFFF:
+            raise ValueError("XDBF addition ID must fit in an unsigned 64-bit field")
+        payloads.append(payload)
     used = sum(len(payload) for payload in payloads)
     capacity = len(data) - data_base
     if used > capacity:
@@ -224,15 +236,24 @@ def repack_xdbf_entries(
     result[table_offset:free_offset] = b"\x00" * (free_offset - table_offset)
     result[data_base:] = b"\x00" * capacity
     cursor = 0
-    for new_index, (entry, payload) in enumerate(zip(retained, payloads)):
-        raw = bytearray(data[table_offset + entry.index * 0x12 : table_offset + (entry.index + 1) * 0x12])
+    records = [
+        (bytearray(data[table_offset + entry.index * 0x12 : table_offset + (entry.index + 1) * 0x12]), payload)
+        for entry, payload in zip(retained, payloads)
+    ]
+    additions_start = len(retained)
+    for addition_index, ((namespace, entry_id), payload) in enumerate(additions.items()):
+        raw = bytearray(0x12)
+        raw[0:2] = namespace.to_bytes(2, "big")
+        raw[2:10] = entry_id.to_bytes(8, "big")
+        records.append((raw, payloads[additions_start + addition_index]))
+    for new_index, (raw, payload) in enumerate(records):
         raw[10:14] = cursor.to_bytes(4, "big")
         raw[14:18] = len(payload).to_bytes(4, "big")
         slot = table_offset + new_index * 0x12
         result[slot : slot + 0x12] = raw
         result[data_base + cursor : data_base + cursor + len(payload)] = payload
         cursor += len(payload)
-    result[12:16] = len(retained).to_bytes(4, "big")
+    result[12:16] = len(records).to_bytes(4, "big")
 
     free_bytes = capacity - cursor
     result[free_offset : free_offset + free_length * 8] = b"\x00" * (free_length * 8)
@@ -1171,6 +1192,9 @@ def main() -> int:
     parser.add_argument("--xdbf-replace", type=int, metavar="INDEX", help="Replace one XDBF entry")
     parser.add_argument("--xdbf-source", type=Path, help="Raw replacement bytes for --xdbf-replace")
     parser.add_argument("--xdbf-remove", type=int, action="append", metavar="INDEX", help="Remove an XDBF entry")
+    parser.add_argument("--xdbf-add-namespace", type=lambda value: int(value, 0), metavar="VALUE")
+    parser.add_argument("--xdbf-add-id", type=lambda value: int(value, 0), metavar="VALUE")
+    parser.add_argument("--xdbf-add-source", type=Path, metavar="FILE")
     parser.add_argument("--achievement", type=int, metavar="INDEX", help="Edit one XDBF achievement entry")
     parser.add_argument("--achievement-id", type=lambda value: int(value, 0))
     parser.add_argument("--image-id", type=lambda value: int(value, 0))
@@ -1187,7 +1211,11 @@ def main() -> int:
         raw = args.path.read_bytes()
         if raw[:4] == b"XDBF":
             achievement_requested = args.achievement is not None
-            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested:
+            xdbf_add_requested = any(
+                value is not None
+                for value in (args.xdbf_add_namespace, args.xdbf_add_id, args.xdbf_add_source)
+            )
+            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or xdbf_add_requested:
                 if not write_target:
                     parser.error("XDBF mutation requires --write or --in-place")
                 if args.xdbf_replace is not None and not args.xdbf_source:
@@ -1195,7 +1223,17 @@ def main() -> int:
                 replacements = {}
                 if args.xdbf_replace is not None:
                     replacements[args.xdbf_replace] = args.xdbf_source.read_bytes()
-                raw = repack_xdbf_entries(raw, replacements, remove=args.xdbf_remove or ())
+                additions = {}
+                if xdbf_add_requested:
+                    if args.xdbf_add_namespace is None or args.xdbf_add_id is None or not args.xdbf_add_source:
+                        parser.error("XDBF addition requires --xdbf-add-namespace, --xdbf-add-id, and --xdbf-add-source")
+                    additions[(args.xdbf_add_namespace, args.xdbf_add_id)] = args.xdbf_add_source.read_bytes()
+                raw = repack_xdbf_entries(
+                    raw,
+                    replacements,
+                    remove=args.xdbf_remove or (),
+                    additions=additions,
+                )
                 if achievement_requested:
                     raw = mutate_xdbf_achievement(
                         raw,
