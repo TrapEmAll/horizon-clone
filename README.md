@@ -16,6 +16,8 @@ copied implementation code.
   spanning 3,610 XDBF entries across namespaces 1 through 5.
 - Regression coverage also exercises same-size XDBF replacement and reparsing
   across every supplied GPD without writing back to the fixture.
+- Regression coverage replaces the opaque Account entry in memory, rebuilds
+  the complete STFS hash tree, and verifies all hash levels afterward.
 - Provides a library API for enumerating parseable XDBF payloads embedded in STFS GPD files.
 - Provides a normalized library API for enumerating observed achievements across embedded GPDs.
 - Provides aggregate profile achievement counts, raw gamerscore totals, and
