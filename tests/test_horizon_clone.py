@@ -87,7 +87,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_artifact_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -1317,6 +1317,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("ZYXDNGuard", report["guarded_method_names"])
         self.assertIn("System.Diagnostics.DebuggerHiddenAttribute", report["attribute_marker_counts"])
         self.assertTrue(report["guarded_methods"][0].keys() >= {"declaring_type", "name", "token", "rva", "body"})
+        self.assertGreater(report["guard_dispatch_stub_count"], 0)
+        self.assertTrue(all(item["classification"] == "guard-dispatch-stub" for item in report["guard_dispatch_stubs"]))
 
     def test_reports_complete_rea_managed_pinvoke_inventory(self):
         bundle = Path("work/rea-export-20261010.json")
@@ -1326,6 +1328,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["counts"]["total"], 54)
         self.assertEqual(report["counts"]["matched"], 54)
         self.assertTrue(any(item["import_name"] == "RtsSaveDecrypt" for item in report["imports"]))
+
+    def test_audits_retained_managed_body_fidelity(self):
+        bundle = Path("work/rea-managed-members-latest.json")
+        if not bundle.exists():
+            self.skipTest("retained REA bundle is not available")
+        report = managed_body_fidelity_report(bundle, r"Horizon\.PackageEditors\.Halo")
+        self.assertGreater(report["counts"]["selected_methods"], 1000)
+        self.assertLess(report["counts"]["unique_file_offsets"], report["counts"]["selected_methods"])
+        self.assertGreater(report["counts"]["duplicate_file_offset_groups"], 0)
+        self.assertGreater(report["counts"]["throw_without_return"], 1000)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
