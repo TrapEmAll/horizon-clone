@@ -17,7 +17,15 @@ from work.horizon_clone import (
     read_stfs_entry,
     verify_stfs_hashes,
 )
-from work.signing import RsaPublicKey, sign_with_provider, verify_sha256_pkcs1v15
+from work.signing import (
+    DetachedSignature,
+    RsaPublicKey,
+    SignedRegion,
+    sign_region,
+    sign_with_provider,
+    verify_region,
+    verify_sha256_pkcs1v15,
+)
 from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
 
@@ -144,6 +152,18 @@ class ContainerInspectionTests(unittest.TestCase):
             sign_with_provider(b"test vector", EmptyProvider())
 
         self.assertFalse(verify_sha256_pkcs1v15(b"test vector", b"bad", RsaPublicKey(257, 3)))
+        region = SignedRegion("development-test", b"test vector")
+        class TestProvider:
+            def sign_sha256(self, message):
+                self.message = message
+                return b"signature"
+
+        provider = TestProvider()
+        detached = sign_region(region, provider)
+        self.assertEqual(detached.region_label, "development-test")
+        self.assertEqual(provider.message, region.data)
+        detached = DetachedSignature("other-region", detached.algorithm, detached.signature)
+        self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
 
     def test_profile_model_round_trips_observed_metadata(self):
         profile = ProfileData(
