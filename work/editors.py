@@ -333,6 +333,82 @@ class ConstantCatalogEditor:
         return (json.dumps(envelope, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
+@dataclass(frozen=True)
+class LegacyCatalogEditor:
+    """Validate metadata envelopes for REA-observed legacy editor fields."""
+
+    name: str = "Legacy catalog editor"
+
+    @staticmethod
+    def _known(catalog: str) -> tuple[str, ...]:
+        from .legacy_catalog import legacy_field_names
+
+        try:
+            namespace, type_name = catalog.split(":", 1)
+        except ValueError as exc:
+            raise KeyError(f"legacy catalog must be Namespace:Type: {catalog}") from exc
+        return tuple(name for name in legacy_field_names(namespace, type_name) if name != "value__")
+
+    @classmethod
+    def _decode(cls, data: bytes) -> tuple[dict[str, Any], tuple[str, ...]]:
+        import json
+
+        try:
+            envelope = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Legacy catalog input must be UTF-8 JSON") from exc
+        if not isinstance(envelope, dict) or envelope.get("editor") != "legacy-catalog":
+            raise ValueError("expected an explicit legacy-catalog envelope")
+        catalog = envelope.get("catalog")
+        values = envelope.get("values")
+        if not isinstance(catalog, str) or not isinstance(values, dict):
+            raise ValueError("Legacy catalog requires catalog and object values")
+        return envelope, cls._known(catalog)
+
+    @staticmethod
+    def _validate(values: dict[str, object], known: tuple[str, ...]) -> dict[str, int]:
+        unknown = sorted(set(values) - set(known))
+        if unknown:
+            raise ValueError(f"unknown legacy catalog members: {', '.join(unknown)}")
+        result: dict[str, int] = {}
+        for name, value in values.items():
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"Legacy catalog member {name} must be an integer")
+            if not -0x80000000 <= value <= 0x7FFFFFFF:
+                raise ValueError(f"Legacy catalog member {name} must fit a signed 32-bit field")
+            result[name] = value
+        return result
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        if not data.lstrip().startswith(b"{"):
+            return False
+        try:
+            self._decode(data)
+        except (KeyError, TypeError, ValueError):
+            return False
+        return True
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, object]:
+        envelope, known = self._decode(data)
+        return {
+            "status": "metadata-only",
+            "catalog": envelope["catalog"],
+            "known_members": list(known),
+            "values": self._validate(envelope["values"], known),
+            "limitations": [
+                "REA authenticated member names and signed-32-bit field types only.",
+                "Enum numeric assignments, save offsets, and binary serialization remain unresolved.",
+            ],
+        }
+
+    def edit_values(self, data: bytes, values: dict[str, object]) -> bytes:
+        import json
+
+        envelope, known = self._decode(data)
+        envelope["values"] = self._validate(values, known)
+        return (json.dumps(envelope, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
 class EditorRegistry:
     def __init__(self) -> None:
         self._plugins: list[EditorPlugin] = []
@@ -360,5 +436,6 @@ def default_registry() -> EditorRegistry:
     registry.register(ProfileDataEditor())
     registry.register(HaloMetadataEditor())
     registry.register(ConstantCatalogEditor())
+    registry.register(LegacyCatalogEditor())
     return registry
 
