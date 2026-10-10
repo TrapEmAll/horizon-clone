@@ -481,6 +481,18 @@ def resource_payload_metadata(payload: bytes) -> dict[str, Any]:
         dimensions = _jpeg_dimensions(payload)
         if dimensions is not None:
             result.update({"width": dimensions[0], "height": dimensions[1]})
+    elif kind == "dotnet-resources":
+        try:
+            parsed = parse_dotnet_resources(payload)
+        except ValueError as exc:
+            result.update({"index_status": "unresolved", "index_error": str(exc)})
+        else:
+            result.update({
+                "index_status": parsed["status"],
+                "resource_count": parsed["resource_count"],
+                "type_count": parsed["type_count"],
+                "type_names": parsed["type_names"],
+            })
     return result
 
 
