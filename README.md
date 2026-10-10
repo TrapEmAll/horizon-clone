@@ -42,6 +42,10 @@ copied implementation code.
   Crashers, and Saints Row) with authenticated type/field names; enum values
   and mutation behavior remain unresolved. Their observed `i4` backing fields
   are reported separately from named members.
+- Exposes a collision-safe structural report for the largest authenticated
+  global-namespace title rows (`--catalog global`), retaining duplicate CLR
+  type names as separate metadata rows and explicitly withholding enum values
+  and save offsets.
 - Exposes the observed six-field `Horizon.ProfileData` member contract as
   typed metadata without claiming its opaque Account-file layout.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
