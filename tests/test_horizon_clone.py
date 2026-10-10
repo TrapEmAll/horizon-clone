@@ -75,7 +75,7 @@ from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable, PowerShellNativeRuntimeProvider
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
-from work.account_codec import AccountCodec, AccountKeyProviderUnavailable
+from work.account_codec import AccountCodec, AccountKeyProviderUnavailable, CommandAccountKeyProvider
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
@@ -1427,6 +1427,12 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(provider.request[1]), 64)
         with self.assertRaises(AccountKeyProviderUnavailable):
             codec.decrypt_with_key_provider(b"opaque", None, 32)
+
+    def test_command_account_key_provider_requires_absolute_existing_helper(self):
+        with self.assertRaises(ValueError):
+            CommandAccountKeyProvider("key-vault-helper.exe")
+        with self.assertRaises(FileNotFoundError):
+            CommandAccountKeyProvider("C:\\does-not-exist\\key-vault-helper.exe")
 
         class Provider:
             def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
