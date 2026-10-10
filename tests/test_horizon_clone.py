@@ -335,6 +335,25 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertNotIn("cache/EmptyFolder", {entry.path for entry in list_stfs_entries(mutated, mutated_header)})
         self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
 
+    def test_reuses_file_table_slot_after_removal(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        mutated = repack_stfs_entries(
+            original,
+            {},
+            remove=("cache/ph.dat",),
+            additions={"cache/replacement.bin": b"replacement"},
+            header=header,
+        )
+        mutated_header = parse_stfs_header(mutated)
+        paths = {entry.path for entry in list_stfs_entries(mutated, mutated_header)}
+        self.assertNotIn("cache/ph.dat", paths)
+        self.assertIn("cache/replacement.bin", paths)
+        self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+
     def test_cli_supports_explicit_in_place_mutation(self):
         path = supplied_fixture()
         if path is None or not path.exists():
