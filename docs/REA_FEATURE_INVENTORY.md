@@ -236,6 +236,10 @@ as metadata; save offsets and mutation behavior remain unresolved.
 
 ## Security observations
 
+The desktop front end now exposes the same retained anti-analysis report as a
+read-only action. It does not execute Horizon, patch protections, or implement
+anti-debugging bypasses.
+
 REA’s managed static evidence for the shipped executable records debugger and
 IL-inspection-related metadata attributes and a `ZYXDNGuarder` type. These are
 recorded as observations only. The reconstruction does not execute Horizon,
