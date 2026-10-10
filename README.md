@@ -66,6 +66,9 @@ copied implementation code.
   gamerscore, flags, raw FILETIME/UTC unlock timestamp, and bounded UTF-16BE
   name changes.
 - Provides a registry/plugin boundary for title-specific package editors.
+- Exposes `--rea-feature-ledger`, a compact evidence-linked reconstruction
+  ledger that keeps observed Horizon boundaries and unresolved parity questions
+  explicit for subsequent REA passes.
 - Provides a functional XDBF/GPD editor plugin API for inspection, entry
   replacement, bounded repacking, observed text edits, and achievement edits.
 - Registers a read-only REA managed-surface editor for inspecting exported
