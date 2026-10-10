@@ -14,6 +14,9 @@ copied implementation code.
 - Parses extracted XDBF/GPD indexes and common string entries.
 - Provides a library API for enumerating parseable XDBF payloads embedded in STFS GPD files.
 - Provides a normalized library API for enumerating observed achievements across embedded GPDs.
+- Provides bulk embedded-GPD summaries with per-file entry counts, namespace
+  distributions, text counts, and achievement counts through the library and
+  `--xdbf-summary` CLI option.
 - Edits observed namespace-5 XDBF UTF-16BE string entries with bounded repacking.
 - Supports same-size raw XDBF entry replacement while preserving table layout.
 - Repackages XDBF entries to different payload sizes within existing data
