@@ -2174,6 +2174,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(resource_payload_metadata(gif)["height"], 32)
         self.assertEqual(resource_payload_metadata(b"unknown")["kind"], "binary")
 
+    def test_reports_dotnet_resource_index_metadata_without_deserializing_values(self):
+        payload = (
+            (0xBEEFCACE).to_bytes(4, "little")
+            + (1).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+            + (2).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+        )
+        metadata = resource_payload_metadata(payload)
+        self.assertEqual(metadata["kind"], "dotnet-resources")
+        self.assertEqual(metadata["index_status"], "observed-index")
+        self.assertEqual(metadata["resource_count"], 0)
+        self.assertEqual(metadata["type_count"], 0)
+
     def test_parses_dotnet_resource_index_without_deserializing_values(self):
         payload = bytearray()
         payload += (0xBEEFCACE).to_bytes(4, "little")
