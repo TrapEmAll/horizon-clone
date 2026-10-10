@@ -20,6 +20,7 @@ from .horizon_clone import (
     repack_xdbf_entries,
 )
 from .managed_surface import managed_surface_report_from_bundle
+from .halo_catalog import validate_halo_metadata_values
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,55 @@ class AccountEditor:
         return bytes(replacement)
 
 
+@dataclass(frozen=True)
+class HaloMetadataEditor:
+    """Validate an explicit JSON Halo metadata envelope without binary I/O."""
+
+    name: str = "Halo metadata editor"
+
+    def _decode(self, data: bytes) -> dict[str, Any]:
+        import json
+
+        try:
+            value = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Halo metadata input must be UTF-8 JSON") from exc
+        if not isinstance(value, dict) or value.get("editor") != "halo-metadata":
+            raise ValueError("expected an explicit halo-metadata envelope")
+        if not isinstance(value.get("type_name"), str) or not isinstance(value.get("values"), dict):
+            raise ValueError("Halo metadata requires type_name and object values")
+        return value
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        if not data.lstrip().startswith(b"{"):
+            return False
+        try:
+            self._decode(data)
+        except ValueError:
+            return False
+        return True
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, object]:
+        value = self._decode(data)
+        normalized = validate_halo_metadata_values(value["type_name"], value["values"])
+        return {
+            "status": "metadata-only",
+            "type_name": value["type_name"],
+            "values": normalized,
+            "limitations": [
+                "No save offsets or binary serialization are inferred.",
+                "class:N references remain opaque managed identities.",
+            ],
+        }
+
+    def edit_values(self, data: bytes, values: dict[str, object]) -> bytes:
+        import json
+
+        envelope = self._decode(data)
+        envelope["values"] = validate_halo_metadata_values(envelope["type_name"], values)
+        return (json.dumps(envelope, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
 class EditorRegistry:
     def __init__(self) -> None:
         self._plugins: list[EditorPlugin] = []
@@ -158,5 +208,6 @@ def default_registry() -> EditorRegistry:
     registry.register(XdbfEditor())
     registry.register(ManagedSurfaceEditor())
     registry.register(AccountEditor())
+    registry.register(HaloMetadataEditor())
     return registry
 
