@@ -96,6 +96,9 @@ copied implementation code.
   from implementation claims.
 - Exposes that resource-surface report through `--resource-surface` without
   copying or executing shipped resources.
+- Queries exported REA resource inventories with `--resource-bundle` and an
+  optional `--resource-pattern`, returning authenticated names, offsets,
+  lengths, embedding state, and payload hashes without copying payloads.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
