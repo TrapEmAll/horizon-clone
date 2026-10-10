@@ -52,6 +52,7 @@ from work.horizon_clone import (
     utc_to_filetime,
     xdbf_payload_surface,
     xdbf_achievement_image_links,
+    xdbf_achievement_image_payload,
     read_stfs_entry,
     verify_stfs_hashes,
 )
@@ -542,6 +543,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(links[0]["status"], "linked")
         self.assertEqual(links[0]["image_id"], 99)
         self.assertEqual(links[0]["image_metadata"]["kind"], "png")
+        self.assertEqual(xdbf_achievement_image_payload(data, 0), image)
+        with self.assertRaises(ValueError):
+            xdbf_achievement_image_payload(data, 1)
 
     def test_adds_xdbf_entry_with_explicit_namespace_and_id(self):
         payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
