@@ -58,9 +58,10 @@ class XdbfEditor:
         data: bytes,
         replacements: dict[int, bytes],
         remove: tuple[int, ...] = (),
+        additions: dict[tuple[int, int], bytes] | None = None,
     ) -> bytes:
-        """Repack XDBF payloads within the existing table/data capacity."""
-        return repack_xdbf_entries(data, replacements, remove=remove)
+        """Repack XDBF payloads within existing table/data capacity."""
+        return repack_xdbf_entries(data, replacements, remove=remove, additions=additions)
 
     def edit_achievement(self, data: bytes, entry_index: int, **changes: object) -> bytes:
         """Edit the observed achievement fields through the editor boundary."""
