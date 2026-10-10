@@ -66,6 +66,7 @@ _CAPABILITIES = (
     Capability("XDBF/GPD inspection", "implemented", "observed XDBF entries, payload digests, namespace-5 strings, achievement payloads, and profile aggregates", ("parse_xdbf", "xdbf_payload_surface", "list_embedded_xdbf", "list_embedded_achievements", "summarize_profile_achievements")),
     Capability("XDBF/GPD mutation", "implemented", "bounded XDBF repacking and observed achievement edits", ("repack_xdbf_entries", "mutate_xdbf_text", "mutate_xdbf_achievement")),
     Capability("Managed surface editor dispatch", "implemented", "Read-only editor-registry dispatch for exported REA managed-members evidence", ("ManagedSurfaceEditor", "EditorRegistry")),
+    Capability("Opaque Account editor dispatch", "implemented", "Deterministic Account payload inspection and same-size replacement without schema inference", ("AccountEditor", "EditorRegistry")),
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
     Capability("Account serialization", "unresolved", "supplied Account payload is opaque; REA exposed no managed Account type, serializer, field offsets, or Account-specific call edge", ("mutate_stfs_entry_same_size",)),
     Capability("Account crypto provider bridge", "provider-boundary", "Connects opaque Account payloads to the authenticated class3 save signatures without loading DLLs or storing keys", ("AccountCodec", "NativeSaveBinding")),
