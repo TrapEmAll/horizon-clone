@@ -54,8 +54,11 @@ bitmap format or Account-file relationship is inferred.
 
 
 The shared STFS report also exposes public certificate descriptors, signature
-byte digests, and all 16 license slots. It deliberately does not verify or
-forge console signatures.
+byte digests, and all 16 license slots. A public-key probe against the supplied
+fixture did not produce a valid PKCS#1 verification block from the apparent
+modulus/signature fields, and REA did not authenticate the signed-region
+protocol. The clone therefore deliberately does not guess a package-signature
+layout, verify, or forge console signatures.
 
 REA's managed native-boundary inspection records 14 module references and 54
 P/Invoke declarations. The most relevant editor boundaries are
