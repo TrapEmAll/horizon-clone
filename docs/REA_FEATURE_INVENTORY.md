@@ -46,8 +46,9 @@ P/Invoke declarations. The most relevant editor boundaries are
 `class3.dll`'s `RtsSaveEncrypt`/`RtsSaveDecrypt`, LZO compression imports,
 device `CreateFile`/`DeviceIoControl`, and `Horizon.dll`/`HVMRun64.dll`
 `DNG_Runtime`, `RunHVM`, and `GetUserString` imports. The clone exposes these
-as a declaration-only native-surface report; their calling signatures and
-protocols are not inferred. The retained call-edge evidence does resolve the
+as a declaration-only native-surface report. Managed signatures are recovered
+for the save-crypto, LZO, runtime, and user-string declarations, but parameter
+semantics and native protocols are not inferred. The retained call-edge evidence does resolve the
 obfuscated managed `Startup` method to both runtime checks and `CheckString`
 to both user-string exports; it also shows `ZYXDNGuard` initializing LZO.
 
