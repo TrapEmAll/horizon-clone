@@ -63,7 +63,7 @@ from work.skyrim_catalog import enum_member_names, enum_member_values, observed_
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids, resolve_gears_entry_id, validate_gears_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
-from work.resource_inventory import extract_managed_resource_payloads, observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
+from work.resource_inventory import classify_resource_payload, extract_managed_resource_payloads, observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.anti_analysis import anti_analysis_report
@@ -1518,6 +1518,11 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(surface["resource_count"], 205)
         self.assertEqual(surface["nonembedded_unresolved_count"], 1)
         self.assertEqual(surface["distinct_payload_hashes"], 30)
+
+    def test_classifies_resource_payload_magic_without_execution(self):
+        self.assertEqual(classify_resource_payload(b"\x89PNG\r\n\x1a\n"), "png")
+        self.assertEqual(classify_resource_payload(b"\xce\xca\xef\xbe\x01"), "dotnet-resources")
+        self.assertEqual(classify_resource_payload(b"unknown"), "binary")
 
     def test_cli_exports_observed_resource_surface(self):
         result = subprocess.run(
