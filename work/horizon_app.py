@@ -15,6 +15,7 @@ from .horizon_clone import (
     list_embedded_achievements,
     list_embedded_xdbf,
     summarize_embedded_xdbf,
+    summarize_profile_achievements,
     xdbf_payload_surface,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
@@ -79,6 +80,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export profile summary", command=self.export_profile_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF surface", command=self.export_xdbf_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
@@ -749,6 +751,25 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "achievement_count": len(achievements)})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Achievement export failed", str(exc))
+
+    def export_profile_summary(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Profile summary", "Open a readable STFS profile first.")
+            return
+        try:
+            summary = summarize_profile_achievements(self._data, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(
+                title="Export profile summary",
+                defaultextension=".json",
+                filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_text(Path(target), json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
+            self.status.configure(text="Exported profile summary")
+            self._set_details({"path": target, "summary": summary})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("Profile summary export failed", str(exc))
 
     def export_xdbf_inventory(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
