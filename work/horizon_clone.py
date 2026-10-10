@@ -784,6 +784,36 @@ def list_embedded_achievements(
     return tuple(records)
 
 
+def summarize_profile_achievements(
+    data: bytes, header: StfsHeader | None = None
+) -> dict[str, object]:
+    """Aggregate observed achievement fields across embedded GPDs."""
+
+    per_file: list[dict[str, object]] = []
+    total_entries = total_gamerscore = nonzero_flags = 0
+    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
+        achievements = [item.achievement for item in xdbf_entries if item.achievement is not None]
+        file_score = sum(int(item.get("gamerscore", 0)) for item in achievements)
+        file_flags = sum(bool(item.get("flags", 0)) for item in achievements)
+        per_file.append({
+            "file": file_entry.path,
+            "achievement_count": len(achievements),
+            "gamerscore_total": file_score,
+            "nonzero_flags_count": file_flags,
+        })
+        total_entries += len(achievements)
+        total_gamerscore += file_score
+        nonzero_flags += file_flags
+    return {
+        "gpd_count": len(per_file),
+        "achievement_entry_count": total_entries,
+        "gamerscore_total": total_gamerscore,
+        "nonzero_flags_count": nonzero_flags,
+        "flag_semantics": "raw nonzero flag count; bit meanings are not inferred",
+        "by_gpd": per_file,
+    }
+
+
 def summarize_embedded_xdbf(
     data: bytes, header: StfsHeader | None = None
 ) -> tuple[dict[str, object], ...]:
@@ -1405,6 +1435,7 @@ def main() -> int:
     parser.add_argument("--xdbf-surface", action="store_true", help="Report XDBF payload sizes and digests without interpreting opaque entries")
     parser.add_argument("--xdbf-summary", action="store_true", help="Summarize parseable embedded GPD namespaces")
     parser.add_argument("--list-achievements", action="store_true", help="List observed achievements from embedded GPD files")
+    parser.add_argument("--profile-summary", action="store_true", help="Summarize observed achievement fields across embedded GPD files")
     parser.add_argument("--achievements-output", type=Path, help="Write embedded achievement records as JSON")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
@@ -1720,6 +1751,11 @@ def main() -> int:
                 json.dumps(achievement_records, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
             )
+    if args.profile_summary:
+        if not report.stfs_header:
+            parser.error("--profile-summary requires a readable STFS header")
+        print(json.dumps(summarize_profile_achievements(raw, report.stfs_header), indent=2, ensure_ascii=False))
+        return 0
     if args.extract_dir:
         written = extract_stfs(raw, args.extract_dir, selected_path=args.extract)
         print(f"Extracted {len(written)} file(s) to {args.extract_dir}")
