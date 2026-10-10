@@ -19,6 +19,15 @@ class NativeImport:
     managed_member: str
 
 
+@dataclass(frozen=True)
+class NativeBoundaryCaller:
+    caller: str
+    caller_token: str
+    native_module: str
+    import_name: str
+    native_token: str
+
+
 _IMPORTS = (
     NativeImport("class3.dll", "RtsSaveDecrypt", "cca5cc966e0f636907b7609991eb6fc5b"),
     NativeImport("class3.dll", "RtsSaveEncrypt", "cd77fe1cb3b73087691882c6c7f2294c8"),
@@ -47,10 +56,55 @@ _IMPORTS = (
 )
 
 
+_CALLERS = (
+    NativeBoundaryCaller(
+        "A.cd936781820a998f272eb4df3bd2b8c2a.Startup",
+        "0x060083ff",
+        "Horizon.dll",
+        "DNG_Runtime",
+        "0x060083f8",
+    ),
+    NativeBoundaryCaller(
+        "A.cd936781820a998f272eb4df3bd2b8c2a.Startup",
+        "0x060083ff",
+        "HVMRun64.dll",
+        "DNG_Runtime",
+        "0x060083f9",
+    ),
+    NativeBoundaryCaller(
+        "A.cd9276f49d88a260398f12b2584c549ca.CheckString",
+        "0x060083f6",
+        "Horizon.dll",
+        "GetUserString",
+        "0x060083fd",
+    ),
+    NativeBoundaryCaller(
+        "A.cd9276f49d88a260398f12b2584c549ca.CheckString",
+        "0x060083f6",
+        "HVMRun64.dll",
+        "GetUserString",
+        "0x060083fe",
+    ),
+    NativeBoundaryCaller(
+        "A.cd9875b4b93f8a70f17be0ebd9671669a.ZYXDNGuard",
+        "0x060084ae",
+        "lzo.dll",
+        "__lzo_init_v2",
+        "0x060004ba",
+    ),
+)
+
+
 def observed_native_imports() -> tuple[NativeImport, ...]:
     """Return the exact deduplicated imports retained from REA evidence."""
 
     return _IMPORTS
+
+
+def observed_native_callers() -> tuple[NativeBoundaryCaller, ...]:
+    """Return REA-resolved managed-to-native call edges."""
+
+    return _CALLERS
 
 
 def native_surface_report() -> dict[str, object]:
@@ -64,6 +118,7 @@ def native_surface_report() -> dict[str, object]:
         "observed_module_ref_count": 14,
         "observed_pinvoke_count": 54,
         "imports": [asdict(item) for item in _IMPORTS],
+        "managed_callers": [asdict(item) for item in _CALLERS],
         "modules": groups,
         "unresolved": [
             "native calling signatures",
