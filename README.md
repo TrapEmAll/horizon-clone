@@ -73,6 +73,8 @@ package is console-valid until an authorized provider signs it.
 overwrites the input container after the same rehashing pipeline used by
 `--write`. Mutated packages remain unsigned unless an authorized provider
 performs the required signing step.
+`--backup` saves the original bytes before the atomic replacement and is only
+valid with `--in-place`.
 
 ## Usage
 
@@ -85,6 +87,7 @@ python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extr
 python -m work.horizon_clone C:\path\to\container --verify-hashes
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place
+python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place --backup original.con
 python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile" --write renamed.con
 python -m work.horizon_clone C:\path\to\container --repack Account --repack-source account.bin --write repacked.con
 python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
