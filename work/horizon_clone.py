@@ -1032,6 +1032,43 @@ def stfs_signature_region_report(data: bytes) -> dict[str, object]:
     }
 
 
+def verify_stfs_console_signature(data: bytes) -> dict[str, object]:
+    """Verify the observed CON package-signature layout without modifying it.
+
+    The package signature is stored at ``0x1AC`` and covers the 0x118 bytes
+    beginning at ``0x22C``. XeCrypt stores the RSA signature byte-reversed;
+    the layout and encoding are retained as historical-reference evidence.
+    """
+
+    metadata = parse_stfs_security_metadata(data)
+    if metadata.signature_kind != "console-certificate":
+        raise ValueError("STFS console-signature verification requires a CON container")
+    key = extract_stfs_public_key(data)
+    signature_offset = metadata.package_signature_offset
+    signature_length = metadata.package_signature_length
+    signed_start = signature_offset + signature_length
+    signed_end = signed_start + 0x118
+    if signed_end > len(data):
+        raise ValueError("CON package signed region exceeds the container")
+    signature = data[signature_offset:signature_offset + signature_length]
+    signed_bytes = data[signed_start:signed_end]
+    verified = verify_xecrypt_sha1_pkcs1v15(signed_bytes, signature, key)
+    return {
+        "status": "historical-reference-verification",
+        "verified": verified,
+        "algorithm": "RSA-SHA1-XeCrypt-PKCS1v1.5",
+        "signature_offset": signature_offset,
+        "signature_length": signature_length,
+        "signed_start": signed_start,
+        "signed_end": signed_end,
+        "public_key": {"modulus_bits": key.modulus.bit_length(), "exponent": key.exponent},
+        "limitations": [
+            "This verifies the observed package-signature encoding and range only.",
+            "A valid package signature does not establish every console policy or key authority.",
+        ],
+    }
+
+
 def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str, object]:
     """Compare two STFS images without claiming console-signature validity.
 
@@ -2277,6 +2314,7 @@ def main() -> int:
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
+    parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
     parser.add_argument("--signature-compare", type=Path, metavar="OTHER", help="Compare STFS signature bytes and changed regions with another image")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
@@ -3032,6 +3070,14 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         return 0
+
+    if args.verify_stfs_signature:
+        try:
+            signature_report = verify_stfs_console_signature(raw)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(signature_report, indent=2))
+        return 0 if signature_report["verified"] else 1
 
     if args.replace:
         if not args.replacement or not write_target:
