@@ -84,6 +84,20 @@ class HorizonApp(tk.Tk):
             self.details.insert(tk.END, json.dumps(value, indent=2, ensure_ascii=False, default=str))
         self.details.configure(state=tk.DISABLED)
 
+    def _load_standalone_xdbf(self, path: Path, data: bytes) -> None:
+        self._data = data
+        self._report = inspect(path)
+        self._standalone_xdbf = True
+        self.tree.delete(*self.tree.get_children())
+        self._entries.clear()
+        xdbf_entries = parse_xdbf(data)
+        for entry in xdbf_entries:
+            label = entry.text or (entry.achievement or {}).get("name") or ""
+            item = self.tree.insert("", tk.END, text=f"XDBF[{entry.index}] {label}", values=(entry.length, "XDBF"))
+            self._entries[item] = entry
+        self.status.configure(text=f"Standalone XDBF: {len(xdbf_entries)} entries")
+        self._set_details({"path": str(path), "xdbf_entries": xdbf_entries})
+
     def open_container(self) -> None:
         filename = filedialog.askopenfilename(title="Open Xbox 360 container")
         if not filename:
@@ -96,18 +110,7 @@ class HorizonApp(tk.Tk):
             self._entries.clear()
             self._standalone_xdbf = self._data[:4] == b"XDBF"
             if self._standalone_xdbf:
-                xdbf_entries = parse_xdbf(self._data)
-                for entry in xdbf_entries:
-                    label = entry.text or (entry.achievement or {}).get("name") or ""
-                    item = self.tree.insert(
-                        "",
-                        tk.END,
-                        text=f"XDBF[{entry.index}] {label}",
-                        values=(entry.length, "XDBF"),
-                    )
-                    self._entries[item] = entry
-                self.status.configure(text=f"Standalone XDBF: {len(xdbf_entries)} entries")
-                self._set_details({"path": str(path), "xdbf_entries": xdbf_entries})
+                self._load_standalone_xdbf(path, self._data)
                 return
             for entry in self._report.entries:
                 item = self.tree.insert("", tk.END, text=entry.path, values=(entry.size, "DIR" if entry.is_directory else "FILE"))
@@ -365,7 +368,51 @@ class HorizonApp(tk.Tk):
         except (OSError, ValueError) as exc:
             messagebox.showerror("Metadata edit failed", str(exc))
 
+    def _save_standalone_xdbf(self, data: bytes, title: str, status: str) -> bool:
+        target = filedialog.asksaveasfilename(
+            title=title,
+            defaultextension=".gpd",
+            filetypes=(("GPD/XDBF", "*.gpd *.xdbf"), ("All files", "*.*")),
+        )
+        if not target:
+            return False
+        path = Path(target)
+        path.write_bytes(data)
+        self._load_standalone_xdbf(path, data)
+        self.status.configure(text=status)
+        return True
+
+    def _edit_standalone_achievement(self) -> None:
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Achievement", "Select an XDBF entry first.")
+            return
+        selected_entry = self._entries[selected[0]]
+        current = selected_entry.achievement or {}
+        if not current:
+            messagebox.showinfo("Achievement", "The selected entry is not an achievement payload.")
+            return
+        score_text = simpledialog.askstring("Gamerscore", "Gamerscore:", initialvalue=str(current.get("gamerscore", "")), parent=self)
+        flags_text = simpledialog.askstring("Flags", "Flags:", initialvalue=hex(current.get("flags", 0)), parent=self)
+        name = simpledialog.askstring("Achievement name", "Name:", initialvalue=str(current.get("name", "")), parent=self)
+        if score_text is None or flags_text is None or name is None:
+            return
+        edited = mutate_xdbf_achievement(
+            self._data,
+            selected_entry.index,
+            gamerscore=int(score_text, 0),
+            flags=int(flags_text, 0),
+            name=name,
+        )
+        self._save_standalone_xdbf(edited, "Save standalone achievement edit", "Wrote unsigned standalone achievement edit")
+
     def edit_selected_achievement(self) -> None:
+        if self._standalone_xdbf:
+            try:
+                self._edit_standalone_achievement()
+            except (OSError, ValueError, StopIteration) as exc:
+                messagebox.showerror("Achievement edit failed", str(exc))
+            return
         if not self._data or not self._report or not self._report.stfs_header:
             messagebox.showinfo("Achievement", "Open a readable STFS container first.")
             return
@@ -475,6 +522,24 @@ class HorizonApp(tk.Tk):
             messagebox.showerror("Thumbnail edit failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
+        if self._standalone_xdbf:
+            try:
+                namespace_text = simpledialog.askstring("XDBF namespace", "Namespace (integer or hex):", parent=self)
+                entry_id_text = simpledialog.askstring("XDBF entry ID", "Entry ID (integer or hex):", parent=self)
+                if namespace_text is None or entry_id_text is None:
+                    return
+                source = filedialog.askopenfilename(title="Choose XDBF payload")
+                if not source:
+                    return
+                edited = repack_xdbf_entries(
+                    self._data,
+                    {},
+                    additions={(int(namespace_text, 0), int(entry_id_text, 0)): Path(source).read_bytes()},
+                )
+                self._save_standalone_xdbf(edited, "Save standalone XDBF entry addition", "Wrote unsigned standalone XDBF entry addition")
+            except (OSError, ValueError) as exc:
+                messagebox.showerror("XDBF entry addition failed", str(exc))
+            return
         if not self._data or not self._report or not self._report.stfs_header:
             messagebox.showinfo("XDBF entry", "Open a readable STFS container first.")
             return
