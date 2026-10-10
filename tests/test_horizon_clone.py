@@ -49,7 +49,7 @@ from work.halo_catalog import halo_general_class_field_counts, halo_general_clas
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
-from work.native_surface import native_surface_report, observed_native_imports
+from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 
 
 def supplied_fixture():
@@ -738,6 +738,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn(("class3.dll", "RtsSaveDecrypt"), imports)
         self.assertIn(("Horizon.dll", "RunHVM"), imports)
         self.assertIn(("Horizon.dll", "GetUserString"), imports)
+        callers = {(item.caller, item.import_name) for item in observed_native_callers()}
+        self.assertIn(("A.cd936781820a998f272eb4df3bd2b8c2a.Startup", "DNG_Runtime"), callers)
+        self.assertIn(("A.cd9276f49d88a260398f12b2584c549ca.CheckString", "GetUserString"), callers)
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
