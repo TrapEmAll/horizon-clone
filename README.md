@@ -43,6 +43,8 @@ copied implementation code.
   mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
   capacity, updating file-table records and hashes.
+- Adds new root or existing-directory STFS files when both file-table slots and
+  data-block capacity are available.
 - Resolves and rehashes level-2 STFS hash-table indirection for large
   allocations without growing the package's physical allocation.
 - Removes file-table entries safely when the resulting package fits the
@@ -67,6 +69,7 @@ python -m work.horizon_clone C:\path\to\container --replace Account --replacemen
 python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile" --write renamed.con
 python -m work.horizon_clone C:\path\to\container --repack Account --repack-source account.bin --write repacked.con
 python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
+python -m work.horizon_clone C:\path\to\container --add sidecar.bin --add-source sidecar.bin --write with-sidecar.con
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-replace 5 --xdbf-source payload.bin --write edited.gpd
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-remove 5 --write without-entry.gpd
