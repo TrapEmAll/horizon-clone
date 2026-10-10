@@ -358,9 +358,11 @@ values without inferring the native handle or string protocol.
 
 RSA signing remains behind an authorized signing-provider boundary. The
 library supports detached signatures over caller-labeled development regions,
-but does not infer Xbox signed regions. This clean-room project does not
-contain private Xbox/Microsoft signing keys and does not claim that a rewritten
-package is console-valid until an authorized provider signs it.
+and can sign the observed CON package region with `--sign-stfs-package` when
+the caller supplies an RSA private key whose modulus matches the package
+certificate. This clean-room project does not contain private Xbox/Microsoft
+signing keys and does not claim that a rewritten package is console-valid
+under retail policy.
 
 `--in-place` is an explicit destructive opt-in for local development: it
 overwrites the input container after the same rehashing pipeline used by
