@@ -73,7 +73,7 @@ from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.account_codec import AccountCodec
-from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable
+from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
@@ -1376,6 +1376,22 @@ class ContainerInspectionTests(unittest.TestCase):
             CtypesLzoProvider("lzo.dll")
         with self.assertRaises(FileNotFoundError):
             CtypesLzoProvider("C:\\does-not-exist\\lzo.dll")
+
+    def test_x86_powershell_lzo_provider_round_trips_supplied_dll(self):
+        dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\lzo.dll")
+        host = Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not dll.exists() or not host.exists():
+            self.skipTest("supplied x86 LZO DLL or 32-bit PowerShell host is unavailable")
+        provider = PowerShellLzoProvider(dll, host)
+        source = b"Horizon-LZO-test-Horizon-LZO-test"
+        work_memory = bytes(65536)
+        compressed = bytearray(1024)
+        compressed_length = Int32Ref(len(compressed))
+        self.assertEqual(provider.lzo1x_1_compress(source, len(source), compressed, compressed_length, work_memory), 0)
+        restored = bytearray(1024)
+        restored_length = Int32Ref(len(restored))
+        self.assertEqual(provider.lzo1x_decompress(bytes(compressed[:compressed_length.value]), compressed_length.value, restored, restored_length, work_memory), 0)
+        self.assertEqual(bytes(restored[:restored_length.value]), source)
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
