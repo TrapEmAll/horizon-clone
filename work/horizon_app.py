@@ -14,6 +14,7 @@ from .horizon_clone import (
     inspect,
     list_embedded_achievements,
     list_embedded_xdbf,
+    summarize_embedded_xdbf,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
@@ -78,6 +79,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace XDBF entry", command=self.replace_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -779,6 +781,25 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "xdbf_entry_count": len(inventory)})
         except OSError as exc:
             messagebox.showerror("XDBF inventory export failed", str(exc))
+
+    def export_gpd_summary(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("GPD summary", "Open a readable STFS profile first.")
+            return
+        try:
+            summary = list(summarize_embedded_xdbf(self._data, self._report.stfs_header))
+            target = filedialog.asksaveasfilename(
+                title="Export GPD summary",
+                defaultextension=".json",
+                filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_text(Path(target), json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
+            self.status.configure(text=f"Exported {len(summary)} GPD summaries")
+            self._set_details({"path": target, "gpd_count": len(summary)})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("GPD summary export failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
