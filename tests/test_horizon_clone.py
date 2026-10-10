@@ -69,6 +69,7 @@ from work.signing import (
     verify_region,
     verify_sha1_pkcs1v15,
     verify_sha256_pkcs1v15,
+    verify_xecrypt_sha1_pkcs1v15,
 )
 from work.profile_model import ProfileData
 from work.editors import AccountEditor, ConstantCatalogEditor, EditorContext, EditorRegistry, HaloMetadataEditor, LegacyCatalogEditor, ManagedSchemaEditor, ManagedSurfaceEditor, ProfileDataEditor, XdbfEditor, default_registry
@@ -1352,6 +1353,7 @@ class ContainerInspectionTests(unittest.TestCase):
                 modulus=257,
                 exponent=3,
             )
+        self.assertFalse(verify_xecrypt_sha1_pkcs1v15(b"signed-data", b"\x01" * 32, RsaPublicKey(257, 3)))
 
     def test_profile_model_round_trips_observed_metadata(self):
         profile = ProfileData(
