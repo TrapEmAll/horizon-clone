@@ -42,6 +42,11 @@ mutation behavior remain unresolved. The Gears `EntryID` catalog now likewise
 records its observed declaring type, 1,139 named members, and 1,139
 authenticated Constant-table values; save offsets remain unresolved.
 
+The clone now exposes resolvers and strict validators for the three Skyrim
+Constant tables and for all 1,139 Gears `EntryID` values. These APIs prevent
+invented metadata values but do not claim binary save serialization or console
+validity.
+
 The shared managed-member evidence also exposes `ProfileLoadout` with its
 `All_Loadouts` member and `SaveEntryCategory` with observed audio, graphics,
 controls, game, campaign, campaign-level, and unknown-category labels. The
