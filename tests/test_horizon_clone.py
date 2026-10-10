@@ -13,6 +13,7 @@ from work.horizon_clone import (
     list_embedded_xdbf,
     summarize_embedded_xdbf,
     list_embedded_achievements,
+    list_embedded_achievement_image_links,
     summarize_profile_achievements,
     rename_stfs_entry,
     add_stfs_directory,
@@ -152,6 +153,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "encrypt_account"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_image"))
+        self.assertTrue(hasattr(HorizonApp, "export_achievement_links"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
     def test_device_inventory_is_read_only_and_explicitly_bounded(self):
@@ -903,6 +905,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(records)
         self.assertIn("achievement", records[0])
         self.assertIn("file", records[0])
+
+    def test_lists_embedded_achievement_image_links(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        links = list_embedded_achievement_image_links(path.read_bytes())
+        self.assertEqual(len(links), 2339)
+        self.assertEqual(sum(item["status"] == "linked" for item in links), 623)
+        self.assertEqual(sum(item["status"] == "missing" for item in links), 1716)
 
     def test_cli_lists_embedded_achievements(self):
         path = supplied_fixture()
