@@ -125,7 +125,7 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_cli_adds_xdbf_entry_with_explicit_identity(self):
         payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
-        header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 3
+        header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 4
         entry = (5).to_bytes(2, "big") + (0x8000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
         expanded = bytearray(header + entry + b"\x00" * 8 + payload + b"\x00" * 100)
         expanded[8:12] = (2).to_bytes(4, "big")
@@ -164,6 +164,27 @@ class ContainerInspectionTests(unittest.TestCase):
             source_path.unlink(missing_ok=True)
             addition_path.unlink(missing_ok=True)
             output_path.unlink(missing_ok=True)
+            directory.rmdir()
+
+    def test_cli_lists_standalone_xdbf_entries(self):
+        payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
+        header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 4
+        entry = (5).to_bytes(2, "big") + (0x8000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
+        directory = self.fixture_dir / "cli-xdbf-list"
+        directory.mkdir(parents=True, exist_ok=True)
+        source_path = directory / "input.gpd"
+        try:
+            source_path.write_bytes(header + entry + b"\x00" * 8 + payload + b"\x00" * 20)
+            result = subprocess.run(
+                [sys.executable, "-m", "work.horizon_clone", str(source_path), "--list"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertIn("ns=    5 id=0x8000", result.stdout)
+            self.assertIn("Dashboard", result.stdout)
+        finally:
+            source_path.unlink(missing_ok=True)
             directory.rmdir()
 
     def test_mutates_xdbf_achievement_fields(self):
