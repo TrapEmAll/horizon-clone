@@ -55,6 +55,7 @@ from work.horizon_clone import (
     xdbf_payload_surface,
     xdbf_achievement_image_links,
     xdbf_achievement_image_payload,
+    historical_account_report,
     read_stfs_entry,
     verify_stfs_hashes,
 )
@@ -134,6 +135,20 @@ class ContainerInspectionTests(unittest.TestCase):
         tampered[-1] ^= 0x01
         with self.assertRaises(ValueError):
             unobfuscate_account(bytes(tampered), production_key)
+
+    def test_historical_account_report_exposes_authenticated_fields(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        report = historical_account_report(
+            path,
+            bytes.fromhex("e1bc159c73b1eae9ab3170f3ad47ebf3"),
+        )
+        self.assertEqual(report["operation"], "historical-account-inspect")
+        self.assertEqual(report["encrypted_bytes"], 404)
+        self.assertEqual(report["plaintext_bytes"], 380)
+        self.assertEqual(report["record"]["gamertag"], "Trap Em All")
+        self.assertEqual(len(report["record"]["online_key_hex"]), 32)
 
     fixture_dir = Path(__file__).parent / ".tmp"
 
