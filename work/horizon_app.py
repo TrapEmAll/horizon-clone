@@ -48,6 +48,8 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Replace XDBF entry", command=self.replace_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Remove XDBF entry", command=self.remove_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
         self.status.pack(side=tk.RIGHT)
@@ -581,6 +583,41 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("XDBF entry addition failed", str(exc))
+
+    def replace_xdbf_entry(self) -> None:
+        if not self._standalone_xdbf:
+            messagebox.showinfo("XDBF entry", "Open a standalone GPD/XDBF file first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("XDBF entry", "Select an XDBF entry first.")
+            return
+        entry = self._entries[selected[0]]
+        source = filedialog.askopenfilename(title="Choose replacement XDBF payload")
+        if not source:
+            return
+        try:
+            edited = repack_xdbf_entries(self._data, {entry.index: Path(source).read_bytes()})
+            self._save_standalone_xdbf(edited, "Save standalone XDBF replacement", "Wrote unsigned standalone XDBF replacement")
+        except (OSError, ValueError, IndexError) as exc:
+            messagebox.showerror("XDBF replacement failed", str(exc))
+
+    def remove_xdbf_entry(self) -> None:
+        if not self._standalone_xdbf:
+            messagebox.showinfo("XDBF entry", "Open a standalone GPD/XDBF file first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("XDBF entry", "Select an XDBF entry first.")
+            return
+        entry = self._entries[selected[0]]
+        if not messagebox.askyesno("Remove XDBF entry", f"Remove entry {entry.index}?", parent=self):
+            return
+        try:
+            edited = repack_xdbf_entries(self._data, {}, remove=(entry.index,))
+            self._save_standalone_xdbf(edited, "Save standalone XDBF removal", "Wrote unsigned standalone XDBF removal")
+        except (OSError, ValueError, IndexError) as exc:
+            messagebox.showerror("XDBF removal failed", str(exc))
 
     def export_report(self) -> None:
         if not self._report:
