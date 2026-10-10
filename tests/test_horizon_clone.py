@@ -45,6 +45,7 @@ from work.horizon_clone import (
     extract_stfs_public_key,
     stfs_signature_region_report,
     stfs_signature_mutation_report,
+    verify_stfs_console_signature,
     read_private_key_json,
     sign_detached_signature,
     sign_detached_bytes,
@@ -2292,6 +2293,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(metadata.header_sha1_matches)
         self.assertEqual(len(metadata.header_sha1), 40)
         self.assertIsNotNone(metadata.public_modulus_sha256)
+
+    def test_verifies_observed_con_signature_layout_without_claiming_validity(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        result = verify_stfs_console_signature(path.read_bytes())
+        self.assertEqual(result["algorithm"], "RSA-SHA1-XeCrypt-PKCS1v1.5")
+        self.assertEqual((result["signature_offset"], result["signature_length"]), (0x1AC, 0x80))
+        self.assertEqual((result["signed_start"], result["signed_end"]), (0x22C, 0x344))
+        self.assertFalse(result["verified"])
 
     def test_compares_stfs_mutations_without_claiming_console_validity(self):
         path = supplied_fixture()
