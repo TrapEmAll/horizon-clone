@@ -7,6 +7,7 @@ from work.horizon_clone import (
     list_stfs_entries,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    repack_xdbf_entries,
     repack_stfs_entries,
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
@@ -54,7 +55,7 @@ class ContainerInspectionTests(unittest.TestCase):
         data_base = 0x18 + table_length * 0x12 + free_length * 8
         header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 2 + b"\x00\x00\x00\x01" * 2
         entry = (5).to_bytes(2, "big") + (0x8000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
-        data = header + entry + b"\x00" * 8 + payload
+        data = header + entry + b"\x00" * 8 + payload + b"\x00" * 100
 
         parsed = parse_xdbf(data)
 
@@ -65,6 +66,13 @@ class ContainerInspectionTests(unittest.TestCase):
             data, parsed[0], "Settings!".encode("utf-16-be") + b"\x00\x00"
         )
         self.assertEqual(parse_xdbf(mutated)[0].text, "Settings!")
+
+        longer = "Longer Dashboard".encode("utf-16-be") + b"\x00\x00"
+        repacked = repack_xdbf_entries(data, {0: longer})
+        self.assertEqual(parse_xdbf(repacked)[0].text, "Longer Dashboard")
+
+        removed = repack_xdbf_entries(data, {}, remove=(0,))
+        self.assertEqual(parse_xdbf(removed), ())
 
         with self.assertRaises(ValueError):
             mutate_xdbf_entry_same_size(data, parsed[0], b"short")
