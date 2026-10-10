@@ -107,6 +107,38 @@ def historical_account_report(container_path: Path, key: bytes) -> dict[str, obj
     }
 
 
+def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, object]) -> bytes:
+    """Apply explicit Account body field updates and rebuild STFS hashes.
+
+    This is a historical-reference mutation path. It deliberately does not
+    claim Horizon's native save crypto, package signing, or console validity.
+    """
+
+    from .account_format import AccountRecord, obfuscate_account, unobfuscate_account
+
+    header = parse_stfs_header(container)
+    entry = next((item for item in list_stfs_entries(container, header) if item.path == "Account"), None)
+    if entry is None or entry.is_directory:
+        raise ValueError("STFS Account entry was not found")
+    encrypted = read_stfs_entry(container, entry, header)
+    record = AccountRecord.from_bytes(unobfuscate_account(encrypted, key))
+    allowed = set(record.__dataclass_fields__)
+    values = {name: getattr(record, name) for name in allowed}
+    for name, value in updates.items():
+        if name == "passcode_hex":
+            name, value = "passcode", bytes.fromhex(str(value))
+        elif name == "online_key_hex":
+            name, value = "online_key", bytes.fromhex(str(value))
+        if name not in allowed:
+            raise ValueError(f"unsupported Account field: {name}")
+        values[name] = value
+    edited = AccountRecord(**values).to_bytes()
+    replacement = obfuscate_account(edited, key)
+    if len(replacement) != entry.size:
+        raise ValueError("historical Account codec changed the entry size")
+    return repack_stfs_entries(container, {entry.path: replacement}, header)
+
+
 def decrypt_account_entry(
     container_path: Path,
     output_path: Path,
@@ -2308,6 +2340,7 @@ def main() -> int:
     parser.add_argument("--account-encrypt-length", type=int, help="Caller-known encrypted Account output length")
     parser.add_argument("--historical-account-inspect", action="store_true", help="Inspect the authenticated Account body with a caller-supplied historical-reference key")
     parser.add_argument("--historical-account-key-hex", help="Exactly 16-byte key for --historical-account-inspect; never persisted")
+    parser.add_argument("--historical-account-edit", type=Path, metavar="JSON", help="Apply explicit historical Account field updates from JSON")
     args = parser.parse_args()
     if args.capabilities:
         print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
@@ -2637,6 +2670,28 @@ def main() -> int:
 
     try:
         raw = args.path.read_bytes()
+        if args.historical_account_edit:
+            if not args.historical_account_key_hex:
+                parser.error("--historical-account-edit requires --historical-account-key-hex")
+            if not write_target:
+                parser.error("--historical-account-edit requires --write or --in-place")
+            try:
+                updates = json.loads(args.historical_account_edit.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                parser.error(f"invalid historical Account edit JSON: {exc}")
+            if not isinstance(updates, dict):
+                parser.error("historical Account edit JSON must contain an object")
+            try:
+                raw = mutate_historical_account(
+                    raw,
+                    bytes.fromhex(args.historical_account_key_hex),
+                    updates,
+                )
+                write_mutation(raw)
+            except (OSError, ValueError) as exc:
+                parser.error(str(exc))
+            print(f"Wrote unsigned historical Account mutation to {write_target}")
+            return 0
         profile_flags_requested = args.profile_achievement_flags_or is not None or args.profile_achievement_flags_and_not is not None
         if args.profile_achievement_flags_or is not None and args.profile_achievement_flags_and_not is not None:
             parser.error("choose one of --profile-achievement-flags-or or --profile-achievement-flags-and-not")
