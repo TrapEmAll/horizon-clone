@@ -126,6 +126,33 @@ def encrypt_account_payload(
     }
 
 
+def encrypt_account_in_container(
+    container: bytes,
+    plaintext: bytes,
+    class3_path: Path,
+    key_helper_path: Path,
+    output_capacity: int,
+    output_length: int,
+) -> bytes:
+    """Encrypt Account plaintext and replace the matching STFS entry."""
+
+    from .account_codec import AccountCodec, CommandAccountKeyProvider
+    from .native_save import NativeSaveBinding, PowerShellNativeSaveProvider
+
+    header = parse_stfs_header(container)
+    entry = next((item for item in list_stfs_entries(container, header) if item.path == "Account"), None)
+    if entry is None or entry.is_directory:
+        raise ValueError("STFS Account entry was not found")
+    codec = AccountCodec(NativeSaveBinding(PowerShellNativeSaveProvider(class3_path)))
+    encrypted = codec.encrypt_with_key_provider(
+        plaintext,
+        CommandAccountKeyProvider(key_helper_path),
+        output_capacity,
+        output_length,
+    )
+    return repack_stfs_entries(container, {entry.path: encrypted}, header)
+
+
 def editor_inspect_report(path: Path) -> dict[str, object]:
     """Dispatch one explicit input through the clean-room editor registry."""
 
@@ -1826,6 +1853,7 @@ def main() -> int:
     parser.add_argument("--achievement-name")
     parser.add_argument("--account-decrypt", type=Path, metavar="OUTPUT", help="Decrypt the STFS Account entry to a raw output file through explicit providers")
     parser.add_argument("--account-encrypt", type=Path, metavar="PLAINTEXT", help="Encrypt raw Account plaintext through explicit providers")
+    parser.add_argument("--account-encrypt-container", type=Path, metavar="PLAINTEXT", help="Encrypt plaintext and replace the STFS Account entry")
     parser.add_argument("--account-encrypt-output", type=Path, metavar="OUTPUT", help="Raw output path for --account-encrypt")
     parser.add_argument("--account-class3-dll", type=Path, help="Absolute x86 class3.dll path for --account-decrypt")
     parser.add_argument("--account-key-helper", type=Path, help="Absolute caller-owned key-vault helper for --account-decrypt")
@@ -2211,9 +2239,31 @@ def main() -> int:
             raw = repack_stfs_entries(raw, {entry.path: edited_payload}, report.stfs_header)
             write_mutation(raw)
             mutation_written = True
+
         except (OSError, ValueError, IndexError, IsADirectoryError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned embedded XDBF {operation_name} mutation to {write_target}")
+
+    if args.account_encrypt_container:
+        if not write_target:
+            parser.error("--account-encrypt-container requires --write or --in-place")
+        if not args.account_class3_dll or not args.account_key_helper:
+            parser.error("--account-encrypt-container requires --account-class3-dll and --account-key-helper")
+        if args.account_encrypt_capacity is None or args.account_encrypt_length is None:
+            parser.error("--account-encrypt-container requires --account-encrypt-capacity and --account-encrypt-length")
+        try:
+            mutated = encrypt_account_in_container(
+                args.path.read_bytes(),
+                args.account_encrypt_container.read_bytes(),
+                args.account_class3_dll,
+                args.account_key_helper,
+                args.account_encrypt_capacity,
+                args.account_encrypt_length,
+            )
+            write_mutation(mutated)
+        except (OSError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        return 0
 
     if args.rename:
         if not args.new_name or not write_target:
