@@ -2155,6 +2155,7 @@ def main() -> int:
     parser.add_argument("--list-achievements", action="store_true", help="List observed achievements from embedded GPD files")
     parser.add_argument("--profile-summary", action="store_true", help="Summarize observed achievement fields across embedded GPD files")
     parser.add_argument("--achievements-output", type=Path, help="Write embedded achievement records as JSON")
+    parser.add_argument("--achievement-links-output", type=Path, help="Write embedded achievement-to-image links as JSON")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
@@ -2829,6 +2830,20 @@ def main() -> int:
                 json.dumps(achievement_records, indent=2, ensure_ascii=False) + "\n",
                 encoding="utf-8",
             )
+    if args.achievement_links_output:
+        if not report.stfs_header:
+            parser.error("--achievement-links-output requires a readable STFS header")
+        links = list_embedded_achievement_image_links(raw, report.stfs_header)
+        args.achievement_links_output.write_text(
+            json.dumps(list(links), indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        print(json.dumps({
+            "path": str(args.achievement_links_output),
+            "count": len(links),
+            "linked": sum(item["status"] == "linked" for item in links),
+            "missing": sum(item["status"] == "missing" for item in links),
+        }, indent=2))
     if args.profile_summary:
         if not report.stfs_header:
             parser.error("--profile-summary requires a readable STFS header")
