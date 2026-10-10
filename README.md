@@ -174,6 +174,9 @@ copied implementation code.
 - Labels extracted payloads with conservative non-executing magic
   classifications such as PNG, JPEG, GIF, BMP, ICO, WAV, ZIP, and .NET
   resources.
+- Parses standalone .NET `.resources` indexes with `--dotnet-resource-index`,
+  exposing resource names, type names, authenticated byte spans, and hashes
+  without deserializing resource values.
 - Exposes the same managed-resource extraction flow from the desktop front end
   through an explicit executable, REA bundle, output directory, and optional
   resource-name filter.
