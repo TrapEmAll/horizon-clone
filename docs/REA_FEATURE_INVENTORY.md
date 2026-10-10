@@ -185,6 +185,9 @@ authenticated REA digest. Outputs are digest-named binary files; unresolved or
 ambiguous resources are reported without writing unverified bytes. The payloads
 remain uninterpreted and are never executed.
 
+The desktop front end exposes the same operation with explicit file and output
+directory selection, plus an optional resource-name regex.
+
 The retained Halo member evidence further counts 1,102 methods, 175 getter
 methods, 168 setter methods, and 140 unique property names across the
 general-class surface. 135 properties have both accessors; five are getter-only
