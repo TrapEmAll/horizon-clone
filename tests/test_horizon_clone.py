@@ -49,6 +49,7 @@ from work.halo_catalog import halo_general_class_field_counts, halo_general_clas
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
+from work.native_surface import native_surface_report, observed_native_imports
 
 
 def supplied_fixture():
@@ -725,6 +726,18 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
+        self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
+
+    def test_reports_observed_native_save_and_runtime_boundaries(self):
+        surface = native_surface_report()
+        self.assertEqual(surface["status"], "declaration-only")
+        self.assertEqual(surface["observed_module_ref_count"], 14)
+        self.assertEqual(surface["observed_pinvoke_count"], 54)
+        imports = {(item.module, item.import_name) for item in observed_native_imports()}
+        self.assertIn(("class3.dll", "RtsSaveEncrypt"), imports)
+        self.assertIn(("class3.dll", "RtsSaveDecrypt"), imports)
+        self.assertIn(("Horizon.dll", "RunHVM"), imports)
+        self.assertIn(("Horizon.dll", "GetUserString"), imports)
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
