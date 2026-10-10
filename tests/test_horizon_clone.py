@@ -45,7 +45,7 @@ from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_regi
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_of_war_3_entry_ids
-from work.halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_types
+from work.halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
@@ -698,6 +698,10 @@ class ContainerInspectionTests(unittest.TestCase):
         summary = halo_general_class_method_summary()
         self.assertEqual(summary["method_count"], 1102)
         self.assertEqual(summary["unique_getter_setter_property_count"], 140)
+        properties = halo_general_class_property_names()
+        self.assertEqual(len(properties), 140)
+        self.assertIn("InitialEquipment", properties)
+        self.assertIn("c09521bc19ea8141a547e37f5ed091fcf", properties)
 
     def test_exposes_observed_shared_horizon_catalog_names_without_guessing_values(self):
         catalogs = observed_catalogs()
@@ -915,6 +919,7 @@ class ContainerInspectionTests(unittest.TestCase):
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
         self.assertEqual(len(catalog_report("halo")["types"]), 103)
+        self.assertEqual(len(catalog_report("halo")["property_names"]), 140)
         self.assertIn("ShoutEnums", catalog_report("skyrim"))
         self.assertIn("SaveEntryCategory", catalog_report("shared"))
 
