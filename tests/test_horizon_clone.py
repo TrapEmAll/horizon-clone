@@ -214,6 +214,13 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(parse_xdbf(edited)[0].achievement["gamerscore"], 125)
         self.assertEqual(parse_xdbf(edited)[0].achievement["name"], "API")
 
+        text_payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
+        text_header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 4
+        text_entry = (5).to_bytes(2, "big") + (0x8000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(text_payload).to_bytes(4, "big")
+        text_data = text_header + text_entry + b"\x00" * 8 + text_payload + b"\x00" * 100
+        text_edited = editor.edit_text(text_data, 0, "Settings")
+        self.assertEqual(parse_xdbf(text_edited)[0].text, "Settings")
+
     def test_mutates_and_rehashes_supplied_profile_fixture(self):
         path = supplied_fixture()
         if path is None or not path.exists():
