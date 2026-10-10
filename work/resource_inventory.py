@@ -189,6 +189,118 @@ def extract_managed_resource_payloads(
     }
 
 
+def parse_dotnet_resources(data: bytes) -> dict[str, Any]:
+    """Parse the standard .NET ``.resources`` index without deserializing values.
+
+    Horizon's embedded resource records are authenticated by REA, but the
+    resource values are intentionally kept opaque here.  This parser exposes
+    the name/type tables and byte spans needed for inspection or extraction;
+    it never instantiates a ``ResourceReader`` value.
+    """
+
+    if not isinstance(data, bytes):
+        raise TypeError("resource data must be bytes")
+    if len(data) < 12 or struct.unpack_from("<I", data, 0)[0] != 0xBEEFCACE:
+        raise ValueError("input is not a .NET resources payload")
+    reader_version, header_size = struct.unpack_from("<II", data, 4)
+    header_end = 12 + header_size
+    if header_end > len(data):
+        raise ValueError(".NET resources header exceeds the payload")
+    cursor = header_end
+    if cursor + 12 > len(data):
+        raise ValueError(".NET resources payload has no resource table header")
+    resource_manager_version, resource_count, type_count = struct.unpack_from("<III", data, cursor)
+    cursor += 12
+
+    def read_7bit_integer(position: int) -> tuple[int, int]:
+        value = 0
+        shift = 0
+        for _ in range(5):
+            if position >= len(data):
+                raise ValueError("truncated .NET resources length")
+            byte = data[position]
+            position += 1
+            value |= (byte & 0x7F) << shift
+            if not byte & 0x80:
+                return value, position
+            shift += 7
+        raise ValueError("invalid .NET resources length")
+
+    type_names: list[str] = []
+    for _ in range(type_count):
+        length, cursor = read_7bit_integer(cursor)
+        end = cursor + length
+        if end > len(data):
+            raise ValueError("truncated .NET resources type name")
+        type_names.append(data[cursor:end].decode("utf-8", errors="replace"))
+        cursor = end
+    cursor = (cursor + 7) & ~7
+    table_end = cursor + resource_count * 8 + 4
+    if table_end > len(data):
+        raise ValueError("truncated .NET resources index tables")
+    hashes = list(struct.unpack_from(f"<{resource_count}I", data, cursor)) if resource_count else []
+    cursor += resource_count * 4
+    name_positions = list(struct.unpack_from(f"<{resource_count}I", data, cursor)) if resource_count else []
+    cursor += resource_count * 4
+    data_section_offset = struct.unpack_from("<I", data, cursor)[0]
+    cursor += 4
+    name_section_start = cursor
+    data_section_start = name_section_start + data_section_offset
+    if data_section_start > len(data):
+        raise ValueError(".NET resources data section exceeds the payload")
+
+    names: list[dict[str, Any]] = []
+    for index, (name_position, name_hash) in enumerate(zip(name_positions, hashes)):
+        position = name_section_start + name_position
+        length, position = read_7bit_integer(position)
+        name_end = position + length
+        if name_end + 4 > data_section_start or name_end > len(data):
+            raise ValueError(".NET resources name entry exceeds the name section")
+        encoded_name = data[position:name_end]
+        if len(encoded_name) % 2 == 0 and encoded_name[1::2].count(0) >= len(encoded_name) // 2:
+            name = encoded_name.decode("utf-16le", errors="replace")
+            name_encoding = "utf-16le"
+        else:
+            name = encoded_name.decode("utf-8", errors="replace")
+            name_encoding = "utf-8"
+        value_offset = struct.unpack_from("<I", data, name_end)[0]
+        names.append({
+            "index": index,
+            "name": name,
+            "name_encoding": name_encoding,
+            "name_position": name_position,
+            "name_hash": name_hash,
+            "data_offset": value_offset,
+        })
+
+    ordered_offsets = sorted({item["data_offset"] for item in names if item["data_offset"] <= len(data) - data_section_start})
+    for item in names:
+        start = data_section_start + item["data_offset"]
+        following = next((offset for offset in ordered_offsets if offset > item["data_offset"]), len(data) - data_section_start)
+        end = data_section_start + following
+        if start > end or end > len(data):
+            raise ValueError(".NET resources data entry exceeds the payload")
+        payload = data[start:end]
+        item["data_length"] = len(payload)
+        item["data_sha256"] = hashlib.sha256(payload).hexdigest()
+        item["payload_kind"] = classify_resource_payload(payload)
+
+    return {
+        "status": "observed-index",
+        "reader_version": reader_version,
+        "resource_manager_version": resource_manager_version,
+        "resource_count": resource_count,
+        "type_count": type_count,
+        "type_names": type_names,
+        "data_section_offset": data_section_offset,
+        "resources": names,
+        "limitations": [
+            "Resource value type codes and values remain opaque; no value deserialization is performed.",
+            "The parser reports spans from the standard name/data index and does not infer UI ownership.",
+        ],
+    }
+
+
 def _resource_payload_candidates(data: bytes, blob_offset: int, blob_size: int, offset: int, length: int) -> list[tuple[str, bytes]]:
     candidates: list[tuple[str, bytes]] = []
     raw_start = blob_offset + offset
