@@ -59,6 +59,7 @@ from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
+from work.account_codec import AccountCodec
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 from work.managed_surface import managed_surface_report
@@ -977,6 +978,25 @@ class ContainerInspectionTests(unittest.TestCase):
             bound.encrypt(b"in", output, 0x1_0000_0000, b"key")
         with self.assertRaises(ValueError):
             bound.encrypt(b"in", output, 3, b"key")
+
+    def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
+        with self.assertRaises(NativeSaveUnavailable):
+            AccountCodec(NativeSaveBinding()).decrypt(b"opaque", b"dev-key", 32)
+
+        class Provider:
+            def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
+                output_buffer[:input_length] = bytes(value ^ key[0] for value in input_buffer[:input_length])
+                output_length.value = input_length
+                return 0
+
+            def rts_save_encrypt(self, input_buffer, output_buffer, input_length, key):
+                output_buffer[:input_length] = bytes(value ^ key[0] for value in input_buffer[:input_length])
+                return input_length
+
+        codec = AccountCodec(NativeSaveBinding(Provider()))
+        encrypted = codec.encrypt(b"profile", b"dev-key", 32)
+        self.assertNotEqual(encrypted, b"profile")
+        self.assertEqual(codec.decrypt(encrypted, b"dev-key", 32), b"profile")
 
     def test_lzo_requires_explicit_provider_and_preserves_observed_shapes(self):
         binding = LzoBinding()
