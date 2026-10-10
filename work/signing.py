@@ -80,6 +80,14 @@ def verify_sha1_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) ->
     return _verify_pkcs1v15(message, signature, key, hashlib.sha1, SHA1_DIGEST_INFO_PREFIX)
 
 
+def verify_xecrypt_sha1_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
+    """Verify the byte-reversed SHA-1 PKCS#1 encoding used by XeCrypt."""
+
+    if not isinstance(signature, bytes):
+        raise TypeError("signature must be bytes")
+    return verify_sha1_pkcs1v15(message, signature[::-1], key)
+
+
 def _verify_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey, digest_algorithm: object, digest_info_prefix: bytes) -> bool:
     digest = digest_algorithm(message).digest()
     size = (key.modulus.bit_length() + 7) // 8
