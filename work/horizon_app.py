@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from .horizon_clone import (
     extract_stfs,
     inspect,
+    list_embedded_xdbf,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
@@ -572,14 +573,7 @@ class HorizonApp(tk.Tk):
             return
         achievements = []
         try:
-            for entry in self._report.entries:
-                if entry.is_directory or not entry.path.lower().endswith(".gpd"):
-                    continue
-                try:
-                    payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
-                    xdbf_entries = parse_xdbf(payload)
-                except (OSError, ValueError, IsADirectoryError):
-                    continue
+            for entry, xdbf_entries in list_embedded_xdbf(self._data, self._report.stfs_header):
                 for xdbf_entry in xdbf_entries:
                     if xdbf_entry.achievement is None:
                         continue
