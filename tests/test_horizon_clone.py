@@ -2,7 +2,15 @@ import hashlib
 import unittest
 from pathlib import Path
 
-from work.horizon_clone import inspect, parse_xdbf
+from work.horizon_clone import (
+    inspect,
+    list_stfs_entries,
+    mutate_stfs_entry_same_size,
+    parse_stfs_header,
+    parse_xdbf,
+    read_stfs_entry,
+    verify_stfs_hashes,
+)
 
 
 class ContainerInspectionTests(unittest.TestCase):
@@ -48,6 +56,23 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(data_base, 50)
         self.assertEqual(parsed[0].namespace, 5)
         self.assertEqual(parsed[0].text, "Dashboard")
+
+    def test_mutates_and_rehashes_supplied_profile_fixture(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path == "Account")
+        replacement = b"\x00" * entry.size
+
+        mutated = mutate_stfs_entry_same_size(original, entry, replacement, header)
+
+        self.assertEqual(read_stfs_entry(mutated, entry, header), replacement)
+        result = verify_stfs_hashes(mutated, entry, header)
+        self.assertEqual(result["failures"], [])
+        self.assertTrue(result["header_hash_matches"])
+        self.assertFalse(result["signature_checked"])
 
 
 if __name__ == "__main__":
