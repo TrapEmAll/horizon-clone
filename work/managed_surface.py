@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -403,6 +404,91 @@ def managed_guarded_methods_report(bundle_path: str | Path, pattern: str | None 
         return managed_guarded_methods_report_from_bundle(bundle, pattern)
     except re.error as exc:
         raise ValueError(f"invalid guarded-method regex: {pattern}") from exc
+
+
+def managed_body_fidelity_report_from_bundle(
+    bundle: dict[str, Any], pattern: str | None = None
+) -> dict[str, Any]:
+    """Measure whether retained method bodies are distinct enough to guide reconstruction."""
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    methods = [item for item in result.get("methods") or [] if isinstance(item, dict)]
+    matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
+    selected = [
+        item for item in methods
+        if matcher is None
+        or matcher.search(f"{item.get('declaring_type') or ''}.{item.get('name') or ''}")
+    ]
+    status_counts: Counter[str] = Counter()
+    hash_groups: dict[str, list[dict[str, Any]]] = {}
+    offset_groups: dict[str, list[dict[str, Any]]] = {}
+    throw_without_return = 0
+    for item in selected:
+        body = item.get("body") or {}
+        status_counts[str(body.get("status") or "unknown")] += 1
+        il_hash = body.get("il_sha256")
+        file_offset = body.get("file_offset")
+        summary = {
+            "declaring_type": item.get("declaring_type"),
+            "name": item.get("name"),
+            "token": item.get("token"),
+            "file_offset": file_offset,
+            "il_sha256": il_hash,
+            "opcode_counts": body.get("opcode_counts") or {},
+        }
+        if il_hash:
+            hash_groups.setdefault(str(il_hash), []).append(summary)
+        if file_offset is not None:
+            offset_groups.setdefault(str(file_offset), []).append(summary)
+        counts = body.get("opcode_counts") or {}
+        if counts.get("throw", 0) and not counts.get("ret", 0):
+            throw_without_return += 1
+
+    def duplicate_groups(groups: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+        return [
+            {"key": key, "count": len(items), "sample_methods": items[:5]}
+            for key, items in sorted(groups.items(), key=lambda pair: (-len(pair[1]), pair[0]))
+            if len(items) > 1
+        ]
+
+    duplicate_hashes = duplicate_groups(hash_groups)
+    duplicate_offsets = duplicate_groups(offset_groups)
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "counts": {
+            "selected_methods": len(selected),
+            "body_statuses": dict(sorted(status_counts.items())),
+            "unique_il_hashes": len(hash_groups),
+            "unique_file_offsets": len(offset_groups),
+            "duplicate_il_hash_groups": len(duplicate_hashes),
+            "duplicate_file_offset_groups": len(duplicate_offsets),
+            "throw_without_return": throw_without_return,
+        },
+        "duplicate_il_hashes": duplicate_hashes,
+        "duplicate_file_offsets": duplicate_offsets,
+        "limitations": [
+            "Duplicate body hashes or file offsets are observations about the retained REA output, not proof of runtime equivalence.",
+            "This report does not execute, patch, or bypass guard code and does not infer a save-file layout.",
+        ],
+    }
+
+
+def managed_body_fidelity_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return managed-body distinctness evidence from a retained REA bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-members bundle: {path}") from exc
+    try:
+        return managed_body_fidelity_report_from_bundle(bundle, pattern)
+    except re.error as exc:
+        raise ValueError(f"invalid managed-body regex: {pattern}") from exc
 
 
 def managed_schema_report_from_bundle(
