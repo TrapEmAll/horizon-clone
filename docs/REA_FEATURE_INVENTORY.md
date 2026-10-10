@@ -116,10 +116,11 @@ mutation behavior remain unresolved. REA observed an `i4` `value__` backing
 field for each of these 10 types; the report separates that field from the
 named-member counts.
 
-The 205 embedded managed resources are available through the clone's
-`--resource-surface` inspection command. Resource names are largely obfuscated
-and the evidence only establishes aggregate counts and payload digests; the
-clone does not copy, execute, or assign those resources to UI features.
+The clone's `--resource-surface` inspection command reports 206 managed
+resource metadata records: 205 embedded payloads and one non-embedded,
+unresolved record. Resource names are largely obfuscated and the evidence only
+establishes aggregate counts and payload digests; the clone does not copy,
+execute, or assign those resources to UI features.
 
 The retained Halo member evidence further counts 1,102 methods, 175 getter
 methods, 168 setter methods, and 140 unique property names across the
