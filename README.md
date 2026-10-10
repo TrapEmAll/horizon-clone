@@ -46,6 +46,9 @@ copied implementation code.
   exposes observed per-type field counts and an aggregate 1,102-method/
   140-property surface as structural metadata only, including the exact
   observed getter/setter property names.
+- Exposes a focused REA-authenticated Halo field-type slice for `GameVariant`
+  and selected options/traits classes; field names remain build-local and no
+  save offsets are inferred.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
   `SaveEntryCategory`; enum values and package offsets remain unclaimed until
   fixture evidence establishes them.
