@@ -979,10 +979,11 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_exposes_global_namespace_rows_without_merging_duplicates(self):
         rows = observed_global_types()
-        self.assertEqual(len(rows), 20)
-        self.assertEqual(sum(item.field_count for item in rows), 4954)
+        self.assertEqual(len(rows), 35)
+        self.assertEqual(sum(item.field_count for item in rows), 5274)
         self.assertEqual(sum(item.method_count for item in rows), 81)
         self.assertEqual([item.field_count for item in rows if item.name == "Helmet"], [65, 87])
+        self.assertEqual([item.field_count for item in rows if item.name == "Weapon"], [11, 38])
         report = global_catalog_report()
         self.assertEqual(report["observed_namespace_type_count"], 632)
         self.assertFalse(report["values_observed"])
