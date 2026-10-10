@@ -58,6 +58,45 @@ _GLOBAL_TYPES = (
 )
 
 _OBSERVED_CONSTANT_VALUES = {
+    "GeneralContentTypes": {
+        "Games": 0,
+        "Gamer_Profiles": 1,
+        "Demos": 2,
+        "Videos": 3,
+        "Themes": 4,
+        "Gamer_Pictures": 5,
+        "Avatar_Items": 6,
+        "Title_Updates": 7,
+        "System_Items": 8,
+    },
+    "DifficultyOption": {"Easy": 0, "Normal": 1, "Hard": 2},
+    "XOnlineLanguage": {
+        "Null": 0, "English": 1, "Japanese": 2, "German": 3,
+        "French": 4, "Spanish": 5, "Italian": 6, "Korean": 7,
+        "Chinese": 8, "Portuguese": 9, "Chinese2": 10, "Polish": 11,
+        "Russian": 12, "Danish": 13, "Finnish": 14, "Norwegian": 15,
+        "Dutch": 16, "Swedish": 17, "Czech": 18, "Greek": 19,
+        "Hungarian": 20,
+    },
+    "XOnlineTierType": {
+        "XOnlineTierInvalid": 0,
+        "XOnlineTierSilver": 3,
+        "XOnlineTierGold": 6,
+        "XOnlineTierFamilyGold": 9,
+    },
+    "XOnlinePassCodeTypes": {
+        "XOnlinePassCodeNone": 0,
+        "XOnlinePassCodeDpadUp": 1,
+        "XOnlinePassCodeDpadDown": 2,
+        "XOnlinePassCodeDpadLeft": 3,
+        "XOnlinePassCodeDpadRight": 4,
+        "XOnlinePassCodeGamepadX": 5,
+        "XOnlinePassCodeGamepadY": 6,
+        "XOnlinePassCodeGamepadLeftTrigger": 9,
+        "XOnlinePassCodeGamepadRightTrigger": 10,
+        "XOnlinePassCodeGamepadLeftShoulder": 11,
+        "XOnlinePassCodeGamepadRightShoulder": 12,
+    },
     "XGearSlot": {
         "Null": 0,
         "Hat": 10,
