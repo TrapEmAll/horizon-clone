@@ -96,6 +96,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "export_profile_summary"))
         self.assertTrue(hasattr(HorizonApp, "export_title_catalog"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
+        self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
     def test_device_inventory_is_read_only_and_explicitly_bounded(self):
         report = device_inventory_report()
