@@ -10,6 +10,9 @@ the default report remains declaration-only until that provider is available.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
+
+from .native_loader import compatible_pe_architecture, pe_export_names
 
 
 @dataclass(frozen=True)
@@ -128,6 +131,31 @@ def native_surface_report() -> dict[str, object]:
             "class3.dll save-encryption semantics",
             "DNG/HVM runtime protocol",
             "device IOCTL protocol",
+        ],
+    }
+
+
+def native_export_contract_report(path: str | Path) -> dict[str, object]:
+    """Compare one supplied native image with its REA-observed export contract."""
+
+    source = Path(path)
+    expected_by_name = {
+        "class3.dll": ("RtsSaveDecrypt", "RtsSaveEncrypt"),
+        "lzo.dll": ("__lzo_init_v2", "lzo1x_1_compress", "lzo2a_999_compress", "lzo1x_decompress", "lzo2a_decompress"),
+    }
+    expected = expected_by_name.get(source.name.lower(), ())
+    exports = pe_export_names(source)
+    missing = [name for name in expected if name not in exports]
+    return {
+        "path": str(source),
+        "image_architecture": compatible_pe_architecture(source)[0],
+        "expected_exports": list(expected),
+        "observed_exports": list(exports),
+        "missing_exports": missing,
+        "status": "verified" if expected and not missing else "unresolved",
+        "limitations": [
+            "Export presence does not establish native calling semantics or codec/save algorithms.",
+            "Unknown filenames have no authenticated contract in the current REA evidence.",
         ],
     }
 
