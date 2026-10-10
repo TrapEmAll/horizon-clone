@@ -1132,8 +1132,12 @@ def summarize_profile_achievements(
         total_entries += len(achievements)
         total_gamerscore += file_score
         nonzero_flags += file_flags
+    gpd_count = sum(Path(item["file"]).suffix.lower() == ".gpd" for item in per_file)
+    fit_count = sum(Path(item["file"]).suffix.lower() == ".fit" for item in per_file)
     return {
-        "gpd_count": len(per_file),
+        "gpd_count": gpd_count,
+        "fit_count": fit_count,
+        "xdbf_count": len(per_file),
         "achievement_entry_count": total_entries,
         "gamerscore_total": total_gamerscore,
         "nonzero_flags_count": nonzero_flags,
