@@ -25,10 +25,11 @@ class DeviceIoProvider(Protocol):
 
 
 class WindowsDeviceIoProvider:
-    """Explicit read-only Windows adapter for the observed device imports.
+    """Explicit Windows adapter for the observed device imports.
 
     The caller supplies the device path and IOCTL. No FATX command values are
-    inferred, and the adapter never requests generic-write access.
+    inferred, and the adapter never requests generic-write access. IOCTL
+    safety semantics remain the caller's responsibility.
     """
 
     GENERIC_READ = 0x80000000
