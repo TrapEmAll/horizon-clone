@@ -1512,6 +1512,22 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(provider.lzo1x_decompress(bytes(compressed[:compressed_length.value]), compressed_length.value, restored, restored_length, work_memory), 0)
         self.assertEqual(bytes(restored[:restored_length.value]), source)
 
+    def test_x86_powershell_lzo2a_provider_round_trips_with_observed_work_memory(self):
+        dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\lzo.dll")
+        host = Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not dll.exists() or not host.exists():
+            self.skipTest("supplied x86 LZO DLL or 32-bit PowerShell host is unavailable")
+        provider = PowerShellLzoProvider(dll, host)
+        source = b"Horizon-LZO-2A-test-" * 8
+        work_memory = bytes(262144)
+        compressed = bytearray(4096)
+        compressed_length = Int32Ref(len(compressed))
+        self.assertEqual(provider.lzo2a_999_compress(source, len(source), compressed, compressed_length, work_memory), 0)
+        restored = bytearray(len(source) * 2)
+        restored_length = Int32Ref(len(restored))
+        self.assertEqual(provider.lzo2a_decompress(bytes(compressed[:compressed_length.value]), compressed_length.value, restored, restored_length, work_memory), 0)
+        self.assertEqual(bytes(restored[:restored_length.value]), source)
+
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
         self.assertEqual(surface["metadata_resource_record_count"], 206)
