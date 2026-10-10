@@ -99,7 +99,10 @@ def managed_surface_report(bundle_path: str | Path, pattern: str | None = None) 
 
 
 def managed_schema_report_from_bundle(
-    bundle: dict[str, Any], pattern: str | None = None, include_bodies: bool = False
+    bundle: dict[str, Any],
+    pattern: str | None = None,
+    include_bodies: bool = False,
+    method_pattern: str | None = None,
 ) -> dict[str, Any]:
     """Join the observed managed metadata into type-centric editor schemas.
 
@@ -118,6 +121,12 @@ def managed_schema_report_from_bundle(
             matcher = re.compile(pattern, re.IGNORECASE)
         except re.error as exc:
             raise ValueError(f"invalid managed-schema regex: {pattern}") from exc
+    method_matcher = None
+    if method_pattern is not None:
+        try:
+            method_matcher = re.compile(method_pattern, re.IGNORECASE)
+        except re.error as exc:
+            raise ValueError(f"invalid managed-schema method regex: {method_pattern}") from exc
 
     selected_types = [
         item for item in types
@@ -142,7 +151,11 @@ def managed_schema_report_from_bundle(
                 "signature": item.get("signature"),
             })
     for item in methods:
-        if isinstance(item, dict) and item.get("declaring_type") in selected_names:
+        if (
+            isinstance(item, dict)
+            and item.get("declaring_type") in selected_names
+            and (method_matcher is None or method_matcher.search(str(item.get("name") or "")))
+        ):
             method = {
                 "name": item.get("name"),
                 "token": item.get("token"),
@@ -166,6 +179,7 @@ def managed_schema_report_from_bundle(
         "evidence_id": record.get("evidence_id"),
         "pattern": pattern,
         "include_bodies": include_bodies,
+        "method_pattern": method_pattern,
         "counts": {
             "matched_types": len(by_type),
             "matched_fields": sum(len(item["fields"]) for item in by_type.values()),
@@ -184,7 +198,10 @@ def managed_schema_report_from_bundle(
 
 
 def managed_schema_report(
-    bundle_path: str | Path, pattern: str | None = None, include_bodies: bool = False
+    bundle_path: str | Path,
+    pattern: str | None = None,
+    include_bodies: bool = False,
+    method_pattern: str | None = None,
 ) -> dict[str, Any]:
     """Return joined type/field/method metadata from a retained REA bundle."""
 
@@ -193,5 +210,5 @@ def managed_schema_report(
         bundle = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unable to read evidence bundle: {path}") from exc
-    return managed_schema_report_from_bundle(bundle, pattern, include_bodies)
+    return managed_schema_report_from_bundle(bundle, pattern, include_bodies, method_pattern)
 
