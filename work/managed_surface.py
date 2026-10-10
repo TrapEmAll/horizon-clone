@@ -171,6 +171,72 @@ def managed_editor_family_report(bundle_path: str | Path, pattern: str | None = 
         raise ValueError(f"invalid managed-editor-family regex: {pattern}") from exc
 
 
+def managed_named_namespace_report_from_bundle(
+    bundle: dict[str, Any], pattern: str | None = None
+) -> dict[str, Any]:
+    """Summarize stable, non-obfuscated top-level managed namespaces."""
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    types = [item for item in result.get("types") or [] if isinstance(item, dict)]
+    fields = [item for item in result.get("fields") or [] if isinstance(item, dict)]
+    methods = [item for item in result.get("methods") or [] if isinstance(item, dict)]
+    matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
+
+    def is_named(full_name: str) -> bool:
+        return bool(full_name) and not full_name.startswith(("A.", "<")) and not re.fullmatch(r"c[0-9a-f]{32}(?:`\d+)?(?:\..*)?", full_name, re.IGNORECASE)
+
+    selected = [
+        item for item in types
+        if is_named(str(item.get("full_name") or ""))
+        and (matcher is None or matcher.search(str(item.get("full_name") or "")))
+    ]
+    selected_names = {str(item["full_name"]) for item in selected}
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in selected:
+        full_name = str(item["full_name"])
+        namespace = full_name.split(".", 1)[0]
+        group = grouped.setdefault(namespace, {"namespace": namespace, "type_count": 0, "field_count": 0, "method_count": 0, "sample_types": []})
+        group["type_count"] += 1
+        if len(group["sample_types"]) < 16:
+            group["sample_types"].append(full_name)
+    for item in fields:
+        declaring = item.get("declaring_type")
+        if declaring in selected_names:
+            grouped[str(declaring).split(".", 1)[0]]["field_count"] += 1
+    for item in methods:
+        declaring = item.get("declaring_type")
+        if declaring in selected_names:
+            grouped[str(declaring).split(".", 1)[0]]["method_count"] += 1
+    namespaces = sorted(grouped.values(), key=lambda item: item["namespace"].lower())
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "counts": {"matched_namespaces": len(namespaces), "matched_types": len(selected_names), "total_types": len(types)},
+        "namespaces": namespaces,
+        "limitations": [
+            "The filter excludes names beginning with obfuscator/compiler conventions; exclusion is not proof of editor ownership.",
+            "Namespace counts do not establish registration, save offsets, serialization, or mutation behavior.",
+        ],
+    }
+
+
+def managed_named_namespace_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return stable named namespace counts from retained REA evidence."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-members bundle: {path}") from exc
+    try:
+        return managed_named_namespace_report_from_bundle(bundle, pattern)
+    except re.error as exc:
+        raise ValueError(f"invalid managed-namespace regex: {pattern}") from exc
+
+
 def managed_schema_report_from_bundle(
     bundle: dict[str, Any],
     pattern: str | None = None,
