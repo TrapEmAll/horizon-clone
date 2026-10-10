@@ -130,23 +130,34 @@ switch ($request.operation) {
         return value
 
     def check_runtime(self) -> bool:
+        self._require_architecture("x86", "check_runtime")
         return bool(self._invoke("CheckRuntime"))
 
     def check_runtime64(self) -> bool:
         """Invoke the observed export contract on an explicitly supplied x64 image."""
 
+        self._require_architecture("x86_64", "check_runtime64")
         return bool(self._invoke("CheckRuntime"))
 
     def run_hvm(self) -> int:
+        self._require_architecture("x86", "run_hvm")
         return int(self._invoke("RunHVM"))
 
     def get_user_string(self, arg0: int, arg1: int, arg2: int) -> int:
+        self._require_architecture("x86", "get_user_string")
         return int(self._invoke("GetUserString", arg0, arg1, arg2))
 
     def get_user_string64(self, arg0: int, arg1: int, arg2: int) -> int:
         """Invoke the HVMRun64 string boundary without decoding its handle."""
 
+        self._require_architecture("x86_64", "get_user_string64")
         return int(self._invoke("GetUserString", arg0, arg1, arg2))
+
+    def _require_architecture(self, expected: str, operation: str) -> None:
+        if self.architecture != expected:
+            raise OSError(
+                f"{operation} requires an {expected} runtime image, got {self.architecture}"
+            )
 
 
 @dataclass(frozen=True)
