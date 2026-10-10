@@ -92,6 +92,11 @@ compatible test provider is available. REA also resolves the managed `Startup` c
 checks and the `CheckString` caller for the user-string exports; the clone
 does not load or invoke those DLLs implicitly.
 
+`--device-surface` reports the observed device-exploration members, including
+device thumbnail properties and the `i8` `DeviceSize` property. Device
+enumeration, FATX/USB behavior, and IOCTL semantics remain provider-boundary
+items.
+
 RSA signing remains behind an authorized signing-provider boundary. The
 library supports detached signatures over caller-labeled development regions,
 but does not infer Xbox signed regions. This clean-room project does not
