@@ -149,6 +149,9 @@ copied implementation code.
   from implementation claims.
 - Exposes that resource-surface report through `--resource-surface` without
   copying or executing shipped resources.
+- Decodes standard .NET resource primitive, string, byte-array, and stream
+  records from standalone `.resources` payloads while leaving user-defined
+  values opaque and never instantiating them.
 - Queries exported REA resource inventories with `--resource-bundle` and an
   optional `--resource-pattern`, returning authenticated names, offsets,
   lengths, embedding state, and payload hashes without copying payloads.
