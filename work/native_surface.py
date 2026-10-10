@@ -17,6 +17,9 @@ class NativeImport:
     module: str
     import_name: str
     managed_member: str
+    parameter_types: tuple[str, ...] = ()
+    return_type: str | None = None
+    signature_status: str = "unresolved"
 
 
 @dataclass(frozen=True)
@@ -29,18 +32,18 @@ class NativeBoundaryCaller:
 
 
 _IMPORTS = (
-    NativeImport("class3.dll", "RtsSaveDecrypt", "cca5cc966e0f636907b7609991eb6fc5b"),
-    NativeImport("class3.dll", "RtsSaveEncrypt", "cd77fe1cb3b73087691882c6c7f2294c8"),
+    NativeImport("class3.dll", "RtsSaveDecrypt", "cca5cc966e0f636907b7609991eb6fc5b", ("u1[]", "u4&", "u1[]", "u4", "u1[]"), "i4", "managed-signature-observed"),
+    NativeImport("class3.dll", "RtsSaveEncrypt", "cd77fe1cb3b73087691882c6c7f2294c8", ("u1[]", "u1[]", "u4", "u1[]"), "i4", "managed-signature-observed"),
     NativeImport("lzo.dll", "__lzo_init_v2", "c0c113c5b2dcd0f3b7041c50ec2ceca26"),
-    NativeImport("lzo.dll", "lzo1x_1_compress", "ceefcc0a79577b3961c571ae5e197fc4d"),
-    NativeImport("lzo.dll", "lzo1x_decompress", "c6a7a33e36ec95e3930e66c20d863eb7f"),
-    NativeImport("lzo.dll", "lzo2a_decompress", "ca7e2a3a612f9a47075525bd9737590ca"),
-    NativeImport("lzo.dll", "lzo2a_999_compress", "c0a7807f4177e6edf7a13748212d100ed"),
-    NativeImport("Horizon.dll", "DNG_Runtime", "CheckRuntime"),
-    NativeImport("HVMRun64.dll", "DNG_Runtime", "CheckRuntime64"),
-    NativeImport("Horizon.dll", "RunHVM", "RunHVM"),
-    NativeImport("Horizon.dll", "GetUserString", "GetUserString"),
-    NativeImport("HVMRun64.dll", "GetUserString", "GetUserString64"),
+    NativeImport("lzo.dll", "lzo1x_1_compress", "ceefcc0a79577b3961c571ae5e197fc4d", ("u1[]", "i4", "u1[]", "i4&", "u1[]"), "i4", "managed-signature-observed"),
+    NativeImport("lzo.dll", "lzo1x_decompress", "c6a7a33e36ec95e3930e66c20d863eb7f", ("u1[]", "i4", "u1[]", "i4&", "u1[]"), "i4", "managed-signature-observed"),
+    NativeImport("lzo.dll", "lzo2a_decompress", "ca7e2a3a612f9a47075525bd9737590ca", ("u1[]", "i4", "u1[]", "i4&", "u1[]"), "i4", "managed-signature-observed"),
+    NativeImport("lzo.dll", "lzo2a_999_compress", "c0a7807f4177e6edf7a13748212d100ed", ("u1[]", "i4", "u1[]", "i4&", "u1[]"), "i4", "managed-signature-observed"),
+    NativeImport("Horizon.dll", "DNG_Runtime", "CheckRuntime", (), "bool", "managed-signature-observed"),
+    NativeImport("HVMRun64.dll", "DNG_Runtime", "CheckRuntime64", (), "bool", "managed-signature-observed"),
+    NativeImport("Horizon.dll", "RunHVM", "RunHVM", (), "native-int", "managed-signature-observed"),
+    NativeImport("Horizon.dll", "GetUserString", "GetUserString", ("native-int", "i4", "i4"), "native-int", "managed-signature-observed"),
+    NativeImport("HVMRun64.dll", "GetUserString", "GetUserString64", ("native-int", "i4", "i4"), "native-int", "managed-signature-observed"),
     NativeImport("kernel32.dll", "CreateFile", "c6b0c273b82304b5a7930d023f4216ef6"),
     NativeImport("kernel32.dll", "DeviceIoControl", "c6fa7d4b3e02e746aa7ff333d58c9bc69"),
     NativeImport("kernel32.dll", "OpenProcess", "c03042ece34c27ba1a806575444d50397"),
