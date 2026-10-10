@@ -20,7 +20,7 @@ copied implementation code.
   gamerscore, flags, and bounded UTF-16LE name changes.
 - Provides a registry/plugin boundary for title-specific package editors.
 - Provides a functional XDBF/GPD editor plugin API for inspection, entry
-  replacement, bounded repacking, and observed achievement edits.
+  replacement, bounded repacking, observed text edits, and achievement edits.
 - Exposes REA-observed Skyrim enum member names for Shouts, Perks, and Magic;
   numeric values and save offsets remain intentionally unclaimed until fixture
   evidence establishes them.
