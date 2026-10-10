@@ -64,6 +64,8 @@ class StfsHeader:
     allocated_block_count: int
     display_name: str
     top_hash_table_hash: str
+    thumbnail_size: int
+    title_thumbnail_size: int
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,14 @@ class StfsEntry:
     path_indicator: int
     size: int
     path: str
+
+
+@dataclass(frozen=True)
+class StfsThumbnails:
+    thumbnail_size: int
+    title_thumbnail_size: int
+    thumbnail: bytes
+    title_thumbnail: bytes
 
 
 @dataclass(frozen=True)
@@ -297,6 +307,8 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         allocated_block_count=_u32be(data, 0x395),
         display_name=_fixed_text(data, 0x411, 0x80, "utf-16-be"),
         top_hash_table_hash=data[0x381:0x395].hex(),
+        thumbnail_size=_u32be(data, 0x1712),
+        title_thumbnail_size=_u32be(data, 0x1716),
     )
 
 
@@ -660,6 +672,45 @@ def mutate_stfs_metadata(
     return rehash_stfs_hashes(bytes(result), header)
 
 
+def parse_stfs_thumbnails(data: bytes, header: StfsHeader | None = None) -> StfsThumbnails:
+    """Read bounded STFS thumbnail payloads without interpreting image bytes."""
+    header = header or parse_stfs_header(data)
+    thumbnail_size = _u32be(data, 0x1712)
+    title_size = _u32be(data, 0x1716)
+    capacity = 0x4000
+    if thumbnail_size > capacity or title_size > capacity:
+        raise ValueError("STFS thumbnail size exceeds its metadata field capacity")
+    thumbnail = data[0x171A : 0x171A + thumbnail_size]
+    title_thumbnail = data[0x571A : 0x571A + title_size]
+    if len(thumbnail) != thumbnail_size or len(title_thumbnail) != title_size:
+        raise ValueError("STFS thumbnail points beyond the metadata header")
+    return StfsThumbnails(thumbnail_size, title_size, thumbnail, title_thumbnail)
+
+
+def mutate_stfs_thumbnails(
+    data: bytes,
+    *,
+    thumbnail: bytes | None = None,
+    title_thumbnail: bytes | None = None,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Replace thumbnail payloads within their fixed STFS metadata capacity."""
+    header = header or parse_stfs_header(data)
+    result = bytearray(data)
+    capacity = 0x4000
+    for offset, size_offset, payload in (
+        (0x171A, 0x1712, thumbnail),
+        (0x571A, 0x1716, title_thumbnail),
+    ):
+        if payload is None:
+            continue
+        if len(payload) > capacity:
+            raise ValueError("thumbnail exceeds the fixed STFS metadata capacity")
+        result[size_offset : size_offset + 4] = len(payload).to_bytes(4, "big")
+        result[offset : offset + capacity] = payload.ljust(capacity, b"\x00")
+    return rehash_stfs_hashes(bytes(result), header)
+
+
 def _stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
     """Return raw file-table slot offsets in the same order as parsed entries."""
     slots: list[int] = []
@@ -1008,6 +1059,8 @@ def main() -> int:
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
     parser.add_argument("--content-type", type=lambda value: int(value, 0), help="Replace the STFS content type")
+    parser.add_argument("--thumbnail-source", type=Path, help="Replace the STFS thumbnail payload")
+    parser.add_argument("--title-thumbnail-source", type=Path, help="Replace the STFS title-thumbnail payload")
     parser.add_argument("--xdbf-replace", type=int, metavar="INDEX", help="Replace one XDBF entry")
     parser.add_argument("--xdbf-source", type=Path, help="Raw replacement bytes for --xdbf-replace")
     parser.add_argument("--xdbf-remove", type=int, action="append", metavar="INDEX", help="Remove an XDBF entry")
@@ -1149,6 +1202,24 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned metadata mutation to {args.write}")
+
+    thumbnails_requested = args.thumbnail_source is not None or args.title_thumbnail_source is not None
+    if thumbnails_requested:
+        if not args.write:
+            parser.error("thumbnail mutation requires --write")
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        try:
+            raw = mutate_stfs_thumbnails(
+                raw,
+                thumbnail=args.thumbnail_source.read_bytes() if args.thumbnail_source else None,
+                title_thumbnail=args.title_thumbnail_source.read_bytes() if args.title_thumbnail_source else None,
+                header=parse_stfs_header(raw),
+            )
+            args.write.write_bytes(raw)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned thumbnail mutation to {args.write}")
 
     payload = json.dumps(_json_report(report), indent=2, ensure_ascii=False)
     if args.output:
