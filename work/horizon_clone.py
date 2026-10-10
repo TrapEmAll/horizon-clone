@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 25141)
-Total output lines: 2167
+Warning: truncated output (original token count: 25246)
+Total output lines: 2175
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -27,6 +27,7 @@ from .managed_surface import managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
 from .native_loader import compatible_pe_architecture, pe_export_names
+from .anti_analysis import anti_analysis_report
 
 
 def _atomic_replace_bytes(path: Path, data: bytes) -> None:
@@ -889,17 +890,7 @@ def read_stfs_entry(data: bytes, entry: StfsEntry, header: StfsHeader | None = N
 
 def list_embedded_xdbf(
     data: bytes, header: StfsHeader | None = None
-) -> tuple[tuple[StfsEntry, tuple[XdbfEntry, ...]], ...]:
-    """Enumerate parseable XDBF…7141 tokens truncated…spect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
-    data = path.read_bytes()
-    magic = data[:4].decode("latin-1", errors="replace")
-    package_kind = {
-        "CON ": "Xbox 360 content container",
-        "LIVE": "Xbox 360 LIVE container",
-        "PIRS": "Xbox 360 PIRS container",
-    }.get(magic, "Unknown container")
-    header = None
-    security = None
+) -> tuple[tuple[StfsEntry, tuple[XdbfEnt…7246 tokens truncated…= None
     entries: tuple[StfsEntry, ...] = ()
     if data[:4] in STFS_MAGICS:
         try:
@@ -969,6 +960,7 @@ def main() -> int:
     parser.add_argument("--public-key-modulus", type=lambda value: int(value, 0), help="Public RSA modulus for detached verification")
     parser.add_argument("--public-key-exponent", type=lambda value: int(value, 0), default=65537)
     parser.add_argument("--public-key-json", type=Path, help="JSON key emitted by --public-key for detached verification")
+    parser.add_argument("--anti-analysis", type=Path, metavar="BUNDLE", help="Report REA-observed anti-analysis markers from an evidence bundle")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1141,6 +1133,12 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps({"verified": verified, "algorithm": args.signature_algorithm, "region_label": args.signature_label}, indent=2))
         return 0 if verified else 1
+    if args.anti_analysis:
+        try:
+            print(json.dumps(anti_analysis_report(args.anti_analysis), indent=2, ensure_ascii=False))
+        except ValueError as exc:
+            parser.error(str(exc))
+        return 0
     if args.achievements_output:
         args.list_achievements = True
     if args.write and args.in_place:
