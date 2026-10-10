@@ -21,7 +21,7 @@ from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_surface_report, verify_managed_resource_payloads
-from .managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
+from .managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
 from .signing import RsaPublicKey
 from .native_loader import compatible_pe_architecture, pe_export_names
@@ -2020,6 +2020,8 @@ def main() -> int:
     parser.add_argument("--verify-resources", type=Path, metavar="BUNDLE", help="Verify shipped managed-resource hashes against an REA bundle")
     parser.add_argument("--extract-resources", type=Path, metavar="DIR", help="Extract uniquely hash-verified embedded resources from --path using --resource-bundle")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
+    parser.add_argument("--managed-references", type=Path, help="Read an exported REA managed-artifact bundle and print declared assembly references")
+    parser.add_argument("--reference-pattern", help="Case-insensitive regex for --managed-references assembly names")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--managed-editor-families", type=Path, help="Group an exported REA managed-members bundle into observed editor families")
     parser.add_argument("--family-pattern", help="Case-insensitive regex for --managed-editor-families type names")
@@ -2258,6 +2260,12 @@ def main() -> int:
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.managed_references:
+        try:
+            print(json.dumps(managed_reference_report(args.managed_references, args.reference_pattern), indent=2, ensure_ascii=False))
+        except ValueError as exc:
+            parser.error(str(exc))
         return 0
     if args.managed_editor_families:
         try:
