@@ -33,6 +33,7 @@ from .horizon_clone import (
     repack_xdbf_entries,
     repack_stfs_entries,
     verify_stfs_hashes,
+    stfs_content_type_name,
     stfs_fatx_device_path,
     editor_edit_values,
     editor_inspect_report,
@@ -187,7 +188,11 @@ class HorizonApp(tk.Tk):
                 item = self.tree.insert("", tk.END, text=entry.path, values=(entry.size, "DIR" if entry.is_directory else "FILE"))
                 self._entries[item] = entry
             self.status.configure(text=f"{self._report.package_kind}: {len(self._report.entries)} entries")
-            self._set_details({"header": self._report.stfs_header, "sha256": self._report.sha256})
+            header = self._report.stfs_header
+            header_details = asdict(header) if header is not None else None
+            if header_details is not None:
+                header_details["content_type_name"] = stfs_content_type_name(header.content_type)
+            self._set_details({"header": header_details, "sha256": self._report.sha256})
         except (OSError, ValueError) as exc:
             messagebox.showerror("Open failed", str(exc))
 
