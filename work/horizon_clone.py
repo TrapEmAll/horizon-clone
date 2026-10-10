@@ -961,8 +961,8 @@ def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | No
         raise ValueError("directory path must be a non-empty path")
     parent_path, _, name = directory_path.rpartition("/")
     encoded_name = name.encode("ascii")
-    if not encoded_name or len(encoded_name) > 0x3F or b"/" in encoded_name or b"\\" in encoded_name:
-        raise ValueError("STFS directory names must be non-empty ASCII basenames of at most 63 bytes")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS directory names must be non-empty ASCII basenames of at most 40 bytes")
     parent_index = 0xFFFF
     if parent_path:
         parent = next((item for item in entries if item.path == parent_path), None)
