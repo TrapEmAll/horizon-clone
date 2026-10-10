@@ -133,6 +133,11 @@ handles, or infer IOCTL semantics.
 the binding refuses implicit DLL loading and preserves the unresolved native
 argument semantics.
 
+`PowerShellNativeRuntimeProvider` now supplies an explicit path-bound bridge for
+the observed runtime exports through a matching Windows PowerShell host. It
+preserves the raw boolean/native-integer return values, performs no DLL search,
+and does not infer the meaning of the native handle or string arguments.
+
 `NativeSaveBinding` now models the recovered `RtsSaveDecrypt` and
 `RtsSaveEncrypt` buffer shapes, including the `u4&` output-length argument.
 It requires an explicit caller-supplied provider, validates the observed
