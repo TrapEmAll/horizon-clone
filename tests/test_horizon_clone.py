@@ -49,6 +49,7 @@ from work.halo_catalog import halo_general_class_field_counts, halo_general_clas
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
+from work.legacy_catalog import legacy_catalog_report, observed_legacy_catalogs
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
@@ -755,11 +756,30 @@ class ContainerInspectionTests(unittest.TestCase):
         inventory = observed_editor_inventory()
         self.assertEqual(
             {item.name: item.observed_type_count for item in inventory},
-            {"Skyrim": 3, "Gears of War 3": 1, "Halo general classes": 103},
+            {
+                "Skyrim": 3,
+                "Gears of War 3": 1,
+                "Halo general classes": 103,
+                "Dragon Ball Xenoverse": 1,
+                "Code Veronica X": 1,
+                "Devil May Cry": 1,
+                "Ninja Gaiden 3": 2,
+                "State of Decay": 1,
+                "Castle Crashers": 1,
+                "Saints Row": 3,
+            },
         )
         summary = inventory_summary()
         self.assertEqual(summary["managed_type_count"], 7693)
         self.assertTrue(all(item["implementation_status"] == "catalog-only" for item in summary["editors"]))
+
+    def test_exposes_additional_legacy_title_catalogs(self):
+        catalogs = observed_legacy_catalogs()
+        self.assertEqual(len(catalogs), 7)
+        self.assertEqual(sum(item.type_count for item in catalogs), 10)
+        self.assertEqual(sum(item.field_count for item in catalogs), 150)
+        self.assertEqual(legacy_catalog_report()["status"], "catalog-only")
+        self.assertIn("NinjaGaiden3SkillRyu", catalog_report("legacy")["catalogs"][3]["types"][0]["name"])
 
     def test_reports_evidence_qualified_capability_ledger(self):
         report = capability_report()
