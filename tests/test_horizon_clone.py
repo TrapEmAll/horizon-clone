@@ -947,6 +947,25 @@ class ContainerInspectionTests(unittest.TestCase):
             output_path.unlink(missing_ok=True)
             directory.rmdir()
 
+    def test_cli_exports_embedded_achievement_image_links_json(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        directory = self.fixture_dir / "achievement-links-export"
+        directory.mkdir(parents=True, exist_ok=True)
+        output_path = directory / "links.json"
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "work.horizon_clone", str(path), "--achievement-links-output", str(output_path)],
+                check=True, capture_output=True, text=True,
+            )
+            links = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(len(links), 2339)
+            self.assertIn('"linked": 623', result.stdout)
+        finally:
+            output_path.unlink(missing_ok=True)
+            directory.rmdir()
+
     def test_profile_summary_aggregates_observed_achievement_fields(self):
         path = supplied_fixture()
         if path is None or not path.exists():
