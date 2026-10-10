@@ -205,11 +205,19 @@ class ContainerInspectionTests(unittest.TestCase):
         mutated = mutate_stfs_metadata(
             original,
             display_name="Edited Profile",
+            display_description="Edited Description",
+            publisher_name="Publisher",
+            title_name="Title",
+            transfer_flags=0xA5,
             title_id=0x12345678,
             header=header,
         )
         parsed = parse_stfs_header(mutated)
         self.assertEqual(parsed.display_name, "Edited Profile")
+        self.assertEqual(parsed.display_description, "Edited Description")
+        self.assertEqual(parsed.publisher_name, "Publisher")
+        self.assertEqual(parsed.title_name, "Title")
+        self.assertEqual(parsed.transfer_flags, 0xA5)
         self.assertEqual(parsed.title_id, 0x12345678)
         self.assertTrue(verify_stfs_hashes(mutated, header=parsed)["header_hash_matches"])
 
