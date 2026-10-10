@@ -2282,6 +2282,10 @@ def inspect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
 def _json_report(report: ContainerReport) -> dict:
     result = asdict(report)
     result["is_container"] = report.is_container
+    if report.stfs_header is not None:
+        result["stfs_header"]["content_type_name"] = stfs_content_type_name(
+            report.stfs_header.content_type
+        )
     return result
 
 
