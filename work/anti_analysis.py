@@ -43,17 +43,32 @@ def anti_analysis_report_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         if isinstance(item, dict) and marker_pattern.search(str(item.get("full_name") or ""))
     ]
     guarded_methods = [
-        {"declaring_type": item.get("declaring_type"), "name": item.get("name"), "token": item.get("token")}
+        {
+            "declaring_type": item.get("declaring_type"),
+            "name": item.get("name"),
+            "token": item.get("token"),
+            "rva": item.get("rva"),
+            "body": item.get("body"),
+        }
         for item in methods
         if isinstance(item, dict) and marker_pattern.search(str(item.get("declaring_type") or ""))
     ]
+    marker_counts: dict[str, int] = {}
+    for item in attribute_markers:
+        type_name = str(item.get("type_name") or "unknown")
+        marker_counts[type_name] = marker_counts.get(type_name, 0) + 1
+    guarded_method_names = sorted({str(item.get("name")) for item in guarded_methods if item.get("name")})
     return {
         "status": "observed-only",
         "artifact": artifact.get("normalized_result", {}).get("artifact"),
         "evidence_ids": {"artifact": artifact.get("evidence_id"), "members": members.get("evidence_id")},
         "attribute_markers": attribute_markers,
+        "attribute_marker_counts": dict(sorted(marker_counts.items())),
         "guarded_types": guarded_types,
+        "guarded_type_names": sorted({str(item.get("full_name")) for item in guarded_types if item.get("full_name")}),
         "guarded_method_count": len(guarded_methods),
+        "guarded_method_names": guarded_method_names,
+        "guarded_methods": guarded_methods,
         "limitations": [
             "Static metadata does not establish runtime anti-debug behavior or intent.",
             "This report does not disable, patch, execute, or bypass any protection.",
