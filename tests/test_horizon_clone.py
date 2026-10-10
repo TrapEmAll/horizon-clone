@@ -322,6 +322,40 @@ class ContainerInspectionTests(unittest.TestCase):
             output_path.unlink(missing_ok=True)
             directory.rmdir()
 
+    def test_cli_edits_embedded_xdbf_achievement(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path.endswith(".gpd"))
+        xdbf = parse_xdbf(read_stfs_entry(original, entry, header))
+        achievement = next((item for item in xdbf if item.achievement is not None), None)
+        if achievement is None:
+            self.skipTest("fixture contains no observed achievement entry")
+        directory = self.fixture_dir / "cli-embedded-xdbf-achievement"
+        directory.mkdir(parents=True, exist_ok=True)
+        output_path = directory / "profile.con"
+        try:
+            subprocess.run(
+                [
+                    sys.executable, "-m", "work.horizon_clone", str(path),
+                    "--xdbf-file", entry.path, "--achievement", str(achievement.index),
+                    "--gamerscore", "1000", "--achievement-flags", "1",
+                    "--write", str(output_path),
+                ], check=True, capture_output=True, text=True,
+            )
+            mutated = output_path.read_bytes()
+            mutated_header = parse_stfs_header(mutated)
+            mutated_entry = next(item for item in list_stfs_entries(mutated, mutated_header) if item.path == entry.path)
+            edited = next(item for item in parse_xdbf(read_stfs_entry(mutated, mutated_entry, mutated_header)) if item.index == achievement.index)
+            self.assertEqual(edited.achievement["gamerscore"], 1000)
+            self.assertEqual(edited.achievement["flags"], 1)
+            self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+        finally:
+            output_path.unlink(missing_ok=True)
+            directory.rmdir()
+
     def test_cli_exposes_stfs_security_metadata(self):
         path = supplied_fixture()
         if path is None or not path.exists():
