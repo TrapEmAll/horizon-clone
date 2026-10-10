@@ -817,6 +817,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(surface["resource_count"], 205)
         self.assertEqual(surface["distinct_payload_hashes"], 30)
 
+    def test_cli_exports_observed_resource_surface(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", "--resource-surface", "unused"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(json.loads(result.stdout)["resource_count"], 205)
+
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
         self.assertEqual(len(catalog_report("halo")["types"]), 103)
