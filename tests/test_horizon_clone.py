@@ -47,7 +47,7 @@ from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_of_war_3_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_types
 from work.resource_inventory import observed_resource_surface
-from work.observed_members import observed_fields, observed_profile_data_fields
+from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
@@ -720,6 +720,16 @@ class ContainerInspectionTests(unittest.TestCase):
             ],
         )
         self.assertEqual(observed_fields("Horizon.ProfileData"), fields)
+
+    def test_exposes_observed_profile_data_resource_getters(self):
+        methods = observed_profile_data_methods()
+        self.assertEqual(
+            [(item.name, item.parameter_types, item.return_type) for item in methods],
+            [
+                ("get_GoWJ_Thumb_New", (), "class:957"),
+                ("get_GrayDot", (), "class:957"),
+            ],
+        )
 
     def test_profile_data_enforces_observed_unsigned_64_bit_fields(self):
         with self.assertRaises(ValueError):
