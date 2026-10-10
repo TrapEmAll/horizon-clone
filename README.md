@@ -83,6 +83,10 @@ copied implementation code.
   `--editor-edit-output`; editors without an authenticated value-edit contract
   are rejected instead of being treated as mutable, and the CLI requires a
   distinct output path.
+- Exposes detached development-signature verification through
+  `--verify-detached-signature` for RSA-SHA256/SHA1 PKCS#1 v1.5 and a
+  caller-supplied public key; Xbox signed-region inference and retail signing
+  remain deliberately outside this boundary.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
