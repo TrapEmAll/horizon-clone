@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import re
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import BinaryIO, Iterable
@@ -763,6 +764,26 @@ def list_embedded_achievements(
     return tuple(records)
 
 
+def summarize_embedded_xdbf(
+    data: bytes, header: StfsHeader | None = None
+) -> tuple[dict[str, object], ...]:
+    """Summarize every parseable embedded GPD without interpreting game data."""
+
+    summaries: list[dict[str, object]] = []
+    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
+        namespaces = Counter(item.namespace for item in xdbf_entries)
+        summaries.append(
+            {
+                "file": file_entry.path,
+                "entry_count": len(xdbf_entries),
+                "namespace_counts": dict(sorted(namespaces.items())),
+                "text_count": sum(item.text is not None for item in xdbf_entries),
+                "achievement_count": sum(item.achievement is not None for item in xdbf_entries),
+            }
+        )
+    return tuple(summaries)
+
+
 def mutate_stfs_entry_same_size(
     data: bytes,
     entry: StfsEntry,
@@ -1358,6 +1379,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
+    parser.add_argument("--xdbf-summary", action="store_true", help="Summarize parseable embedded GPD namespaces")
     parser.add_argument("--list-achievements", action="store_true", help="List observed achievements from embedded GPD files")
     parser.add_argument("--achievements-output", type=Path, help="Write embedded achievement records as JSON")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
@@ -1636,6 +1658,11 @@ def main() -> int:
                 label = xdbf_entry.text or (xdbf_entry.achievement or {}).get("name") or ""
                 safe_label = str(label).encode("ascii", errors="backslashreplace").decode("ascii")
                 print(f"{file_entry.path} {kind} {xdbf_entry.index:>6} ns={xdbf_entry.namespace:>5} id=0x{xdbf_entry.entry_id:X} size={xdbf_entry.length:>8} {safe_label}")
+    if args.xdbf_summary:
+        if not report.stfs_header:
+            parser.error("--xdbf-summary requires a readable STFS header")
+        print(json.dumps(list(summarize_embedded_xdbf(raw, report.stfs_header)), indent=2, ensure_ascii=False))
+        return 0
     if args.list_achievements:
         if not report.stfs_header:
             parser.error("--list-achievements requires a readable STFS header")
