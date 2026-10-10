@@ -35,6 +35,9 @@ from .horizon_clone import (
     verify_stfs_hashes,
     stfs_content_type_name,
     stfs_fatx_device_path,
+    sign_stfs_console_package,
+    read_private_key_json,
+    verify_stfs_console_signature,
     editor_edit_values,
     editor_inspect_report,
     extract_managed_resource_payloads,
@@ -93,6 +96,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Sign CON package", command=self.sign_con_package).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
@@ -278,6 +282,41 @@ class HorizonApp(tk.Tk):
             self._set_details(result)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("Detached signing failed", str(exc))
+
+    def sign_con_package(self) -> None:
+        """Sign the observed CON package region with an explicit private key."""
+
+        if self._data is None or self._data[:4] != b"CON ":
+            messagebox.showinfo("CON signing", "Open a CON container first.")
+            return
+        key = filedialog.askopenfilename(
+            title="Choose matching CON private-key JSON",
+            filetypes=(("Private-key JSON", "*.json"), ("All files", "*.*")),
+        )
+        if not key:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save signed CON package",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            signed = sign_stfs_console_package(self._data, read_private_key_json(Path(key)))
+            _atomic_write_bytes(Path(target), signed)
+            verification = verify_stfs_console_signature(signed)
+            result = {
+                "output": target,
+                "bytes": len(signed),
+                "signature_verified": verification["verified"],
+                "algorithm": verification["algorithm"],
+                "console_authority_established": False,
+            }
+            self.status.configure(text="Wrote signed CON package")
+            self._set_details(result)
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("CON signing failed", str(exc))
 
     def show_anti_analysis(self) -> None:
         """Display retained REA anti-analysis observations without execution."""
