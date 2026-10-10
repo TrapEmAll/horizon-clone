@@ -32,6 +32,14 @@ _GLOBAL_TYPES = (
     ObservedGlobalType("EmblemBackground", 59),
     ObservedGlobalType("ManuscriptPage", 107),
     ObservedGlobalType("CoffeeThermosOption", 101),
+    ObservedGlobalType("CategoryEntry", 3, 8),
+    ObservedGlobalType("EntryOption", 4, 10),
+    ObservedGlobalType("InterfaceDefinitionGoof", 2, 6),
+    ObservedGlobalType("InterfaceDefinitionSily", 6, 14),
+    ObservedGlobalType("MegaloCollection", 2, 6),
+    ObservedGlobalType("MegaloObject", 8, 18),
+    ObservedGlobalType("MenuLocationEntry", 4, 7),
+    ObservedGlobalType("SilyValue", 4, 12),
 )
 
 
