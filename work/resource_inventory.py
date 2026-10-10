@@ -1,8 +1,8 @@
 """REA-observed embedded resource surface for Horizon.exe.
 
-These are authenticated artifact-level counts only. The module does not copy
-or execute shipped resources and does not infer which resource belongs to a
-specific UI feature.
+These are authenticated artifact-level counts. Optional extraction copies only
+uniquely hash-matched embedded payloads and never executes them or infers which
+resource belongs to a specific UI feature.
 """
 
 from __future__ import annotations
@@ -111,14 +111,7 @@ def verify_managed_resource_payloads(
         offset = item["declared_offset"]
         length = item["data_length"]
         expected = item.get("data_sha256")
-        candidates: list[tuple[str, bytes]] = []
-        raw_start = blob_offset + offset
-        raw_end = raw_start + length
-        if 0 <= offset <= blob_size and raw_end <= blob_offset + blob_size:
-            candidates.append(("raw-span", data[raw_start:raw_end]))
-        prefix_end = raw_start + 4 + length
-        if 0 <= offset <= blob_size and prefix_end <= blob_offset + blob_size:
-            candidates.append(("length-prefixed-payload", data[raw_start + 4:prefix_end]))
+        candidates = _resource_payload_candidates(data, blob_offset, blob_size, offset, length)
         matches = [kind for kind, payload in candidates if hashlib.sha256(payload).hexdigest() == expected]
         results.append({
             "name": item.get("name"),
@@ -143,6 +136,69 @@ def verify_managed_resource_payloads(
             "A resource is unresolved when neither tested byte-span candidate matches uniquely.",
         ],
     }
+
+
+def extract_managed_resource_payloads(
+    executable_path: str | Path,
+    bundle_path: str | Path,
+    output_dir: str | Path,
+    pattern: str | None = None,
+) -> dict[str, Any]:
+    """Extract only embedded resource payloads with a unique REA hash match."""
+
+    report = resource_surface_report(bundle_path, pattern)
+    data = Path(executable_path).read_bytes()
+    blob_offset, blob_size = _managed_resource_blob(data)
+    destination = Path(output_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    results: list[dict[str, Any]] = []
+    for index, item in enumerate(report["resources"]):
+        name = item.get("name")
+        offset = item.get("declared_offset")
+        length = item.get("data_length")
+        expected = item.get("data_sha256")
+        if not item.get("embedded") or not isinstance(offset, int) or not isinstance(length, int) or not isinstance(expected, str):
+            results.append({"name": name, "status": "unresolved", "reason": "resource is not an embedded file-backed payload"})
+            continue
+        matches = [
+            (kind, payload)
+            for kind, payload in _resource_payload_candidates(data, blob_offset, blob_size, offset, length)
+            if hashlib.sha256(payload).hexdigest() == expected
+        ]
+        if len(matches) != 1:
+            results.append({"name": name, "status": "unresolved", "reason": "resource span did not produce a unique authenticated payload", "matching_candidates": [kind for kind, _ in matches]})
+            continue
+        kind, payload = matches[0]
+        output_path = destination / f"resource-{index:03d}-{expected[:16]}.bin"
+        if output_path.exists():
+            raise FileExistsError(output_path)
+        output_path.write_bytes(payload)
+        results.append({"name": name, "status": "extracted", "path": str(output_path), "bytes": len(payload), "sha256": expected, "source": kind})
+    extracted = sum(item["status"] == "extracted" for item in results)
+    unresolved = len(results) - extracted
+    return {
+        "status": "verified" if unresolved == 0 else "partial",
+        "executable": str(executable_path),
+        "output_dir": str(destination),
+        "counts": {"extracted": extracted, "unresolved": unresolved},
+        "resources": results,
+        "limitations": [
+            "Extraction is byte-for-byte and hash-verified; resources are not deserialized or executed.",
+            "Resource ownership and UI feature semantics remain unresolved.",
+        ],
+    }
+
+
+def _resource_payload_candidates(data: bytes, blob_offset: int, blob_size: int, offset: int, length: int) -> list[tuple[str, bytes]]:
+    candidates: list[tuple[str, bytes]] = []
+    raw_start = blob_offset + offset
+    raw_end = raw_start + length
+    if 0 <= offset <= blob_size and raw_end <= blob_offset + blob_size:
+        candidates.append(("raw-span", data[raw_start:raw_end]))
+    prefix_end = raw_start + 4 + length
+    if 0 <= offset <= blob_size and prefix_end <= blob_offset + blob_size:
+        candidates.append(("length-prefixed-payload", data[raw_start + 4:prefix_end]))
+    return candidates
 
 
 def _managed_resource_blob(data: bytes) -> tuple[int, int]:
