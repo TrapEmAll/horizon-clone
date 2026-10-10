@@ -20,7 +20,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_surface_report
 from .device_surface import device_surface_report
-from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
+from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_io_contract_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
@@ -1846,6 +1846,7 @@ def main() -> int:
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
     parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
+    parser.add_argument("--dotnet-resource-index", action="store_true", help="Parse a standalone .NET .resources payload without deserializing values")
     parser.add_argument("--verify-resources", type=Path, metavar="BUNDLE", help="Verify shipped managed-resource hashes against an REA bundle")
     parser.add_argument("--extract-resources", type=Path, metavar="DIR", help="Extract uniquely hash-verified embedded resources from --path using --resource-bundle")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
@@ -2030,6 +2031,13 @@ def main() -> int:
         try:
             report = resource_surface_report(args.resource_bundle, args.resource_pattern)
         except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.dotnet_resource_index:
+        try:
+            report = parse_dotnet_resources(args.path.read_bytes())
+        except (OSError, TypeError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
