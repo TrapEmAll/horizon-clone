@@ -36,6 +36,8 @@ from .horizon_clone import (
     anti_analysis_report,
     sign_detached_bytes,
     device_inventory_report,
+    decrypt_account_entry,
+    encrypt_account_payload,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -82,6 +84,8 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
@@ -308,6 +312,76 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Device directory listing failed", str(exc))
+
+    def decrypt_account(self) -> None:
+        """Decrypt an STFS Account entry through explicit caller providers."""
+
+        container = filedialog.askopenfilename(title="Choose STFS container with Account entry")
+        if not container:
+            return
+        class3 = filedialog.askopenfilename(title="Choose x86 class3.dll")
+        if not class3:
+            return
+        helper = filedialog.askopenfilename(title="Choose key-vault helper")
+        if not helper:
+            return
+        capacity = simpledialog.askinteger(
+            "Account output capacity",
+            "Decrypted output buffer capacity:",
+            minvalue=0,
+            parent=self,
+        )
+        if capacity is None:
+            return
+        target = filedialog.asksaveasfilename(title="Save decrypted Account payload")
+        if not target:
+            return
+        try:
+            result = decrypt_account_entry(Path(container), Path(target), Path(class3), Path(helper), capacity)
+            self.status.configure(text="Wrote decrypted Account payload")
+            self._set_details(result)
+        except (OSError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("Account decryption failed", str(exc))
+
+    def encrypt_account(self) -> None:
+        """Encrypt raw Account plaintext through explicit caller providers."""
+
+        plaintext = filedialog.askopenfilename(title="Choose raw Account plaintext")
+        if not plaintext:
+            return
+        class3 = filedialog.askopenfilename(title="Choose x86 class3.dll")
+        if not class3:
+            return
+        helper = filedialog.askopenfilename(title="Choose key-vault helper")
+        if not helper:
+            return
+        capacity = simpledialog.askinteger(
+            "Account output capacity",
+            "Encrypted output buffer capacity:",
+            minvalue=0,
+            parent=self,
+        )
+        if capacity is None:
+            return
+        output_length = simpledialog.askinteger(
+            "Account output length",
+            "Caller-known encrypted output length:",
+            minvalue=0,
+            parent=self,
+        )
+        if output_length is None:
+            return
+        target = filedialog.asksaveasfilename(title="Save encrypted Account payload")
+        if not target:
+            return
+        try:
+            result = encrypt_account_payload(
+                Path(plaintext), Path(target), Path(class3), Path(helper), capacity, output_length
+            )
+            self.status.configure(text="Wrote encrypted Account payload")
+            self._set_details(result)
+        except (OSError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("Account encryption failed", str(exc))
 
     def show_selected(self, _event=None) -> None:
         if not self._data or not self._report:
