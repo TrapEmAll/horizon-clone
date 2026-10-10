@@ -113,6 +113,9 @@ copied implementation code.
 - Provides `AccountKeyProvider` integration for caller-owned key-vault or
   development-key services; keys are requested per operation and payload digest
   and are not persisted by the clone.
+- Provides `CommandAccountKeyProvider` for an explicit absolute helper path;
+  it exchanges one JSON request over stdin/stdout without shell invocation or
+  local key storage.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
