@@ -136,6 +136,10 @@ absolute caller-supplied `class3.dll` path to those exports; it does not search
 for DLLs, persist keys, or claim the native algorithm, key format, or output
 semantics.
 
+Both optional ctypes adapters perform a header-only PE architecture check
+before loading. This reports x86-versus-x64 incompatibility deterministically
+without executing the supplied native image.
+
 `LzoBinding` models the four recovered LZO declarations and their `i4&`
 output-length argument. The opt-in `CtypesLzoProvider` can bind an absolute
 caller-supplied `lzo.dll` path to those exports. It does not search for DLLs or
