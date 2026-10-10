@@ -50,6 +50,7 @@ from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
+from work.global_catalog import global_catalog_report, observed_global_types
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
@@ -953,6 +954,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(catalog_report("halo")["property_names"]), 140)
         self.assertIn("ShoutEnums", catalog_report("skyrim"))
         self.assertIn("SaveEntryCategory", catalog_report("shared"))
+
+    def test_exposes_global_namespace_rows_without_merging_duplicates(self):
+        rows = observed_global_types()
+        self.assertEqual(len(rows), 12)
+        self.assertEqual(sum(item.field_count for item in rows), 4921)
+        self.assertEqual([item.field_count for item in rows if item.name == "Helmet"], [65, 87])
+        report = global_catalog_report()
+        self.assertEqual(report["observed_namespace_type_count"], 632)
+        self.assertFalse(report["values_observed"])
+        self.assertEqual(catalog_report("global")["status"], "catalog-only")
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
