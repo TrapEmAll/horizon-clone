@@ -1,4 +1,5 @@
 import hashlib
+import os
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from work.horizon_clone import (
     rehash_stfs_hashes,
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
+    parse_stfs_security_metadata,
     parse_stfs_thumbnails,
     parse_xdbf,
     read_stfs_entry,
@@ -31,6 +33,11 @@ from work.signing import (
 from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
+
+
+def supplied_fixture():
+    value = os.environ.get("HORIZON_PROFILE_FIXTURE")
+    return Path(value) if value else None
 
 
 class ContainerInspectionTests(unittest.TestCase):
@@ -115,8 +122,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(parse_xdbf(edited)[0].achievement["name"], "API")
 
     def test_mutates_and_rehashes_supplied_profile_fixture(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
@@ -134,8 +141,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertFalse(result["signature_checked"])
 
     def test_rehashes_and_verifies_the_complete_stfs_tree(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
@@ -197,8 +204,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIsNone(custom.resolve(EditorContext(), b"NOPE"))
 
     def test_mutates_fixed_width_stfs_metadata(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
@@ -222,8 +229,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(verify_stfs_hashes(mutated, header=parsed)["header_hash_matches"])
 
     def test_reads_and_mutates_bounded_stfs_thumbnails(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
@@ -235,9 +242,19 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(parsed.thumbnail, b"thumbnail-test")
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
+    def test_inspects_stfs_security_metadata_without_claiming_signature_validity(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        metadata = parse_stfs_security_metadata(path.read_bytes())
+        self.assertEqual(metadata.signature_kind, "console-certificate")
+        self.assertEqual(len(metadata.licenses), 16)
+        self.assertIsNotNone(metadata.package_signature_sha256)
+        self.assertIsNotNone(metadata.public_modulus_sha256)
+
     def test_repacks_entry_with_a_different_size(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
@@ -250,8 +267,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
     def test_adds_a_file_using_existing_table_and_block_capacity(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         payload = b"new profile-sidecar" * 20
@@ -263,8 +280,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(verify_stfs_hashes(mutated, header=header)["hash_table_failures"], [])
 
     def test_removes_a_file_table_entry(self):
-        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
-        if not path.exists():
+        path = supplied_fixture()
+        if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         mutated = repack_stfs_entries(original, {}, remove=("Account",))
