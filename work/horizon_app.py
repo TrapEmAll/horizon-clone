@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from .horizon_clone import (
     extract_stfs,
     inspect,
+    list_embedded_achievements,
     list_embedded_xdbf,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
@@ -606,21 +607,8 @@ class HorizonApp(tk.Tk):
         if not self._data or not self._report or not self._report.stfs_header:
             messagebox.showinfo("Achievements", "Open a readable STFS profile first.")
             return
-        achievements = []
         try:
-            for entry, xdbf_entries in list_embedded_xdbf(self._data, self._report.stfs_header):
-                for xdbf_entry in xdbf_entries:
-                    if xdbf_entry.achievement is None:
-                        continue
-                    achievements.append(
-                        {
-                            "file": entry.path,
-                            "index": xdbf_entry.index,
-                            "namespace": xdbf_entry.namespace,
-                            "entry_id": xdbf_entry.entry_id,
-                            "achievement": xdbf_entry.achievement,
-                        }
-                    )
+            achievements = list(list_embedded_achievements(self._data, self._report.stfs_header))
             target = filedialog.asksaveasfilename(
                 title="Export achievements",
                 defaultextension=".json",
