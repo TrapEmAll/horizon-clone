@@ -113,7 +113,8 @@ and the evidence only establishes aggregate counts and payload digests; the
 clone does not copy, execute, or assign those resources to UI features.
 
 The retained Halo member evidence further counts 1,102 methods and 140 unique
-getter/setter property names across the general-class surface. Return types and
+getter/setter property names across the general-class surface. The clone now
+exposes those exact property names in the Halo catalog report. Return types and
 the largest declaring-type groups are exposed as metadata; save offsets and
 mutation behavior remain unresolved.
 
