@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 24207)
-Total output lines: 2094
+Warning: truncated output (original token count: 24246)
+Total output lines: 2096
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -891,10 +891,7 @@ def summarize_profile_achievements(
     per_file: list[dict[str, object]] = []
     total_entries = total_gamerscore = nonzero_flags = 0
     for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
-        achieveme…6207 tokens truncated…     "hash_table_failures": hash_table_failures,
-        "header_hash_matches": header_hash_matches,
-        "top_hash_matches": top_hash_matches,
-        "signature_checked": False,
+        achieveme…6246 tokens truncated…signature_checked": False,
     }
 
 
@@ -1152,6 +1149,8 @@ def main() -> int:
     if args.editor_edit_values:
         if not args.editor_edit_output:
             parser.error("--editor-edit-values requires --editor-edit-output")
+        if args.editor_edit_output.resolve() == args.path.resolve():
+            parser.error("--editor-edit-output must be different from the input path")
         try:
             editor_name, edited = editor_edit_values(args.path, args.editor_edit_values)
             _atomic_replace_bytes(args.editor_edit_output, edited)
