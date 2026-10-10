@@ -90,6 +90,10 @@ boundary. It validates decrypt/encrypt buffer contracts and supports authorized
 provider round trips, but does not interpret the decrypted Account layout or
 persist key material.
 
+`AccountKeyProvider` adds a caller-owned key-vault boundary: the codec requests
+an operation-specific key using the payload SHA-256 and keeps no key state. The
+REA evidence still does not establish the key format or Account serializer.
+
 The same evidence identifies two zero-argument `Horizon.ProfileData` resource
 getters, `get_GoWJ_Thumb_New` and `get_GrayDot`, both returning unresolved
 managed type `class:957`. They are exposed as declaration metadata only; no
