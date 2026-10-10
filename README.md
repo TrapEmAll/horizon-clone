@@ -57,6 +57,9 @@ copied implementation code.
   repack action for entries whose replacement size differs.
 - Entry removal is likewise available as a confirmation-gated in-place action,
   with the STFS hash tree rebuilt and the written container reparsed.
+- In-place rename and move actions are also available for selected STFS entries;
+  they require explicit confirmation, rebuild the hash tree, and reparse the
+  overwritten container.
 - Repackages XDBF entries to different payload sizes within existing data
   capacity and can remove entries while rebuilding free-space metadata.
 - Edits observed achievement payload fields: achievement ID, image ID,
