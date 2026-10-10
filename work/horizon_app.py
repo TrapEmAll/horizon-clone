@@ -53,7 +53,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add directory", command=self.add_directory).pack(side=tk.LEFT, padx=(8, 0))
-        ttk.Button(toolbar, text="Remove file", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Remove entry", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Rename file", command=self.rename_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Move entry", command=self.move_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
@@ -310,14 +310,14 @@ class HorizonApp(tk.Tk):
 
     def remove_file(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
-            messagebox.showinfo("Remove file", "Open a readable STFS container first.")
+            messagebox.showinfo("Remove entry", "Open a readable STFS container first.")
             return
         selected = self.tree.selection()
         if not selected:
-            messagebox.showinfo("Remove file", "Select a file first.")
+            messagebox.showinfo("Remove entry", "Select an entry first.")
             return
         entry = self._entries[selected[0]]
-        if not messagebox.askyesno("Remove file", f"Remove {entry.path}?", parent=self):
+        if not messagebox.askyesno("Remove entry", f"Remove {entry.path}?", parent=self):
             return
         try:
             mutated = repack_stfs_entries(self._data, {}, remove=(entry.path,), header=self._report.stfs_header)
@@ -336,10 +336,10 @@ class HorizonApp(tk.Tk):
             for item in self._report.entries:
                 tree_item = self.tree.insert("", tk.END, text=item.path, values=(item.size, "DIR" if item.is_directory else "FILE"))
                 self._entries[tree_item] = item
-            self.status.configure(text=f"Wrote unsigned file removal: {entry.path}")
+            self.status.configure(text=f"Wrote unsigned entry removal: {entry.path}")
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
-            messagebox.showerror("Remove file failed", str(exc))
+            messagebox.showerror("Remove entry failed", str(exc))
 
     def add_directory(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
