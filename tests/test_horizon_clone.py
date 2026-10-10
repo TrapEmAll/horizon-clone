@@ -360,6 +360,26 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("achievement_id=", result.stdout)
         self.assertIn("gamerscore=", result.stdout)
 
+    def test_cli_exports_embedded_achievements_json(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        directory = self.fixture_dir / "achievement-export"
+        directory.mkdir(parents=True, exist_ok=True)
+        output_path = directory / "achievements.json"
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "work.horizon_clone", str(path), "--achievements-output", str(output_path)],
+                check=True, capture_output=True, text=True,
+            )
+            records = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertTrue(records)
+            self.assertIn("achievement", records[0])
+            self.assertIn("file", records[0])
+        finally:
+            output_path.unlink(missing_ok=True)
+            directory.rmdir()
+
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
         if path is None or not path.exists():
