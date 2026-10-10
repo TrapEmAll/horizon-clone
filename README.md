@@ -146,6 +146,9 @@ copied implementation code.
   payloads once an authorized class3-compatible provider and key are supplied;
   `encrypt_raw` preserves native status and the caller-sized output buffer;
   encryption length and Account serialization remain caller-resolved.
+- Exposes the observed LZO boundary through `--lzo-operation`, including
+  version queries and caller-selected LZO1X/LZO2A compression or decompression;
+  output bytes can be written to an explicit path.
 - Provides an isolated `AccountRecord` body codec based on the public,
   Unlicense historical XProfile reference. It authenticates and round-trips the
   supplied 404-byte Account entry with a caller-supplied 16-byte key, but is
