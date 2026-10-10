@@ -1401,13 +1401,7 @@ def main() -> int:
     if args.list_xdbf:
         if not report.stfs_header:
             parser.error("--list-xdbf requires a readable STFS header")
-        for file_entry in report.entries:
-            if file_entry.is_directory or not file_entry.path.lower().endswith(".gpd"):
-                continue
-            try:
-                xdbf_entries = parse_xdbf(read_stfs_entry(raw, file_entry, report.stfs_header))
-            except (OSError, ValueError, IsADirectoryError):
-                continue
+        for file_entry, xdbf_entries in list_embedded_xdbf(raw, report.stfs_header):
             for xdbf_entry in xdbf_entries:
                 kind = "achievement" if xdbf_entry.achievement is not None else "string" if xdbf_entry.text is not None else "entry"
                 label = xdbf_entry.text or (xdbf_entry.achievement or {}).get("name") or ""
@@ -1416,13 +1410,7 @@ def main() -> int:
     if args.list_achievements:
         if not report.stfs_header:
             parser.error("--list-achievements requires a readable STFS header")
-        for file_entry in report.entries:
-            if file_entry.is_directory or not file_entry.path.lower().endswith(".gpd"):
-                continue
-            try:
-                xdbf_entries = parse_xdbf(read_stfs_entry(raw, file_entry, report.stfs_header))
-            except (OSError, ValueError, IsADirectoryError):
-                continue
+        for file_entry, xdbf_entries in list_embedded_xdbf(raw, report.stfs_header):
             for xdbf_entry in xdbf_entries:
                 achievement = xdbf_entry.achievement
                 if achievement is None:
