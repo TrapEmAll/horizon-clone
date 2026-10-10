@@ -20,6 +20,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
+from .device_binding import DeviceIoBinding, WindowsDeviceIoProvider
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
@@ -2314,6 +2315,43 @@ def inspect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
     )
 
 
+def device_ioctl_report(
+    device_path: str,
+    control_code: int,
+    input_data: bytes = b"",
+    output_capacity: int = 0,
+    *,
+    provider=None,
+) -> dict[str, object]:
+    """Forward one caller-selected IOCTL through an explicit device provider.
+
+    The command is intentionally raw: REA authenticated the Windows device
+    boundary, but did not establish Horizon's FATX command values or their
+    safety semantics.  The default provider requests a read-only handle; a
+    caller-supplied provider keeps this function testable without touching a
+    physical device.
+    """
+
+    if provider is None:
+        provider = WindowsDeviceIoProvider()
+    binding = DeviceIoBinding(provider)
+    with binding.open_session(device_path) as session:
+        output = session.io_control(control_code, input_data, output_capacity)
+    return {
+        "device_path": device_path,
+        "control_code": control_code,
+        "input_length": len(input_data),
+        "output_capacity": output_capacity,
+        "output_length": len(output),
+        "output_hex": output.hex(),
+        "status": "provider-bound-read-only-handle",
+        "limitations": [
+            "The IOCTL is caller-selected; FATX command semantics are not inferred.",
+            "The default Windows adapter requests GENERIC_READ only, but IOCTL safety remains caller responsibility.",
+        ],
+    }
+
+
 def _json_report(report: ContainerReport) -> dict:
     result = asdict(report)
     result["is_container"] = report.is_container
@@ -2350,6 +2388,9 @@ def main() -> int:
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
     parser.add_argument("--device-list", type=Path, metavar="DIRECTORY", help="List one host-visible device directory without mutation")
+    parser.add_argument("--device-ioctl", type=lambda value: int(value, 0), metavar="CODE", help="Forward one explicit IOCTL to the positional device path")
+    parser.add_argument("--device-ioctl-input-hex", default="", metavar="HEX", help="Hex input bytes for --device-ioctl")
+    parser.add_argument("--device-ioctl-output-capacity", type=int, default=0, metavar="BYTES", help="Output capacity for --device-ioctl")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
     parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
@@ -2578,6 +2619,21 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps({"root": str(args.device_list), "entries": [asdict(item) for item in entries]}, indent=2))
+        return 0
+    if args.device_ioctl is not None:
+        if args.device_ioctl_output_capacity < 0:
+            parser.error("--device-ioctl-output-capacity must be non-negative")
+        try:
+            input_data = bytes.fromhex(args.device_ioctl_input_hex)
+            report = device_ioctl_report(
+                str(args.path),
+                args.device_ioctl,
+                input_data,
+                args.device_ioctl_output_capacity,
+            )
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
     if args.resource_surface:
         print(json.dumps(observed_resource_surface(), indent=2, ensure_ascii=False))
