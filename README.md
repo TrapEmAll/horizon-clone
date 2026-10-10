@@ -107,6 +107,7 @@ python -m work.horizon_clone C:\path\to\container --remove Account --write witho
 python -m work.horizon_clone C:\path\to\container --add sidecar.bin --add-source sidecar.bin --write with-sidecar.con
 python -m work.horizon_clone C:\path\to\container --rename cache/ph.dat --new-name ph2.dat --write renamed-file.con
 python -m work.horizon_clone C:\path\to\container --mkdir cache/NewFolder --write with-directory.con
+python -m work.horizon_clone C:\path\to\container --move cache/ph.dat --move-to AvatarAssets --new-name ph2.dat --write moved-file.con
 python -m work.horizon_clone C:\path\to\container --thumbnail-source thumbnail.bin --write with-thumbnail.con
 python -m work.horizon_clone C:\path\to\container --thumbnail-output thumbnail.bin --title-thumbnail-output title-thumbnail.bin
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
