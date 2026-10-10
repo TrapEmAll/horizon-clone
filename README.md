@@ -8,6 +8,8 @@ copied implementation code.
 ## Current scope
 
 - Recognizes the observed `CON ` content-container signature.
+- Reports canonical FATX-facing profile paths with `--fatx-path`, including
+  the authenticated profile filename, title ID, and content type.
 - Reports size and SHA-256 fingerprint.
 - Parses the STFS metadata header and file table for `CON`, `LIVE`, and `PIRS`.
 - Lists entries and extracts files with path traversal protection.
