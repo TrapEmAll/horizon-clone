@@ -28,6 +28,7 @@ from work.horizon_clone import (
     mutate_xdbf_entry_same_size,
     _atomic_replace_bytes,
     validate_stfs_mutation,
+    profile_data_report,
     block_offset,
     parse_stfs_header,
     parse_stfs_security_metadata,
@@ -781,6 +782,26 @@ class ContainerInspectionTests(unittest.TestCase):
             favorite=True,
         )
         self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
+
+    def test_profile_data_cli_report_validates_authenticated_envelope(self):
+        path = self.fixture_dir / "profile-data.json"
+        path.write_text(json.dumps({
+            "editor": "profile-data",
+            "values": {
+                "from_device": True,
+                "xuid": 1,
+                "gamertag": "Test User",
+                "gamer_picture": "0102",
+                "profile_id": 2,
+                "favorite": False,
+            },
+        }), encoding="utf-8")
+        try:
+            report = profile_data_report(path)
+        finally:
+            path.unlink(missing_ok=True)
+        self.assertEqual(report["status"], "metadata-only")
+        self.assertEqual(report["values"]["xuid"], 1)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
