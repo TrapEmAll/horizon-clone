@@ -308,6 +308,19 @@ def mutate_xdbf_achievement(
     return mutate_xdbf_entry_same_size(data, entry, bytes(payload))
 
 
+def mutate_xdbf_text(data: bytes, entry_index: int, text: str) -> bytes:
+    """Replace an observed namespace-5 XDBF UTF-16BE string entry."""
+    entries = parse_xdbf(data)
+    try:
+        entry = next(item for item in entries if item.index == entry_index)
+    except StopIteration as exc:
+        raise IndexError(f"unknown XDBF entry index: {entry_index}") from exc
+    if entry.namespace != 5 or entry.text is None:
+        raise ValueError("XDBF entry is not an observed namespace-5 string")
+    replacement = text.encode("utf-16-be") + b"\x00\x00"
+    return repack_xdbf_entries(data, {entry_index: replacement})
+
+
 def _u16be(data: bytes, offset: int) -> int:
     return int.from_bytes(data[offset : offset + 2], "big")
 
@@ -1199,6 +1212,8 @@ def main() -> int:
     parser.add_argument("--xdbf-add-namespace", type=lambda value: int(value, 0), metavar="VALUE")
     parser.add_argument("--xdbf-add-id", type=lambda value: int(value, 0), metavar="VALUE")
     parser.add_argument("--xdbf-add-source", type=Path, metavar="FILE")
+    parser.add_argument("--xdbf-text", type=int, metavar="INDEX", help="Edit one observed namespace-5 XDBF string")
+    parser.add_argument("--xdbf-text-value", help="Replacement value for --xdbf-text")
     parser.add_argument("--achievement", type=int, metavar="INDEX", help="Edit one XDBF achievement entry")
     parser.add_argument("--achievement-id", type=lambda value: int(value, 0))
     parser.add_argument("--image-id", type=lambda value: int(value, 0))
@@ -1236,7 +1251,8 @@ def main() -> int:
                 value is not None
                 for value in (args.xdbf_add_namespace, args.xdbf_add_id, args.xdbf_add_source)
             )
-            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or xdbf_add_requested:
+            text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
+            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or xdbf_add_requested or text_requested:
                 if not write_target:
                     parser.error("XDBF mutation requires --write or --in-place")
                 if args.xdbf_replace is not None and not args.xdbf_source:
@@ -1249,6 +1265,10 @@ def main() -> int:
                     if args.xdbf_add_namespace is None or args.xdbf_add_id is None or not args.xdbf_add_source:
                         parser.error("XDBF addition requires --xdbf-add-namespace, --xdbf-add-id, and --xdbf-add-source")
                     additions[(args.xdbf_add_namespace, args.xdbf_add_id)] = args.xdbf_add_source.read_bytes()
+                if text_requested:
+                    if args.xdbf_text is None or args.xdbf_text_value is None:
+                        parser.error("--xdbf-text requires --xdbf-text-value")
+                    raw = mutate_xdbf_text(raw, args.xdbf_text, args.xdbf_text_value)
                 raw = repack_xdbf_entries(
                     raw,
                     replacements,
