@@ -63,6 +63,7 @@ _CAPABILITIES = (
     Capability("Embedded UI/resource surface", "observed-only", "REA observed 205 embedded managed resource payloads; feature ownership and rendering behavior unresolved", ("observed_resource_surface",)),
     Capability("Native save/runtime boundaries", "provider-boundary", "REA observed class3 save crypto, LZO, device I/O, and DNG/HVM imports; signatures and protocols unresolved", ("native_surface_report",)),
     Capability("Device exploration surface", "metadata-only", "REA observed device thumbnail properties and an i8 DeviceSize property; device protocols unresolved", ("device_surface_report",)),
+    Capability("DNG/HVM runtime adapter", "provider-boundary", "REA recovered CheckRuntime, RunHVM, and GetUserString declarations; native argument semantics unresolved", ("NativeRuntimeBinding",)),
     Capability("Console signing", "provider-boundary", "public signature metadata observed; private signing material and console validity unavailable", ("sign_with_provider",)),
 )
 
