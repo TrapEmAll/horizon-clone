@@ -18,6 +18,7 @@ from work.horizon_clone import (
 )
 from work.signing import RsaPublicKey, sign_with_provider, verify_sha256_pkcs1v15
 from work.profile_model import ProfileData
+from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
 
 
 class ContainerInspectionTests(unittest.TestCase):
@@ -133,6 +134,17 @@ class ContainerInspectionTests(unittest.TestCase):
             favorite=True,
         )
         self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
+
+    def test_editor_registry_dispatches_xdbf_plugins(self):
+        registry = default_registry()
+        plugin = registry.resolve(EditorContext(filename="profile.gpd"), b"XDBF\x00")
+        self.assertIsInstance(plugin, XdbfEditor)
+        self.assertEqual(registry.names(), ("XDBF/GPD editor",))
+        with self.assertRaises(ValueError):
+            registry.register(XdbfEditor())
+
+        custom = EditorRegistry()
+        self.assertIsNone(custom.resolve(EditorContext(), b"NOPE"))
 
     def test_mutates_fixed_width_stfs_metadata(self):
         path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
