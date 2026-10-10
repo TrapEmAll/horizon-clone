@@ -137,9 +137,9 @@ for DLLs, persist keys, or claim the native algorithm, key format, or output
 semantics.
 
 `LzoBinding` models the four recovered LZO declarations and their `i4&`
-output-length argument. It requires an explicit provider and does not load
-`lzo.dll` or claim that a particular provider reproduces Horizon's codec
-configuration.
+output-length argument. The opt-in `CtypesLzoProvider` can bind an absolute
+caller-supplied `lzo.dll` path to those exports. It does not search for DLLs or
+claim that a particular provider reproduces Horizon's codec configuration.
 
 `LzoCodec` now adds a high-level validated buffer bridge over that binding. It
 does not select a provider, infer work-memory requirements, or claim that an
