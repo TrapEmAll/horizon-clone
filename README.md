@@ -85,6 +85,7 @@ python -m work.horizon_clone C:\path\to\container --list
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
+python -m work.horizon_clone C:\path\to\container --security
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place --backup original.con
