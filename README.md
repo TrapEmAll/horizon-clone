@@ -64,6 +64,9 @@ copied implementation code.
 - Provides `NativeSaveBinding`, an explicit provider-only model of the
   recovered `RtsSaveDecrypt`/`RtsSaveEncrypt` signatures; it does not load
   `class3.dll` or infer the save-crypto protocol.
+- Provides `AccountCodec`, an explicit bridge for opaque STFS `Account`
+  payloads once an authorized class3-compatible provider and key are supplied;
+  it does not store keys or claim Account serialization semantics.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Tracks the REA-observed managed-resource surface as 206 metadata records,
