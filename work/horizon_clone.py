@@ -1158,10 +1158,16 @@ def summarize_profile_achievements(
 
     per_file: list[dict[str, object]] = []
     total_entries = total_gamerscore = nonzero_flags = 0
+    unlock_times: list[int] = []
     for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
         achievements = [item.achievement for item in xdbf_entries if item.achievement is not None]
         file_score = sum(int(item.get("gamerscore", 0)) for item in achievements)
         file_flags = sum(bool(item.get("flags", 0)) for item in achievements)
+        unlock_times.extend(
+            int(item["unlock_time_filetime"])
+            for item in achievements
+            if item.get("unlock_time_filetime")
+        )
         per_file.append({
             "file": file_entry.path,
             "achievement_count": len(achievements),
@@ -1173,6 +1179,8 @@ def summarize_profile_achievements(
         nonzero_flags += file_flags
     gpd_count = sum(Path(item["file"]).suffix.lower() == ".gpd" for item in per_file)
     fit_count = sum(Path(item["file"]).suffix.lower() == ".fit" for item in per_file)
+    earliest_unlock = min(unlock_times) if unlock_times else None
+    latest_unlock = max(unlock_times) if unlock_times else None
     return {
         "gpd_count": gpd_count,
         "fit_count": fit_count,
@@ -1180,6 +1188,11 @@ def summarize_profile_achievements(
         "achievement_entry_count": total_entries,
         "gamerscore_total": total_gamerscore,
         "nonzero_flags_count": nonzero_flags,
+        "unlock_time_count": len(unlock_times),
+        "earliest_unlock_time_filetime": earliest_unlock,
+        "earliest_unlock_time_utc": filetime_to_utc(earliest_unlock) if earliest_unlock is not None else None,
+        "latest_unlock_time_filetime": latest_unlock,
+        "latest_unlock_time_utc": filetime_to_utc(latest_unlock) if latest_unlock is not None else None,
         "flag_semantics": "raw nonzero flag count; bit meanings are not inferred",
         "by_gpd": per_file,
     }
