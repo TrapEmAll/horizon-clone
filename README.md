@@ -20,6 +20,9 @@ copied implementation code.
 - Provides a registry/plugin boundary for title-specific package editors.
 - Provides a functional XDBF/GPD editor plugin API for inspection, entry
   replacement, bounded repacking, and observed achievement edits.
+- Exposes REA-observed Skyrim enum member names for Shouts, Perks, and Magic;
+  numeric values and save offsets remain intentionally unclaimed until fixture
+  evidence establishes them.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
