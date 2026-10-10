@@ -89,7 +89,7 @@ from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, ge
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
 from work.resource_inventory import classify_resource_payload, extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
-from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
+from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory, rea_feature_ledger
 from work.anti_analysis import anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
@@ -245,6 +245,12 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "export_achievement_links"))
         self.assertTrue(hasattr(HorizonApp, "extract_achievement_images"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
+
+    def test_rea_feature_ledger_preserves_observed_boundaries(self):
+        ledger = rea_feature_ledger()
+        self.assertEqual(ledger["observed"]["managed_types"], 7693)
+        self.assertEqual(len(ledger["observed"]["profile_data_fields"]), 6)
+        self.assertIn("Account type and Horizon Account serializer", " ".join(ledger["unresolved"]))
 
     def test_device_inventory_is_read_only_and_explicitly_bounded(self):
         report = device_inventory_report()
