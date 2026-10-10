@@ -117,6 +117,9 @@ copied implementation code.
 - Provides `CommandAccountKeyProvider` for an explicit absolute helper path;
   it exchanges one JSON request over stdin/stdout without shell invocation or
   local key storage.
+- Supports explicit raw Account decryption through `--account-decrypt`, a
+  caller-selected x86 `class3.dll`, and a nonpersistent key-vault helper;
+  native crypto is never loaded implicitly.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
