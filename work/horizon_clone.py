@@ -25,6 +25,17 @@ from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
 
 
+def _atomic_replace_bytes(path: Path, data: bytes) -> None:
+    """Replace a file through a same-directory temporary artifact."""
+
+    temporary = path.with_name(path.name + ".horizon-tmp")
+    try:
+        temporary.write_bytes(data)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 MAGIC = b"CON "
 STFS_MAGICS = {b"CON ", b"LIVE", b"PIRS"}
 BLOCK_SIZE = 0x1000
@@ -1548,16 +1559,11 @@ def main() -> int:
 
     def write_mutation(data: bytes) -> None:
         if not args.in_place:
-            write_target.write_bytes(data)
+            _atomic_replace_bytes(write_target, data)
             return
         if args.backup:
-            args.backup.write_bytes(args.path.read_bytes())
-        temporary = Path(str(args.path) + ".horizon-tmp")
-        try:
-            temporary.write_bytes(data)
-            temporary.replace(args.path)
-        finally:
-            temporary.unlink(missing_ok=True)
+            _atomic_replace_bytes(args.backup, args.path.read_bytes())
+        _atomic_replace_bytes(args.path, data)
 
     try:
         raw = args.path.read_bytes()
