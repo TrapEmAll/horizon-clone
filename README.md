@@ -23,8 +23,8 @@ copied implementation code.
   parsed achievement payloads in the supplied fixture.
 - Provides a library API for enumerating parseable XDBF payloads embedded in STFS GPD files.
 - Provides a normalized library API for enumerating observed achievements across embedded GPDs.
-- Provides aggregate profile achievement counts, raw gamerscore totals, and
-  explicitly unlabeled nonzero-flag counts through the library and
+- Provides aggregate profile achievement counts, raw gamerscore totals, observed
+  unlock-time coverage/bounds, and explicitly unlabeled nonzero-flag counts through the library and
   `--profile-summary` CLI option.
 - Exposes the same profile summary export from the desktop front end.
 - Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
