@@ -104,6 +104,9 @@ copied implementation code.
 - Inspects STFS public certificate descriptors, package-signature digests, and
   all 16 license slots, and reports the stored metadata-header SHA-1 match
   without claiming RSA signature validity.
+- Extracts the public RSA modulus/exponent from CON certificates through the
+  library and `--public-key` CLI option; signed-region verification remains
+  intentionally unclaimed.
 - Exposes observed XDBF achievement editing from the desktop front end,
   including gamerscore, flags, and bounded name changes.
 - Reads an exported REA managed-members evidence bundle and exposes a filtered
