@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tkinter as tk
+from dataclasses import asdict
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -459,7 +460,9 @@ class HorizonApp(tk.Tk):
         target = filedialog.asksaveasfilename(defaultextension=".json", filetypes=(("JSON", "*.json"),))
         if not target:
             return
-        Path(target).write_text(json.dumps(self._report, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+        report = asdict(self._report)
+        report["is_container"] = self._report.is_container
+        Path(target).write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def main() -> int:
