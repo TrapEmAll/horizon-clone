@@ -136,6 +136,21 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
     return tuple(result)
 
 
+def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: bytes) -> bytes:
+    """Replace an XDBF payload without changing its table allocation."""
+    if len(replacement) != entry.length:
+        raise ValueError(
+            f"replacement size {len(replacement)} does not match XDBF entry size {entry.length}"
+        )
+    start = entry.data_offset
+    end = start + entry.length
+    if start < 0 or end > len(data):
+        raise ValueError("XDBF entry points beyond the file")
+    result = bytearray(data)
+    result[start:end] = replacement
+    return bytes(result)
+
+
 def _u16be(data: bytes, offset: int) -> int:
     return int.from_bytes(data[offset : offset + 2], "big")
 
