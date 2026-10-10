@@ -45,7 +45,7 @@ from work.signing import (
     verify_sha256_pkcs1v15,
 )
 from work.profile_model import ProfileData
-from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
+from work.editors import EditorContext, EditorRegistry, ManagedSurfaceEditor, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids
@@ -1099,7 +1099,11 @@ class ContainerInspectionTests(unittest.TestCase):
         registry = default_registry()
         plugin = registry.resolve(EditorContext(filename="profile.gpd"), b"XDBF\x00")
         self.assertIsInstance(plugin, XdbfEditor)
-        self.assertEqual(registry.names(), ("XDBF/GPD editor",))
+        self.assertEqual(registry.names(), ("XDBF/GPD editor", "REA managed surface"))
+        managed = json.dumps({"records": [{"operation": "inspect_managed_members", "normalized_result": {"artifact": {}, "types": [], "fields": [], "methods": []}}]}).encode()
+        managed_plugin = registry.resolve(EditorContext(filename="rea.json"), managed)
+        self.assertIsInstance(managed_plugin, ManagedSurfaceEditor)
+        self.assertEqual(managed_plugin.inspect(EditorContext(), managed)["status"], "observed-only")
         with self.assertRaises(ValueError):
             registry.register(XdbfEditor())
 
