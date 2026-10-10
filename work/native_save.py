@@ -9,9 +9,12 @@ not interpret or persist key material.
 from __future__ import annotations
 
 import ctypes
+import base64
+import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from .native_loader import require_compatible_pe_architecture
+from .native_loader import compatible_pe_architecture, require_compatible_pe_architecture
 from typing import Protocol
 
 
@@ -113,6 +116,104 @@ class CtypesNativeSaveProvider:
         destination = self._output(output_buffer)
         key_buffer = self._bytes(key)
         return int(self._encrypt(source, destination, input_length, key_buffer))
+
+
+class PowerShellNativeSaveProvider:
+    """Bridge the x86 class3.dll through an explicit 32-bit host.
+
+    The adapter preserves the observed raw return values and decrypt output
+    length. It does not infer key size, ciphertext format, or Account schema.
+    """
+
+    def __init__(self, dll_path: str | Path, powershell_path: str | Path | None = None, timeout: float = 30.0) -> None:
+        path = Path(dll_path)
+        if not path.is_absolute():
+            raise ValueError("class3.dll path must be absolute")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        architecture, _ = compatible_pe_architecture(path)
+        if architecture != "x86":
+            raise OSError(f"class3.dll must be x86 for the 32-bit host, got {architecture}")
+        host = Path(powershell_path) if powershell_path else Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not host.is_file():
+            raise FileNotFoundError(host)
+        self.path = path
+        self.powershell_path = host
+        self.timeout = timeout
+        self.architecture = architecture
+
+    def _invoke(self, operation: str, input_buffer: bytes, output_buffer: bytearray, input_length: int, key: bytes, output_length: int | None = None) -> tuple[int, int, bytes]:
+        if operation not in {"RtsSaveEncrypt", "RtsSaveDecrypt"}:
+            raise ValueError(f"unknown class3 operation: {operation}")
+        if not input_buffer or not key or not output_buffer:
+            raise ValueError("class3 buffers and key must be non-empty")
+        if not 0 <= input_length <= len(input_buffer):
+            raise ValueError("input_length exceeds input buffer")
+        if output_length is None:
+            output_length = len(output_buffer)
+        if not 0 <= output_length <= len(output_buffer):
+            raise ValueError("output_length exceeds output buffer")
+        path_literal = str(self.path).replace('"', '""')
+        code = f'''using System; using System.Runtime.InteropServices; public static class HorizonClass3Host {{
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.StdCall)] public static extern int RtsSaveEncrypt(byte[] s,byte[] d,uint sl,byte[] k);
+ [DllImport(@"{path_literal}", CallingConvention=CallingConvention.StdCall)] public static extern int RtsSaveDecrypt(byte[] s,ref uint ol,byte[] d,uint sl,byte[] k); }}'''
+        script = """
+$ErrorActionPreference = 'Stop'
+$code = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__CODE__'))
+Add-Type -TypeDefinition $code
+$request = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$source = [Convert]::FromBase64String($request.source)
+$key = [Convert]::FromBase64String($request.key)
+$destination = New-Object byte[] $request.capacity
+$length = [uint32]$request.output_length
+if ($request.operation -eq 'RtsSaveEncrypt') {
+  $result = [HorizonClass3Host]::RtsSaveEncrypt($source, $destination, [uint32]$request.input_length, $key)
+} else {
+  $result = [HorizonClass3Host]::RtsSaveDecrypt($source, [ref]$length, $destination, [uint32]$request.input_length, $key)
+}
+if ($length -gt $destination.Length) { throw 'native class3 returned an invalid output length' }
+[pscustomobject]@{ result = $result; length = $length; output = [Convert]::ToBase64String($destination) } | ConvertTo-Json -Compress
+"""
+        script = script.replace("__CODE__", base64.b64encode(code.encode("utf-8")).decode("ascii"))
+        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+        completed = subprocess.run(
+            [str(self.powershell_path), "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            input=json.dumps({
+                "operation": operation,
+                "source": base64.b64encode(input_buffer[:input_length]).decode("ascii"),
+                "key": base64.b64encode(key).decode("ascii"),
+                "capacity": len(output_buffer),
+                "input_length": input_length,
+                "output_length": output_length,
+            }),
+            capture_output=True,
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        if completed.returncode:
+            detail = " | ".join(part for part in (completed.stderr.strip(), completed.stdout.strip()) if part)
+            raise OSError(f"32-bit class3 provider failed: {detail}")
+        try:
+            result = json.loads(completed.stdout.strip().splitlines()[-1])
+            status = int(result["result"])
+            native_length = int(result["length"])
+            output = base64.b64decode(result["output"], validate=True)
+        except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError, base64.binascii.Error) as exc:
+            raise OSError("32-bit class3 provider returned malformed output") from exc
+        if len(output) != len(output_buffer) or native_length > len(output_buffer):
+            raise OSError("32-bit class3 provider returned an invalid output buffer")
+        output_buffer[:] = output
+        return status, native_length, output
+
+    def rts_save_decrypt(self, input_buffer: bytes, output_length: UInt32Ref, output_buffer: bytearray, input_length: int, key: bytes) -> int:
+        status, native_length, _ = self._invoke("RtsSaveDecrypt", input_buffer, output_buffer, input_length, key, output_length.value)
+        output_length.value = native_length
+        return status
+
+    def rts_save_encrypt(self, input_buffer: bytes, output_buffer: bytearray, input_length: int, key: bytes) -> int:
+        status, _native_length, _ = self._invoke("RtsSaveEncrypt", input_buffer, output_buffer, input_length, key)
+        return status
 
 
 @dataclass(frozen=True)
