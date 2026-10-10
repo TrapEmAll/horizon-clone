@@ -70,6 +70,21 @@ class LocalRsaSha256Signer:
         return pow(int.from_bytes(encoded, "big"), self.key.private_exponent, self.key.modulus).to_bytes(size, "big")
 
 
+@dataclass(frozen=True)
+class LocalRsaSha1Signer:
+    """Sign SHA-1 PKCS#1 v1.5 bytes with an explicitly supplied key."""
+
+    key: RsaPrivateKey
+
+    def sign_sha1(self, message: bytes) -> bytes:
+        digest_info = SHA1_DIGEST_INFO_PREFIX + hashlib.sha1(message).digest()
+        size = (self.key.modulus.bit_length() + 7) // 8
+        if len(digest_info) + 11 > size:
+            raise ValueError("RSA modulus is too short for SHA-1 PKCS#1 v1.5")
+        encoded = b"\x00\x01" + b"\xff" * (size - len(digest_info) - 3) + b"\x00" + digest_info
+        return pow(int.from_bytes(encoded, "big"), self.key.private_exponent, self.key.modulus).to_bytes(size, "big")
+
+
 def verify_sha256_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
     """Verify a detached SHA-256 RSA PKCS#1 v1.5 signature."""
     return _verify_pkcs1v15(message, signature, key, hashlib.sha256, SHA256_DIGEST_INFO_PREFIX)
