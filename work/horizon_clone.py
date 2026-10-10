@@ -1196,6 +1196,7 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
     parser.add_argument("--list-achievements", action="store_true", help="List observed achievements from embedded GPD files")
+    parser.add_argument("--achievements-output", type=Path, help="Write embedded achievement records as JSON")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
@@ -1241,6 +1242,8 @@ def main() -> int:
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
     parser.add_argument("--achievement-name")
     args = parser.parse_args()
+    if args.achievements_output:
+        args.list_achievements = True
     if args.write and args.in_place:
         parser.error("--write and --in-place cannot be combined")
     if args.backup and not args.in_place:
@@ -1410,17 +1413,32 @@ def main() -> int:
     if args.list_achievements:
         if not report.stfs_header:
             parser.error("--list-achievements requires a readable STFS header")
+        achievement_records = []
         for file_entry, xdbf_entries in list_embedded_xdbf(raw, report.stfs_header):
             for xdbf_entry in xdbf_entries:
                 achievement = xdbf_entry.achievement
                 if achievement is None:
                     continue
+                achievement_records.append(
+                    {
+                        "file": file_entry.path,
+                        "index": xdbf_entry.index,
+                        "namespace": xdbf_entry.namespace,
+                        "entry_id": xdbf_entry.entry_id,
+                        "achievement": achievement,
+                    }
+                )
                 safe_name = str(achievement.get("name", "")).encode("ascii", errors="backslashreplace").decode("ascii")
                 print(
                     f"{file_entry.path} {xdbf_entry.index:>6} id=0x{xdbf_entry.entry_id:X} "
                     f"achievement_id={achievement['achievement_id']} image_id={achievement['image_id']} "
                     f"gamerscore={achievement['gamerscore']} flags=0x{achievement['flags']:X} {safe_name}"
                 )
+        if args.achievements_output:
+            args.achievements_output.write_text(
+                json.dumps(achievement_records, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
     if args.extract_dir:
         written = extract_stfs(raw, args.extract_dir, selected_path=args.extract)
         print(f"Extracted {len(written)} file(s) to {args.extract_dir}")
