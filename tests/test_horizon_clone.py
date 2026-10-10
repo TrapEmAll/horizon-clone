@@ -92,6 +92,7 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_desktop_exposes_bulk_gpd_summary_export(self):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
+        self.assertTrue(hasattr(HorizonApp, "export_profile_summary"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
 
     def test_device_inventory_is_read_only_and_explicitly_bounded(self):
