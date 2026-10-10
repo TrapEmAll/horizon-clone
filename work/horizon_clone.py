@@ -1674,6 +1674,7 @@ def main() -> int:
     parser.add_argument("--editor-edit-output", type=Path, metavar="FILE", help="Output path for --editor-edit-values")
     parser.add_argument("--verify-detached-signature", type=Path, metavar="SIGNATURE", help="Verify a detached development signature over the input bytes")
     parser.add_argument("--sign-detached-signature", type=Path, metavar="SIGNATURE", help="Sign the input bytes with an explicit development RSA private key")
+    parser.add_argument("--sign-written-output", type=Path, metavar="SIGNATURE", help="After a mutation, sign the exact bytes written by --write or --in-place")
     parser.add_argument("--verify-embedded-signature", action="store_true", help="Verify an explicitly bounded in-container RSA signature")
     parser.add_argument("--signed-start", type=lambda value: int(value, 0), help="Start offset for --verify-embedded-signature")
     parser.add_argument("--signed-end", type=lambda value: int(value, 0), help="Exclusive end offset for --verify-embedded-signature")
@@ -1938,6 +1939,13 @@ def main() -> int:
     if args.backup and args.backup.resolve() == args.path.resolve():
         parser.error("--backup must be different from the input path")
     write_target = args.path if args.in_place else args.write
+    if args.sign_written_output:
+        if not write_target:
+            parser.error("--sign-written-output requires --write or --in-place")
+        if not args.signature_label or not args.private_key_json:
+            parser.error("--sign-written-output requires --signature-label and --private-key-json")
+        if args.signature_algorithm != "RSA-SHA256-PKCS1v1.5":
+            parser.error("--sign-written-output currently supports RSA-SHA256-PKCS1v1.5 only")
     mutation_written = False
 
     def write_mutation(data: bytes) -> None:
@@ -1945,10 +1953,13 @@ def main() -> int:
             validate_stfs_mutation(data)
         if not args.in_place:
             _atomic_replace_bytes(write_target, data)
-            return
-        if args.backup:
-            _atomic_replace_bytes(args.backup, args.path.read_bytes())
-        _atomic_replace_bytes(args.path, data)
+        else:
+            if args.backup:
+                _atomic_replace_bytes(args.backup, args.path.read_bytes())
+            _atomic_replace_bytes(args.path, data)
+        if args.sign_written_output:
+            result = sign_detached_signature(write_target, args.sign_written_output, args.signature_label, args.private_key_json)
+            print(json.dumps({"written_signature": result}, indent=2))
 
     try:
         raw = args.path.read_bytes()
