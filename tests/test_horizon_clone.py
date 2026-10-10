@@ -55,7 +55,7 @@ from work.skyrim_catalog import enum_member_names, enum_member_values, observed_
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids, resolve_gears_entry_id, validate_gears_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
-from work.resource_inventory import observed_resource_surface
+from work.resource_inventory import observed_resource_surface, resource_surface_report
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
@@ -1176,6 +1176,29 @@ class ContainerInspectionTests(unittest.TestCase):
             check=True,
         )
         self.assertEqual(json.loads(result.stdout)["resource_count"], 205)
+
+    def test_queries_exported_resource_inventory_without_copying_payloads(self):
+        path = self.fixture_dir / "resource-bundle.json"
+        path.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_artifact",
+                "evidence_id": "ev-resource",
+                "normalized_result": {
+                    "artifact": {"path": "Horizon.exe"},
+                    "coverage": {"state": "partial"},
+                    "resources": [
+                        {"name": "A.ui.resources", "declared_offset": 4, "data_length": 8, "data_sha256": "abc", "embedded": True, "visibility": "public"},
+                        {"name": "A.other.resources", "declared_offset": 12, "data_length": 3, "data_sha256": "def", "embedded": True, "visibility": "private"},
+                    ],
+                },
+            }],
+        }), encoding="utf-8")
+        try:
+            report = resource_surface_report(path, "ui")
+        finally:
+            path.unlink(missing_ok=True)
+        self.assertEqual(report["counts"], {"matched": 1, "total": 2})
+        self.assertEqual(report["resources"][0]["data_sha256"], "abc")
 
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
