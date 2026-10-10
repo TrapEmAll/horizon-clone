@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import base64
+import json
+import subprocess
+from pathlib import Path
 from typing import Protocol
 
 from .native_save import NativeSaveBinding, UInt32Ref
@@ -23,6 +27,46 @@ class AccountKeyProvider(Protocol):
 
 class AccountKeyProviderUnavailable(RuntimeError):
     """Raised when an Account operation has no explicit key provider."""
+
+
+class CommandAccountKeyProvider:
+    """Call a caller-selected key-vault helper without persisting key material.
+
+    The helper receives one JSON request on stdin and must return
+    ``{"key_base64": "..."}`` on stdout.  No shell is used and the helper path
+    must be absolute.
+    """
+
+    def __init__(self, executable: str | Path, timeout: float = 30.0) -> None:
+        path = Path(executable)
+        if not path.is_absolute():
+            raise ValueError("key-vault helper path must be absolute")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        self.executable = path
+        self.timeout = timeout
+
+    def get_account_key(self, operation: str, payload_sha256: str) -> bytes:
+        if operation not in {"decrypt", "encrypt"}:
+            raise ValueError("unsupported Account key operation")
+        completed = subprocess.run(
+            [str(self.executable)],
+            input=json.dumps({"operation": operation, "payload_sha256": payload_sha256}),
+            capture_output=True,
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        if completed.returncode:
+            raise OSError("key-vault helper failed")
+        try:
+            result = json.loads(completed.stdout)
+            key = base64.b64decode(result["key_base64"], validate=True)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError, base64.binascii.Error) as exc:
+            raise ValueError("key-vault helper returned malformed key JSON") from exc
+        if not key:
+            raise ValueError("key-vault helper returned an empty key")
+        return key
 
 
 @dataclass(frozen=True)
