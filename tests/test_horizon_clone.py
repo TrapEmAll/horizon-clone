@@ -43,6 +43,8 @@ from work.horizon_clone import (
     sign_detached_bytes,
     parse_stfs_thumbnails,
     parse_xdbf,
+    filetime_to_utc,
+    utc_to_filetime,
     xdbf_payload_surface,
     read_stfs_entry,
     verify_stfs_hashes,
@@ -796,6 +798,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(achievement.achievement["gamerscore"], 10)
         self.assertEqual(achievement.achievement["flags"], 0x12)
         self.assertEqual(achievement.achievement["unlock_time_filetime"], 0x01DB50E713A9BC80)
+        self.assertEqual(achievement.achievement["unlock_time_utc"], "2024-12-18T00:52:13.512000Z")
         self.assertEqual(achievement.achievement["name"], "100K Club")
         changed = mutate_xdbf_achievement(
             read_stfs_entry(data, entry, header),
@@ -804,6 +807,14 @@ class ContainerInspectionTests(unittest.TestCase):
         )
         changed_entry = next(item for item in parse_xdbf(changed) if item.index == achievement.index)
         self.assertEqual(changed_entry.achievement["unlock_time_filetime"], 0x01DB50E713A9BC81)
+        self.assertEqual(utc_to_filetime(filetime_to_utc(0x01DB50E713A9BC80)), 0x01DB50E713A9BC80)
+        utc_changed = mutate_xdbf_achievement(
+            read_stfs_entry(data, entry, header),
+            achievement.index,
+            unlock_time_utc="2024-12-18T00:52:13.512000Z",
+        )
+        utc_entry = next(item for item in parse_xdbf(utc_changed) if item.index == achievement.index)
+        self.assertEqual(utc_entry.achievement["unlock_time_filetime"], 0x01DB50E713A9BC80)
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
