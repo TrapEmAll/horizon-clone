@@ -73,6 +73,9 @@ copied implementation code.
 - Provides a `ProfileData` metadata-editor envelope with strict unsigned-64-bit,
   string, boolean, and hex-image validation; it remains metadata-only because
   the Account serializer was not present in authenticated REA evidence.
+- Provides a legacy-catalog metadata-editor envelope for the seven observed
+  title families, validating authenticated member names and signed-32-bit
+  values without inventing enum assignments or save offsets.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
