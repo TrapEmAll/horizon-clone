@@ -36,7 +36,6 @@ The retained member evidence identifies the six `Horizon.ProfileData` fields
 and their managed types. The clone exposes that contract as metadata while
 leaving the opaque Account-file serialization unresolved.
 
-
 The shared STFS report also exposes public certificate descriptors, signature
 byte digests, and all 16 license slots. It deliberately does not verify or
 forge console signatures.
@@ -53,3 +52,10 @@ IL-inspection-related metadata attributes and a `ZYXDNGuarder` type. These are
 recorded as observations only. The reconstruction does not execute Horizon,
 patch its protections, or implement anti-debugging bypasses.
 
+The retained member evidence for the same SHA-256-bound executable identifies
+three calls from the obfuscated `ZYXDNGuard` type to
+`System.Reflection.Assembly.GetExecutingAssembly`. It does not, in the
+available managed call-edge inventory, establish calls to
+`IsDebuggerPresent`, `CheckRemoteDebuggerPresent`, or an equivalent debugger
+API. Accordingly, the clone treats the guard as an anti-analysis observation,
+not as a recovered editor feature or a behavior to reproduce.
