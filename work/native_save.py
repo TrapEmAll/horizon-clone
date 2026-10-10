@@ -45,12 +45,15 @@ class NativeSaveBinding:
     def decrypt(self, input_buffer: bytes, output_length: UInt32Ref, output_buffer: bytearray, input_length: int, key: bytes) -> int:
         _validate_buffers(input_buffer, output_buffer, key)
         _validate_u32(input_length, "input_length")
+        _validate_span(input_length, len(input_buffer), "input_length")
+        _validate_span(output_length.value, len(output_buffer), "output_length")
         result = self._require().rts_save_decrypt(input_buffer, output_length, output_buffer, input_length, key)
         return _validate_i32_result(result)
 
     def encrypt(self, input_buffer: bytes, output_buffer: bytearray, input_length: int, key: bytes) -> int:
         _validate_buffers(input_buffer, output_buffer, key)
         _validate_u32(input_length, "input_length")
+        _validate_span(input_length, len(input_buffer), "input_length")
         result = self._require().rts_save_encrypt(input_buffer, output_buffer, input_length, key)
         return _validate_i32_result(result)
 
@@ -78,4 +81,9 @@ def _validate_i32_result(value: int) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or not -0x80000000 <= value <= 0x7FFFFFFF:
         raise ValueError("native save provider result must be a signed 32-bit integer")
     return value
+
+
+def _validate_span(value: int, capacity: int, name: str) -> None:
+    if value > capacity:
+        raise ValueError(f"{name} exceeds its supplied buffer")
 
