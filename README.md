@@ -167,6 +167,9 @@ copied implementation code.
   `--managed-references` with optional `--reference-pattern` filtering,
   retaining authenticated names, versions, and public-key-token metadata
   without loading or resolving dependencies.
+- Exposes `--managed-artifact` for authenticated PE/CLI identity, assembly
+  version, metadata/resource coverage, and dependency counts, preserving
+  partial REA diagnostics instead of filling gaps by inference.
 - Exposes `--native-installation DIRECTORY`, a read-only inventory of the
   observed `class3.dll`, `lzo.dll`, `Horizon.dll`, and `HVMRun64.dll` deployment
   contracts, including PE architecture and named exports; missing runtime
