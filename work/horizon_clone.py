@@ -38,6 +38,7 @@ class ContainerReport:
     magic: str
     package_kind: str
     stfs_header: StfsHeader | None
+    stfs_security: StfsSecurityMetadata | None
     entries: tuple[StfsEntry, ...]
     utf16_strings: tuple[ExtractedString, ...]
     ascii_strings: tuple[ExtractedString, ...]
@@ -91,6 +92,27 @@ class StfsThumbnails:
     title_thumbnail_size: int
     thumbnail: bytes
     title_thumbnail: bytes
+
+
+@dataclass(frozen=True)
+class StfsLicense:
+    license_id: int
+    bits: int
+    flags: int
+
+
+@dataclass(frozen=True)
+class StfsSecurityMetadata:
+    signature_kind: str
+    certificate_size: int | None
+    owner_console_id: str | None
+    owner_console_part_number: str | None
+    owner_console_type: int | None
+    public_exponent_hex: str | None
+    public_modulus_sha256: str | None
+    certificate_signature_sha256: str | None
+    package_signature_sha256: str | None
+    licenses: tuple[StfsLicense, ...]
 
 
 @dataclass(frozen=True)
@@ -317,6 +339,52 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         top_hash_table_hash=data[0x381:0x395].hex(),
         thumbnail_size=_u32be(data, 0x1712),
         title_thumbnail_size=_u32be(data, 0x1716),
+    )
+
+
+def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
+    """Inspect public certificate/signature descriptors and license slots.
+
+    The function reports hashes of signature and modulus bytes rather than
+    treating them as verifiable with this clean-room implementation. It never
+    extracts private key material or infers a console signing operation.
+    """
+    header = parse_stfs_header(data)
+    licenses: list[StfsLicense] = []
+    for index in range(16):
+        offset = 0x22C + index * 0x10
+        licenses.append(
+            StfsLicense(
+                license_id=_u64be(data, offset),
+                bits=_u32be(data, offset + 8),
+                flags=_u32be(data, offset + 12),
+            )
+        )
+    digest = lambda payload: hashlib.sha256(payload).hexdigest() if payload else None
+    if header.magic == "CON ":
+        return StfsSecurityMetadata(
+            signature_kind="console-certificate",
+            certificate_size=_u16be(data, 0x04),
+            owner_console_id=data[0x06:0x0B].hex(),
+            owner_console_part_number=_fixed_text(data, 0x0B, 0x14),
+            owner_console_type=data[0x1F],
+            public_exponent_hex=data[0x28:0x2C].hex(),
+            public_modulus_sha256=digest(data[0x2C:0xAC]),
+            certificate_signature_sha256=digest(data[0xAC:0x1AC]),
+            package_signature_sha256=digest(data[0x1AC:0x22C]),
+            licenses=tuple(licenses),
+        )
+    return StfsSecurityMetadata(
+        signature_kind="remote-package-signature",
+        certificate_size=None,
+        owner_console_id=None,
+        owner_console_part_number=None,
+        owner_console_type=None,
+        public_exponent_hex=None,
+        public_modulus_sha256=None,
+        certificate_signature_sha256=None,
+        package_signature_sha256=digest(data[0x04:0x104]),
+        licenses=tuple(licenses),
     )
 
 
@@ -1027,10 +1095,12 @@ def inspect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
         "PIRS": "Xbox 360 PIRS container",
     }.get(magic, "Unknown container")
     header = None
+    security = None
     entries: tuple[StfsEntry, ...] = ()
     if data[:4] in STFS_MAGICS:
         try:
             header = parse_stfs_header(data)
+            security = parse_stfs_security_metadata(data)
             entries = list_stfs_entries(data, header)
         except ValueError:
             # Keep the low-level report useful for damaged or partial files.
@@ -1043,6 +1113,7 @@ def inspect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
         magic=magic,
         package_kind=package_kind,
         stfs_header=header,
+        stfs_security=security,
         entries=entries,
         utf16_strings=tuple(_strings(data, "utf-16-le"))[:max_strings],
         ascii_strings=tuple(_strings(data, "ascii"))[:max_strings],
