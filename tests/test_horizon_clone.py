@@ -340,6 +340,17 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("FFFE07D1.gpd", result.stdout)
         self.assertIn("string    106", result.stdout)
 
+    def test_cli_lists_embedded_achievements(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--list-achievements"],
+            check=True, capture_output=True, text=True,
+        )
+        self.assertIn("achievement_id=", result.stdout)
+        self.assertIn("gamerscore=", result.stdout)
+
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
         if path is None or not path.exists():
