@@ -151,6 +151,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "decrypt_account"))
         self.assertTrue(hasattr(HorizonApp, "encrypt_account"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
+        self.assertTrue(hasattr(HorizonApp, "export_achievement_image"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
     def test_device_inventory_is_read_only_and_explicitly_bounded(self):
