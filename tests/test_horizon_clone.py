@@ -795,6 +795,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(metadata.signature_kind, "console-certificate")
         self.assertEqual(len(metadata.licenses), 16)
         self.assertIsNotNone(metadata.package_signature_sha256)
+        self.assertTrue(metadata.header_sha1_matches)
+        self.assertEqual(len(metadata.header_sha1), 40)
         self.assertIsNotNone(metadata.public_modulus_sha256)
 
     def test_repacks_entry_with_a_different_size(self):
