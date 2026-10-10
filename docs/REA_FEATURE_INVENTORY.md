@@ -65,6 +65,11 @@ plus `get_DeviceSize`/`set_DeviceSize` with an `i8` value. These declarations
 are now available through `--device-surface`; device enumeration, FATX/USB
 behavior, and IOCTL semantics remain unresolved.
 
+`NativeRuntimeBinding` provides the recovered `CheckRuntime`, `RunHVM`, and
+`GetUserString` calls as an explicit provider boundary. No provider is bundled;
+the binding refuses implicit DLL loading and preserves the unresolved native
+argument semantics.
+
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
