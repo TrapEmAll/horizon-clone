@@ -23,6 +23,8 @@ copied implementation code.
   authorized local test or development keys.
 - Exposes STFS hash verification and same-size replacement from the desktop
   front end with explicit unsigned-mutation status.
+- Supports fixed-width display-name, title-ID, and content-type metadata
+  mutation through the library and CLI.
 
 RSA signing remains behind an authorized signing-provider boundary. This
 clean-room project does not contain private Xbox/Microsoft signing keys and
@@ -39,6 +41,7 @@ python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
+python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile" --write renamed.con
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
 python -m work.horizon_app
 ```
