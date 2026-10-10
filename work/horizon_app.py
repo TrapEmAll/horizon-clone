@@ -14,6 +14,7 @@ from .horizon_clone import (
     inspect,
     list_embedded_achievements,
     list_embedded_achievement_image_links,
+    extract_embedded_achievement_images,
     list_embedded_xdbf,
     summarize_embedded_xdbf,
     summarize_profile_achievements,
@@ -101,6 +102,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievement links", command=self.export_achievement_links).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Extract achievement images", command=self.extract_achievement_images).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export profile summary", command=self.export_profile_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export title catalog", command=self.export_title_catalog).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Extract managed resources", command=self.extract_managed_resources).pack(side=tk.LEFT, padx=(8, 0))
@@ -1003,6 +1005,20 @@ class HorizonApp(tk.Tk):
             })
         except (OSError, ValueError, LookupError, IsADirectoryError) as exc:
             messagebox.showerror("Achievement link export failed", str(exc))
+
+    def extract_achievement_images(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Achievement images", "Open a readable STFS profile first.")
+            return
+        output_dir = filedialog.askdirectory(title="Choose achievement image output directory")
+        if not output_dir:
+            return
+        try:
+            result = extract_embedded_achievement_images(self._data, output_dir, self._report.stfs_header)
+            self.status.configure(text=f"Extracted {result['unique_images']} unique achievement images")
+            self._set_details(result)
+        except (OSError, ValueError, LookupError, IsADirectoryError) as exc:
+            messagebox.showerror("Achievement image extraction failed", str(exc))
 
     def export_profile_summary(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
