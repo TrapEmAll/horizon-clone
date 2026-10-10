@@ -57,6 +57,16 @@ _GLOBAL_TYPES = (
     ObservedGlobalType("Weapon", 38),
 )
 
+_OBSERVED_CONSTANT_VALUES = {
+    "XGearSlot": {
+        "Null": 0,
+        "Hat": 10,
+        "Shirt": 11,
+        "Boots": 12,
+        "Pants": 13,
+    },
+}
+
 
 def observed_global_types() -> tuple[ObservedGlobalType, ...]:
     """Return the authenticated subset without deduplicating metadata rows."""
@@ -74,12 +84,13 @@ def global_catalog_report() -> dict[str, object]:
         "observed_namespace_field_count": 8549,
         "observed_namespace_method_count": 2225,
         "reported_rows": [asdict(item) for item in _GLOBAL_TYPES],
-        "values_observed": False,
+        "values_observed": True,
+        "values": {name: dict(values) for name, values in _OBSERVED_CONSTANT_VALUES.items()},
         "save_layouts_observed": False,
         "limitations": [
             "The report is a selected title-facing subset of the 632 global-namespace rows.",
             "Same-named rows are distinct and must not be merged without a fixture.",
-            "Metadata enum labels do not establish numeric values or save offsets.",
+            "Only the explicitly listed Constant rows have authenticated numeric values; other labels do not establish values or save offsets.",
         ],
     }
 
