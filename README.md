@@ -58,7 +58,8 @@ copied implementation code.
 - Exposes capacity-bounded STFS file insertion from the desktop front end.
 - Reads and replaces bounded STFS thumbnail and title-thumbnail payloads.
 - Inspects STFS public certificate descriptors, package-signature digests, and
-  all 16 license slots without claiming cryptographic validity.
+  all 16 license slots, and reports the stored metadata-header SHA-1 match
+  without claiming RSA signature validity.
 - Exposes observed XDBF achievement editing from the desktop front end,
   including gamerscore, flags, and bounded name changes.
 - Supports fixed-width display-name, title-ID, and content-type metadata
