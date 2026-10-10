@@ -5,14 +5,16 @@ from __future__ import annotations
 import json
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .horizon_clone import (
     extract_stfs,
     inspect,
     mutate_stfs_entry_same_size,
+    mutate_stfs_metadata,
     parse_xdbf,
     read_stfs_entry,
+    repack_stfs_entries,
     verify_stfs_hashes,
 )
 
@@ -35,6 +37,8 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
         self.status.pack(side=tk.RIGHT)
@@ -168,6 +172,77 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Replace failed", str(exc))
+
+    def repack_selected(self) -> None:
+        """Replace a file with a different size within existing STFS capacity."""
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Repack", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Repack", "Select a file first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.is_directory:
+            messagebox.showinfo("Repack", "Directories cannot be repacked.")
+            return
+        replacement_path = filedialog.askopenfilename(title="Choose replacement bytes")
+        if not replacement_path:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save repacked container",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            replacement = Path(replacement_path).read_bytes()
+            mutated = repack_stfs_entries(
+                self._data, {entry.path: replacement}, self._report.stfs_header
+            )
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned repack: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("Repack failed", str(exc))
+
+    def edit_metadata(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Metadata", "Open a readable STFS container first.")
+            return
+        header = self._report.stfs_header
+        display_name = simpledialog.askstring(
+            "Display name", "New display name:", initialvalue=header.display_name, parent=self
+        )
+        if display_name is None:
+            return
+        title_id_text = simpledialog.askstring(
+            "Title ID", "Title ID (hex, blank to keep current):", parent=self
+        )
+        if title_id_text is None:
+            return
+        try:
+            title_id = header.title_id if not title_id_text.strip() else int(title_id_text, 16)
+            mutated = mutate_stfs_metadata(
+                self._data, display_name=display_name, title_id=title_id, header=header
+            )
+            target = filedialog.asksaveasfilename(
+                title="Save metadata edit",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text="Wrote unsigned metadata edit")
+            self._set_details({"path": target, "display_name": display_name, "title_id": title_id, "signature_checked": False})
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Metadata edit failed", str(exc))
 
     def export_report(self) -> None:
         if not self._report:
