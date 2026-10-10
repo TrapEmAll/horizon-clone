@@ -218,6 +218,59 @@ def halo_general_class_field_counts() -> dict[str, int]:
     return dict(_HALO_GENERAL_CLASS_FIELD_COUNTS)
 
 
+# A focused field-type slice retained directly from REA's managed metadata.
+# Names and ``class:N`` identities are build-local; these are not save offsets.
+_HALO_GENERAL_CLASS_FIELD_TYPES = {
+    "GameVariant": {
+        "ce88aac0dcfe45cad4e217755bdd9365a": "string",
+        "c7a62e9b2608ab1560f963117c637c401": "i4",
+        "cfdc3d519a20a58cb100dd06a79fc138": "class:3044",
+    },
+    "Halo4GameOptionsMisc": {
+        "c928ae96207762f5a07ffd5a0795dcaf1": "bool",
+        "c819318087bb2c0268d67222922b9e179": "bool",
+        "c378acbf5bbfcb0f684ee0c79b6a1199a": "bool",
+        "c25c0c6b5aff0305fe12d6c8f37d99d61": "u1",
+        "c4a3517c5d61b22390c186bbf0f52b3a0": "bool",
+        "ca5eb8b2399a9a8c5cf4d73c9926c9cf9": "bool",
+        "c99cbc068b89d5175775a90580927676a": "u1",
+    },
+    "Halo4GameOptionsRespawning": {
+        "c77067ba6fa65dca76a5ea98cb35446d4": "bool",
+        "c832d9843dd5970e0fbca0eed500ed769": "u1",
+        "c95dc68d58a6d29c24412b7a74d28db25": "u1",
+    },
+    "Halo4PlayerTraitsWeapons": {
+        "c73f9ad3e7af2f8729f50931f5a1d614e": "class:3108",
+        "c7c55dd1a08a519730bff163329a752bc": "u1",
+        "c40708ad8680929a477cdb1020e22f971": "u1",
+        "c04778752c608fd16846ba02bf8993d4b": "u1",
+        "c1860d863b3e0c7c407f00cfcae79703c": "u1",
+        "ced4556e35c5f363d8c53d736193fe0f6": "u1",
+        "ca6ffb8169266bae08f694081cec5baa6": "u1",
+        "c8a04485b7cf2024666d80123e914ea91": "u1",
+        "c0345cf0a1c172bb75d26b9568cb6a7fd": "i1",
+        "cf9f8f95f0f5c81fc8d49dab723ee249a": "i1",
+        "c9629f52a61da38fc3f4baea4bf864aca": "i1",
+        "cf5cd068cd36e9069581d7123c72583c9": "i1",
+        "c38246536722914cb66943b06ce6b3350": "i1",
+        "c89e897ad7021eb480ff91c3e8f2b1422": "i1",
+        "c1d74bc1db977cc829718fb3f3da6667f": "i1",
+        "cc37bdeb39e4dc11a19c1d07dd151e10": "i1",
+    },
+}
+
+
+def halo_general_class_field_types(type_name: str | None = None) -> dict[str, object]:
+    """Return the selected REA-observed managed field-type slice."""
+
+    if type_name is None:
+        return {name: dict(fields) for name, fields in _HALO_GENERAL_CLASS_FIELD_TYPES.items()}
+    if type_name not in _HALO_GENERAL_CLASS_FIELD_TYPES:
+        raise KeyError(f"unknown observed Halo field-type slice: {type_name}")
+    return dict(_HALO_GENERAL_CLASS_FIELD_TYPES[type_name])
+
+
 def halo_general_class_method_summary() -> dict[str, object]:
     """Return aggregate method evidence retained for Halo general classes."""
 
