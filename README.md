@@ -117,6 +117,9 @@ copied implementation code.
 - Exposes the complete 54-row REA managed P/Invoke inventory through
   `--native-import-bundle`, including import scopes, names, calling metadata,
   and declaration-only verification state.
+- Exposes joined type-centric managed editor schemas through
+  `--managed-schema` and `--schema-pattern`, linking every matched observed
+  type to its fields and methods without inferring save offsets or serializers.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
