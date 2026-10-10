@@ -71,7 +71,7 @@ from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
-from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
+from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
 from work.account_codec import AccountCodec
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
 from work.native_loader import compatible_pe_architecture, pe_export_names
@@ -1273,6 +1273,17 @@ class ContainerInspectionTests(unittest.TestCase):
             CtypesNativeSaveProvider("class3.dll")
         with self.assertRaises(FileNotFoundError):
             CtypesNativeSaveProvider("C:\\does-not-exist\\class3.dll")
+
+    def test_x86_powershell_class3_provider_preserves_raw_encrypt_boundary(self):
+        dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\class3.dll")
+        host = Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not dll.exists() or not host.exists():
+            self.skipTest("supplied x86 class3 DLL or 32-bit PowerShell host is unavailable")
+        provider = PowerShellNativeSaveProvider(dll, host)
+        output = bytearray(1024)
+        status = provider.rts_save_encrypt(b"test", output, 4, bytes(16))
+        self.assertEqual(provider.architecture, "x86")
+        self.assertIsInstance(status, int)
 
     def test_native_loader_reports_supplied_dll_architecture_without_loading_it(self):
         path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\class3.dll")
