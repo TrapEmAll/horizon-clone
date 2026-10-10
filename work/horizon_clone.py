@@ -1180,6 +1180,7 @@ def main() -> int:
         action="store_true",
         help="Overwrite the input container with a mutation (explicit destructive opt-in)",
     )
+    parser.add_argument("--backup", type=Path, help="Save the original input before --in-place mutation")
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--display-description", help="Replace the first STFS display-description locale")
     parser.add_argument("--publisher-name", help="Replace the STFS publisher name")
@@ -1204,8 +1205,25 @@ def main() -> int:
     args = parser.parse_args()
     if args.write and args.in_place:
         parser.error("--write and --in-place cannot be combined")
+    if args.backup and not args.in_place:
+        parser.error("--backup requires --in-place")
+    if args.backup and args.backup.resolve() == args.path.resolve():
+        parser.error("--backup must be different from the input path")
     write_target = args.path if args.in_place else args.write
     mutation_written = False
+
+    def write_mutation(data: bytes) -> None:
+        if not args.in_place:
+            write_target.write_bytes(data)
+            return
+        if args.backup:
+            args.backup.write_bytes(args.path.read_bytes())
+        temporary = Path(str(args.path) + ".horizon-tmp")
+        try:
+            temporary.write_bytes(data)
+            temporary.replace(args.path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     try:
         raw = args.path.read_bytes()
@@ -1244,7 +1262,7 @@ def main() -> int:
                         flags=args.achievement_flags,
                         name=args.achievement_name,
                     )
-                write_target.write_bytes(raw)
+                write_mutation(raw)
                 print(f"Wrote XDBF mutation to {write_target}")
             payload = json.dumps(_json_xdbf(raw, args.path), indent=2, ensure_ascii=False)
             if args.output:
@@ -1289,7 +1307,7 @@ def main() -> int:
         try:
             replacement = args.replacement.read_bytes()
             mutated = mutate_stfs_entry_same_size(raw, entry, replacement, report.stfs_header)
-            write_target.write_bytes(mutated)
+            write_mutation(mutated)
             mutation_written = True
         except (OSError, ValueError, IsADirectoryError) as exc:
             parser.error(str(exc))
@@ -1306,7 +1324,7 @@ def main() -> int:
                 {args.repack: args.repack_source.read_bytes()},
                 report.stfs_header,
             )
-            write_target.write_bytes(raw)
+            write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
@@ -1319,7 +1337,7 @@ def main() -> int:
             parser.error("the file does not contain a readable STFS header")
         try:
             raw = repack_stfs_entries(raw, {}, remove=args.remove, header=report.stfs_header)
-            write_target.write_bytes(raw)
+            write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
@@ -1335,7 +1353,7 @@ def main() -> int:
         try:
             additions = {path: source.read_bytes() for path, source in zip(args.add, args.add_source)}
             raw = repack_stfs_entries(raw, {}, header=report.stfs_header, additions=additions)
-            write_target.write_bytes(raw)
+            write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError, FileNotFoundError) as exc:
             parser.error(str(exc))
@@ -1370,7 +1388,7 @@ def main() -> int:
                 content_type=args.content_type,
                 header=report.stfs_header,
             )
-            write_target.write_bytes(raw)
+            write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
@@ -1389,7 +1407,7 @@ def main() -> int:
                 title_thumbnail=args.title_thumbnail_source.read_bytes() if args.title_thumbnail_source else None,
                 header=parse_stfs_header(raw),
             )
-            write_target.write_bytes(raw)
+            write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
