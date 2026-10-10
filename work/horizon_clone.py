@@ -51,6 +51,18 @@ def validate_stfs_mutation(data: bytes) -> None:
         )
 
 
+def profile_data_report(path: Path) -> dict[str, object]:
+    """Inspect an explicit REA-authenticated ProfileData JSON envelope."""
+
+    from .editors import EditorContext, ProfileDataEditor
+
+    data = path.read_bytes()
+    editor = ProfileDataEditor()
+    if not editor.can_edit(EditorContext(filename=path.name), data):
+        raise ValueError("input is not a valid profile-data envelope")
+    return editor.inspect(EditorContext(filename=path.name), data)
+
+
 MAGIC = b"CON "
 STFS_MAGICS = {b"CON ", b"LIVE", b"PIRS"}
 BLOCK_SIZE = 0x1000
@@ -1473,6 +1485,7 @@ def main() -> int:
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
+    parser.add_argument("--profile-data", action="store_true", help="Inspect an explicit ProfileData metadata envelope")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1568,6 +1581,13 @@ def main() -> int:
         return 0
     if args.catalog:
         print(json.dumps(catalog_report(args.catalog), indent=2, ensure_ascii=False))
+        return 0
+    if args.profile_data:
+        try:
+            report = profile_data_report(args.path)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
     if args.achievements_output:
         args.list_achievements = True
