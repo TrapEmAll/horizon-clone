@@ -54,7 +54,13 @@ class CtypesNativeSaveProvider:
         if loader is None:
             raise OSError("class3.dll provider requires Windows ctypes.WinDLL")
         self.path = path
-        self._dll = loader(str(path))
+        try:
+            self._dll = loader(str(path))
+        except OSError as exc:
+            raise OSError(
+                f"unable to load explicit class3.dll provider {path}; "
+                "verify that the DLL architecture matches the Python process"
+            ) from exc
         self._decrypt = self._bind("RtsSaveDecrypt", decrypt=True)
         self._encrypt = self._bind("RtsSaveEncrypt", decrypt=False)
 
