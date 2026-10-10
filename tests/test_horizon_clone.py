@@ -39,6 +39,7 @@ from work.horizon_clone import (
     parse_stfs_security_metadata,
     extract_stfs_public_key,
     read_private_key_json,
+    sign_detached_signature,
     parse_stfs_thumbnails,
     parse_xdbf,
     xdbf_payload_surface,
@@ -913,6 +914,18 @@ class ContainerInspectionTests(unittest.TestCase):
             path.unlink(missing_ok=True)
         self.assertEqual(key.modulus, 0x80)
         self.assertEqual(key.private_exponent, 3)
+
+    def test_detached_signing_rejects_overwriting_signed_input(self):
+        region = self.fixture_dir / "signed-region.bin"
+        key = self.fixture_dir / "development-private-key.json"
+        region.write_bytes(b"development bytes")
+        key.write_text(json.dumps({"modulus_hex": "80", "private_exponent_hex": "03"}), encoding="utf-8")
+        try:
+            with self.assertRaises(ValueError):
+                sign_detached_signature(region, region, "development", key)
+        finally:
+            region.unlink(missing_ok=True)
+            key.unlink(missing_ok=True)
 
     def test_sha1_verification_dispatch_is_explicit_and_fail_closed(self):
         key = RsaPublicKey(257, 3)
