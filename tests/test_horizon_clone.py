@@ -1102,6 +1102,14 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(contract["status"], "verified")
         self.assertEqual(contract["missing_exports"], [])
 
+    def test_native_loader_reports_observed_horizon_runtime_exports(self):
+        path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
+        if not path.exists():
+            self.skipTest("supplied Horizon.dll is not available")
+        contract = native_export_contract_report(path)
+        self.assertEqual(contract["status"], "verified")
+        self.assertEqual(contract["missing_exports"], [])
+
     def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
         with self.assertRaises(NativeSaveUnavailable):
             AccountCodec(NativeSaveBinding()).decrypt(b"opaque", b"dev-key", 32)
