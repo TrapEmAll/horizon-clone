@@ -203,13 +203,14 @@ def block_offset(block: int, header_size: int, block_separation: int) -> int:
     return first_hash_table + (_backing_block(block, shift) << 12)
 
 
-def _next_block(data: bytes, block: int, header: StfsHeader) -> int:
+def _hash_record_address(data: bytes, block: int, header: StfsHeader) -> int:
+    """Return the physical hash-record address for a logical data block."""
     shift = 0 if header.block_separation & 1 else 1
     if block < 0xAA:
         hash_block = 0
     else:
         step = 0xAB if shift == 0 else 0xAC
-        hash_block = (block // 0xAA) * step + ((block // 0x70E4) + 1 << shift)
+        hash_block = (block // 0xAA) * step + (((block // 0x70E4) + 1) << shift)
         if block // 0x70E4:
             hash_block += 1 << shift
     first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
@@ -230,7 +231,12 @@ def _next_block(data: bytes, block: int, header: StfsHeader) -> int:
         # only when their top-level layout is unambiguous.
         return -1
     record = address + (block % 0xAA) * 0x18
-    if record + 0x18 > len(data):
+    return record if record + 0x18 <= len(data) else -1
+
+
+def _next_block(data: bytes, block: int, header: StfsHeader) -> int:
+    record = _hash_record_address(data, block, header)
+    if record < 0:
         return -1
     next_block = int.from_bytes(data[record + 0x15 : record + 0x18], "big")
     return -1 if next_block >= 0xFFFFFE else next_block
@@ -309,6 +315,98 @@ def read_stfs_entry(data: bytes, entry: StfsEntry, header: StfsHeader | None = N
     if remaining:
         raise ValueError(f"entry {entry.path!r} has a broken block chain")
     return bytes(result)
+
+
+def mutate_stfs_entry_same_size(
+    data: bytes,
+    entry: StfsEntry,
+    replacement: bytes,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Replace one file's bytes in place and rebuild its STFS block hashes.
+
+    This deliberately preserves the existing allocation and file size.  It
+    updates data-block hashes and the metadata-header hash, but does not
+    forge the package's RSA signature.  Callers must use an authorized
+    signing provider before treating the result as console-valid.
+    """
+    header = header or parse_stfs_header(data)
+    if entry.is_directory:
+        raise IsADirectoryError(entry.path)
+    if len(replacement) != entry.size:
+        raise ValueError(
+            f"replacement size {len(replacement)} does not match entry size {entry.size}"
+        )
+
+    result = bytearray(data)
+    block = entry.first_block
+    cursor = 0
+    remaining = entry.size
+    while remaining and block >= 0:
+        address = block_offset(block, header.header_size, header.block_separation)
+        if address + BLOCK_SIZE > len(result):
+            raise ValueError(f"entry {entry.path!r} points beyond the end of the container")
+        take = min(BLOCK_SIZE, remaining)
+        result[address : address + take] = replacement[cursor : cursor + take]
+        if take < BLOCK_SIZE:
+            result[address + take : address + BLOCK_SIZE] = b"\x00" * (BLOCK_SIZE - take)
+        record = _hash_record_address(result, block, header)
+        if record < 0:
+            raise ValueError(f"entry {entry.path!r} has no addressable hash record")
+        result[record : record + 0x14] = hashlib.sha1(
+            result[address : address + BLOCK_SIZE]
+        ).digest()
+        cursor += take
+        remaining -= take
+        block = block + 1 if entry.consecutive else _next_block(result, block, header)
+    if remaining:
+        raise ValueError(f"entry {entry.path!r} has a broken block chain")
+
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
+    return bytes(result)
+
+
+def verify_stfs_hashes(
+    data: bytes,
+    entry: StfsEntry | None = None,
+    header: StfsHeader | None = None,
+) -> dict:
+    """Verify data-block and metadata-header hashes without asserting signing validity."""
+    header = header or parse_stfs_header(data)
+    entries = (entry,) if entry is not None else list_stfs_entries(data, header)
+    failures: list[dict] = []
+    checked_blocks = 0
+    for current in entries:
+        if current.is_directory:
+            continue
+        block = current.first_block
+        remaining = current.size
+        while remaining and block >= 0:
+            address = block_offset(block, header.header_size, header.block_separation)
+            record = _hash_record_address(data, block, header)
+            if address + BLOCK_SIZE > len(data) or record < 0:
+                failures.append({"entry": current.path, "block": block, "reason": "out_of_range"})
+                break
+            expected = hashlib.sha1(data[address : address + BLOCK_SIZE]).digest()
+            actual = data[record : record + 0x14]
+            checked_blocks += 1
+            if actual != expected:
+                failures.append({"entry": current.path, "block": block, "reason": "data_hash"})
+            take = min(BLOCK_SIZE, remaining)
+            remaining -= take
+            block = block + 1 if current.consecutive else _next_block(data, block, header)
+        if remaining:
+            failures.append({"entry": current.path, "block": block, "reason": "broken_chain"})
+
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    header_hash_matches = hashlib.sha1(data[0x344:first_hash_table]).digest() == data[0x32C:0x340]
+    return {
+        "checked_blocks": checked_blocks,
+        "failures": failures,
+        "header_hash_matches": header_hash_matches,
+        "signature_checked": False,
+    }
 
 
 def extract_stfs(data: bytes, output_dir: Path, *, selected_path: str | None = None) -> tuple[Path, ...]:
@@ -408,6 +506,10 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
+    parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
+    parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
+    parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
+    parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     args = parser.parse_args()
 
     try:
@@ -432,6 +534,28 @@ def main() -> int:
     if args.extract_dir:
         written = extract_stfs(raw, args.extract_dir, selected_path=args.extract)
         print(f"Extracted {len(written)} file(s) to {args.extract_dir}")
+
+    if args.verify_hashes:
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        verification = verify_stfs_hashes(raw, header=report.stfs_header)
+        print(json.dumps(verification, indent=2))
+
+    if args.replace:
+        if not args.replacement or not args.write:
+            parser.error("--replace requires both --replacement and --write")
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        entry = next((item for item in report.entries if item.path == args.replace), None)
+        if entry is None:
+            parser.error(f"STFS entry not found: {args.replace}")
+        try:
+            replacement = args.replacement.read_bytes()
+            mutated = mutate_stfs_entry_same_size(raw, entry, replacement, report.stfs_header)
+            args.write.write_bytes(mutated)
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned in-place mutation to {args.write}")
 
     payload = json.dumps(_json_report(report), indent=2, ensure_ascii=False)
     if args.output:
