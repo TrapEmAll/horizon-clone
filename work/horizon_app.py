@@ -32,6 +32,7 @@ from .horizon_clone import (
     verify_stfs_hashes,
 )
 from .editor_inventory import catalog_report
+from .editors import AccountEditor, EditorContext
 
 
 def _atomic_write_bytes(path: Path, data: bytes) -> None:
@@ -61,6 +62,7 @@ class HorizonApp(tk.Tk):
         self._report = None
         self._entries = {}
         self._standalone_xdbf = False
+        self._account_editor = AccountEditor()
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -175,7 +177,9 @@ class HorizonApp(tk.Tk):
             return
         try:
             payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
-            if payload[:4] == b"XDBF":
+            if self._account_editor.can_edit(EditorContext(filename=entry.path), payload):
+                self._set_details({"entry": entry.path, "account": self._account_editor.inspect(EditorContext(filename=entry.path), payload)})
+            elif payload[:4] == b"XDBF":
                 self._set_details({"entry": entry.path, "xdbf_entries": parse_xdbf(payload)})
             else:
                 self._set_details({"entry": entry.path, "size": len(payload), "sha256": __import__("hashlib").sha256(payload).hexdigest()})
