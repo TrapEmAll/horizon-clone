@@ -103,6 +103,11 @@ modulus/signature fields, and REA did not authenticate the signed-region
 protocol. The clone therefore deliberately does not guess a package-signature
 layout, verify, or forge console signatures.
 
+The CLI also supports `--sign-detached-signature` with a caller-owned private
+key JSON file (`modulus_hex` and `private_exponent_hex`) for authorized
+RSA-SHA256 development signatures over explicitly labeled input bytes. This
+does not infer or rewrite an Xbox package signature region.
+
 An additional retained-member audit found no authenticated Horizon-managed
 STFS entry timestamp, creation-time, or file-attribute contract. The clone
 therefore continues to expose the observed directory/name/size/block fields
