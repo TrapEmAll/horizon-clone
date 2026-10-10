@@ -1181,6 +1181,7 @@ def main() -> int:
     if args.write and args.in_place:
         parser.error("--write and --in-place cannot be combined")
     write_target = args.path if args.in_place else args.write
+    mutation_written = False
 
     try:
         raw = args.path.read_bytes()
@@ -1245,6 +1246,7 @@ def main() -> int:
             replacement = args.replacement.read_bytes()
             mutated = mutate_stfs_entry_same_size(raw, entry, replacement, report.stfs_header)
             write_target.write_bytes(mutated)
+            mutation_written = True
         except (OSError, ValueError, IsADirectoryError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned in-place mutation to {write_target}")
@@ -1261,6 +1263,7 @@ def main() -> int:
                 report.stfs_header,
             )
             write_target.write_bytes(raw)
+            mutation_written = True
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned repacked container to {write_target}")
@@ -1273,6 +1276,7 @@ def main() -> int:
         try:
             raw = repack_stfs_entries(raw, {}, remove=args.remove, header=report.stfs_header)
             write_target.write_bytes(raw)
+            mutation_written = True
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned removal mutation to {write_target}")
@@ -1288,6 +1292,7 @@ def main() -> int:
             additions = {path: source.read_bytes() for path, source in zip(args.add, args.add_source)}
             raw = repack_stfs_entries(raw, {}, header=report.stfs_header, additions=additions)
             write_target.write_bytes(raw)
+            mutation_written = True
         except (OSError, ValueError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned file addition to {write_target}")
@@ -1322,6 +1327,7 @@ def main() -> int:
                 header=report.stfs_header,
             )
             write_target.write_bytes(raw)
+            mutation_written = True
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned metadata mutation to {write_target}")
@@ -1340,10 +1346,13 @@ def main() -> int:
                 header=parse_stfs_header(raw),
             )
             write_target.write_bytes(raw)
+            mutation_written = True
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned thumbnail mutation to {write_target}")
 
+    if mutation_written:
+        report = inspect(write_target)
     payload = json.dumps(_json_report(report), indent=2, ensure_ascii=False)
     if args.output:
         args.output.write_text(payload + "\n", encoding="utf-8")
