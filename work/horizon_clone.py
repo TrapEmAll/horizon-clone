@@ -919,12 +919,19 @@ def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str,
     if len(original) != len(mutated):
         changed_total += abs(len(original) - len(mutated))
         changed_outside_signature += abs(len(original) - len(mutated))
+    hash_report = verify_stfs_hashes(mutated)
     return {
         "status": "metadata-only",
         "same_length": len(original) == len(mutated),
         "changed_bytes": changed_total,
         "changed_outside_signature_regions": changed_outside_signature,
         "stored_signature_bytes_unchanged": signature_bytes_unchanged,
+        "hash_tree": {
+            "checked_blocks": hash_report["checked_blocks"],
+            "failures": hash_report["failures"],
+            "hash_table_failures": hash_report["hash_table_failures"],
+            "verified": not hash_report["failures"] and not hash_report["hash_table_failures"],
+        },
         "original_regions": original_regions,
         "mutated_regions": mutated_regions,
         "console_validity_checked": False,
