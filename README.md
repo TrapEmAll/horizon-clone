@@ -28,8 +28,6 @@ copied implementation code.
   fixture evidence establishes them.
 - Exposes the observed six-field `Horizon.ProfileData` member contract as
   typed metadata without claiming its opaque Account-file layout.
-- Exposes all 1,139 named observed Gears of War 3 `EntryID` labels without claiming
-  numeric IDs or save-file offsets.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
