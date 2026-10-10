@@ -12,5 +12,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Compile Python modules
+        run: python -m compileall -q work tests
       - run: python -m unittest discover -s tests -v
 
