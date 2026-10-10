@@ -224,6 +224,8 @@ def sign_detached_signature(region_path: Path, signature_path: Path, label: str,
 
     if not label.strip():
         raise ValueError("signature region label cannot be empty")
+    if region_path.resolve() == signature_path.resolve():
+        raise ValueError("signature output must be different from the signed input")
     key = read_private_key_json(private_key_path)
     detached = sign_region(SignedRegion(label, region_path.read_bytes()), LocalRsaSha256Signer(key))
     _atomic_replace_bytes(signature_path, detached.signature)
@@ -1946,6 +1948,8 @@ def main() -> int:
             parser.error("--sign-written-output requires --signature-label and --private-key-json")
         if args.signature_algorithm != "RSA-SHA256-PKCS1v1.5":
             parser.error("--sign-written-output currently supports RSA-SHA256-PKCS1v1.5 only")
+        if args.sign_written_output.resolve() == write_target.resolve():
+            parser.error("--sign-written-output must be different from the written container")
     mutation_written = False
 
     def write_mutation(data: bytes) -> None:
