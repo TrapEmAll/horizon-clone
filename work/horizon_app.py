@@ -47,6 +47,7 @@ from .horizon_clone import (
     device_ioctl_report,
     decrypt_account_entry,
     encrypt_account_payload,
+    native_runtime_operation_report,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -95,6 +96,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device IOCTL", command=self.device_ioctl).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Runtime export", command=self.runtime_export).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
@@ -455,6 +457,39 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, TypeError, ValueError, RuntimeError) as exc:
             messagebox.showerror("Device IOCTL failed", str(exc))
+
+    def runtime_export(self) -> None:
+        """Invoke one explicit Horizon/HVM runtime export."""
+
+        dll = filedialog.askopenfilename(
+            title="Choose Horizon/HVM runtime DLL",
+            filetypes=(("Dynamic library", "*.dll"), ("All files", "*.*")),
+        )
+        if not dll:
+            return
+        operation = simpledialog.askstring(
+            "Runtime operation",
+            "Operation (check-runtime, check-runtime64, run-hvm, get-user-string, get-user-string64):",
+            parent=self,
+        )
+        if not operation:
+            return
+        arguments: tuple[int, ...] = ()
+        if operation in {"get-user-string", "get-user-string64"}:
+            raw = simpledialog.askstring("Runtime arguments", "Three raw integers, separated by spaces:", parent=self)
+            if raw is None:
+                return
+            try:
+                arguments = tuple(int(value, 0) for value in raw.split())
+            except ValueError as exc:
+                messagebox.showerror("Runtime export failed", str(exc))
+                return
+        try:
+            report = native_runtime_operation_report(Path(dll), operation, arguments)
+            self.status.configure(text=f"Completed runtime export: {operation}")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("Runtime export failed", str(exc))
 
     def decrypt_account(self) -> None:
         """Decrypt an STFS Account entry through explicit caller providers."""
