@@ -18,6 +18,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import native_surface_report
 from .device_surface import device_surface_report
+from .resource_inventory import observed_resource_surface
 
 
 MAGIC = b"CON "
@@ -1352,6 +1353,7 @@ def main() -> int:
     parser.add_argument("--capabilities", action="store_true", help="Print the evidence-qualified implementation capability ledger")
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
+    parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo"), help="Print one REA-observed title catalog")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
@@ -1418,6 +1420,10 @@ def main() -> int:
             return 0
     if args.device_surface:
         print(json.dumps(device_surface_report(), indent=2, ensure_ascii=False))
+        if len(__import__("sys").argv) == 3:
+            return 0
+    if args.resource_surface:
+        print(json.dumps(observed_resource_surface(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
     if args.catalog:
