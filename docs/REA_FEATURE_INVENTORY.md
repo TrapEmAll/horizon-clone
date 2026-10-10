@@ -198,8 +198,9 @@ because the observed provider succeeded with smaller buffers.
 
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
-names through catalog-only APIs; they do not imply editor behavior or
-package-format parity.
+names through catalog-only APIs and the 489 decoded field signatures across 92
+named Halo classes through metadata validation; eleven unsupported signatures
+remain excluded. These do not imply editor behavior or package-format parity.
 
 The retained metadata also contains seven additional catalog-only title
 families: Dragon Ball Xenoverse (1 type), Code Veronica X (1), Devil May Cry
