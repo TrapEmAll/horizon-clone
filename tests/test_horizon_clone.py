@@ -57,6 +57,7 @@ from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
+from work.horizon_app import _atomic_write_bytes, _atomic_write_text
 
 
 def supplied_fixture():
@@ -66,6 +67,21 @@ def supplied_fixture():
 
 class ContainerInspectionTests(unittest.TestCase):
     fixture_dir = Path(__file__).parent / ".tmp"
+
+    def test_desktop_atomic_writes_replace_and_clean_temporary_files(self):
+        self.fixture_dir.mkdir(exist_ok=True)
+        binary = self.fixture_dir / "atomic.bin"
+        text = self.fixture_dir / "atomic.json"
+        try:
+            _atomic_write_bytes(binary, b"new-bytes")
+            _atomic_write_text(text, "{\"ok\": true}\n")
+            self.assertEqual(binary.read_bytes(), b"new-bytes")
+            self.assertEqual(text.read_text(encoding="utf-8"), "{\"ok\": true}\n")
+            self.assertFalse((self.fixture_dir / "atomic.bin.horizon-tmp").exists())
+            self.assertFalse((self.fixture_dir / "atomic.json.horizon-tmp").exists())
+        finally:
+            binary.unlink(missing_ok=True)
+            text.unlink(missing_ok=True)
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
