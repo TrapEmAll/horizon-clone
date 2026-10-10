@@ -113,6 +113,10 @@ does not infer or rewrite an Xbox package signature region.
 bytes. The output remains a development signature, not an inferred Xbox
 package signature.
 
+The desktop front end exposes the same detached-signing boundary for its
+currently loaded bytes and never treats the result as a console package
+signature.
+
 An additional retained-member audit found no authenticated Horizon-managed
 STFS entry timestamp, creation-time, or file-attribute contract. The clone
 therefore continues to expose the observed directory/name/size/block fields
