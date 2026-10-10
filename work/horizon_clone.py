@@ -114,6 +114,8 @@ class StfsSecurityMetadata:
     public_modulus_sha256: str | None
     certificate_signature_sha256: str | None
     package_signature_sha256: str | None
+    header_sha1: str
+    header_sha1_matches: bool
     licenses: tuple[StfsLicense, ...]
 
 
@@ -397,6 +399,13 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
             )
         )
     digest = lambda payload: hashlib.sha256(payload).hexdigest() if payload else None
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    stored_header_sha1 = data[0x32C:0x340]
+    header_sha1_matches = (
+        len(stored_header_sha1) == hashlib.sha1().digest_size
+        and first_hash_table <= len(data)
+        and hashlib.sha1(data[0x344:first_hash_table]).digest() == stored_header_sha1
+    )
     if header.magic == "CON ":
         return StfsSecurityMetadata(
             signature_kind="console-certificate",
@@ -408,6 +417,8 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
             public_modulus_sha256=digest(data[0x2C:0xAC]),
             certificate_signature_sha256=digest(data[0xAC:0x1AC]),
             package_signature_sha256=digest(data[0x1AC:0x22C]),
+            header_sha1=stored_header_sha1.hex(),
+            header_sha1_matches=header_sha1_matches,
             licenses=tuple(licenses),
         )
     return StfsSecurityMetadata(
@@ -420,6 +431,8 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
         public_modulus_sha256=None,
         certificate_signature_sha256=None,
         package_signature_sha256=digest(data[0x04:0x104]),
+        header_sha1=stored_header_sha1.hex(),
+        header_sha1_matches=header_sha1_matches,
         licenses=tuple(licenses),
     )
 
