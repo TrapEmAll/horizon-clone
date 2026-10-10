@@ -50,6 +50,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace XDBF entry", command=self.replace_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -564,6 +565,41 @@ class HorizonApp(tk.Tk):
             self._set_details({"thumbnail": thumbnail_path, "title_thumbnail": title_path})
         except (OSError, ValueError) as exc:
             messagebox.showerror("Thumbnail export failed", str(exc))
+
+    def export_achievements(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Achievements", "Open a readable STFS profile first.")
+            return
+        achievements = []
+        try:
+            for entry in self._report.entries:
+                if entry.is_directory or not entry.path.lower().endswith(".gpd"):
+                    continue
+                payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+                for xdbf_entry in parse_xdbf(payload):
+                    if xdbf_entry.achievement is None:
+                        continue
+                    achievements.append(
+                        {
+                            "file": entry.path,
+                            "index": xdbf_entry.index,
+                            "namespace": xdbf_entry.namespace,
+                            "entry_id": xdbf_entry.entry_id,
+                            "achievement": xdbf_entry.achievement,
+                        }
+                    )
+            target = filedialog.asksaveasfilename(
+                title="Export achievements",
+                defaultextension=".json",
+                filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_text(json.dumps(achievements, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            self.status.configure(text=f"Exported {len(achievements)} achievements")
+            self._set_details({"path": target, "achievement_count": len(achievements)})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("Achievement export failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
