@@ -65,6 +65,48 @@ def profile_data_report(path: Path) -> dict[str, object]:
     return editor.inspect(EditorContext(filename=path.name), data)
 
 
+def historical_account_report(container_path: Path, key: bytes) -> dict[str, object]:
+    """Decode one Account entry with the explicit historical body codec.
+
+    This path is intentionally separate from the class3 provider bridge: the
+    codec is historical-reference evidence, while native Horizon crypto and
+    console signing remain provider-boundary behavior.
+    """
+
+    from .account_format import AccountRecord, unobfuscate_account
+
+    data = container_path.read_bytes()
+    header = parse_stfs_header(data)
+    entry = next((item for item in list_stfs_entries(data, header) if item.path == "Account"), None)
+    if entry is None or entry.is_directory:
+        raise ValueError("STFS Account entry was not found")
+    encrypted = read_stfs_entry(data, entry, header)
+    plaintext = unobfuscate_account(encrypted, key)
+    record = AccountRecord.from_bytes(plaintext)
+    return {
+        "operation": "historical-account-inspect",
+        "entry": entry.path,
+        "encrypted_bytes": len(encrypted),
+        "plaintext_bytes": len(plaintext),
+        "plaintext_sha256": hashlib.sha256(plaintext).hexdigest(),
+        "record": {
+            "live_flags": record.live_flags,
+            "reserved": record.reserved,
+            "gamertag": record.gamertag,
+            "xuid_online": record.xuid_online,
+            "cached_user_flags": record.cached_user_flags,
+            "online_service_network_id": record.online_service_network_id,
+            "passcode_hex": record.passcode.hex(),
+            "online_domain": record.online_domain,
+            "online_kerberos_realm": record.online_kerberos_realm,
+            "online_key_hex": record.online_key.hex(),
+            "user_passport_membername": record.user_passport_membername,
+            "user_passport_password": record.user_passport_password,
+            "owner_passport_membername": record.owner_passport_membername,
+        },
+    }
+
+
 def decrypt_account_entry(
     container_path: Path,
     output_path: Path,
@@ -2264,6 +2306,8 @@ def main() -> int:
     parser.add_argument("--account-output-capacity", type=int, help="Decrypted Account output buffer capacity")
     parser.add_argument("--account-encrypt-capacity", type=int, help="Caller-sized encrypted Account output buffer capacity")
     parser.add_argument("--account-encrypt-length", type=int, help="Caller-known encrypted Account output length")
+    parser.add_argument("--historical-account-inspect", action="store_true", help="Inspect the authenticated Account body with a caller-supplied historical-reference key")
+    parser.add_argument("--historical-account-key-hex", help="Exactly 16-byte key for --historical-account-inspect; never persisted")
     args = parser.parse_args()
     if args.capabilities:
         print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
@@ -2281,6 +2325,15 @@ def main() -> int:
                 args.account_output_capacity,
             ), indent=2))
         except (OSError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        return 0
+    if args.historical_account_inspect:
+        if not args.historical_account_key_hex:
+            parser.error("--historical-account-inspect requires --historical-account-key-hex")
+        try:
+            key = bytes.fromhex(args.historical_account_key_hex)
+            print(json.dumps(historical_account_report(args.path, key), indent=2, ensure_ascii=False))
+        except (OSError, ValueError) as exc:
             parser.error(str(exc))
         return 0
     if args.account_encrypt:
