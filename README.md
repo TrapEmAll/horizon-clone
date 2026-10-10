@@ -30,7 +30,8 @@ copied implementation code.
   values and save offsets remain unclaimed until fixture evidence establishes
   them.
 - Exposes the 103 retained REA-observed Halo general-class type names; field
-  layouts, save offsets, and mutation behavior remain unclaimed.
+  layouts, save offsets, and mutation behavior remain unclaimed. It also
+  exposes observed per-type field counts as structural metadata only.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
   `SaveEntryCategory`; enum values and package offsets remain unclaimed until
   fixture evidence establishes them.
