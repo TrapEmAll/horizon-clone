@@ -43,6 +43,9 @@ copied implementation code.
   or Account-file offsets from those declarations.
 - Reports aggregate REA coverage for the observed Skyrim, Gears of War 3, and
   Halo editor families without publishing proprietary-derived member labels.
+- Provides `NativeSaveBinding`, an explicit provider-only model of the
+  recovered `RtsSaveDecrypt`/`RtsSaveEncrypt` signatures; it does not load
+  `class3.dll` or infer the save-crypto protocol.
 - Tracks the REA-observed embedded managed-resource surface (205 payloads)
   separately from implementation claims.
 - Exposes that resource-surface report through `--resource-surface` without
