@@ -33,6 +33,7 @@ from work.signing import (
 from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
+from work.horizon_catalog import catalog_member_names, observed_catalogs
 
 
 def supplied_fixture():
@@ -191,6 +192,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual({item.name for item in enums}, {"ShoutEnums", "PerkEnums", "MagicEnums"})
         self.assertEqual(len(enum_member_names("ShoutEnums")), 27)
         self.assertFalse(any(item.values_observed for item in enums))
+
+    def test_exposes_observed_shared_horizon_catalog_names_without_guessing_values(self):
+        catalogs = observed_catalogs()
+        self.assertEqual(
+            {item.name for item in catalogs},
+            {"ProfileLoadout", "SaveEntryCategory"},
+        )
+        self.assertEqual(catalog_member_names("ProfileLoadout"), ("All_Loadouts",))
+        self.assertIn("Campaign_Level", catalog_member_names("SaveEntryCategory"))
+        self.assertFalse(any(item.values_observed for item in catalogs))
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
