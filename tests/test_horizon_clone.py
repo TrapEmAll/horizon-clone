@@ -235,6 +235,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "show_native_installation"))
         self.assertTrue(hasattr(HorizonApp, "replace_selected_in_place"))
         self.assertTrue(hasattr(HorizonApp, "repack_selected_in_place"))
+        self.assertTrue(hasattr(HorizonApp, "remove_file_in_place"))
         self.assertTrue(hasattr(HorizonApp, "decrypt_account"))
         self.assertTrue(hasattr(HorizonApp, "encrypt_account"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
