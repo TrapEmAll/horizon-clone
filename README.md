@@ -150,7 +150,9 @@ imports, including `class3.dll` save encrypt/decrypt exports and the
 declaration-only inventory. REA recovers managed declaration shapes for the
 save-crypto, LZO, runtime, and user-string imports, but native protocols and
 parameter semantics remain unresolved until authenticated native analysis or a
-compatible test provider is available. REA also resolves the managed `Startup` caller for the runtime
+compatible test provider is available. `--native-exports` reads the file-backed
+PE export table without loading the DLL, allowing the supplied `class3.dll` and
+`lzo.dll` surfaces to be compared to the authenticated names. REA also resolves the managed `Startup` caller for the runtime
 checks and the `CheckString` caller for the user-string exports; the clone
 does not load or invoke those DLLs implicitly.
 
