@@ -411,6 +411,102 @@ def mutate_stfs_metadata(
     return bytes(result)
 
 
+def _stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ...]:
+    """Return raw file-table slot offsets in the same order as parsed entries."""
+    slots: list[int] = []
+    block = header.file_table_block_number
+    for table_index in range(header.file_table_block_count):
+        address = block_offset(block, header.header_size, header.block_separation)
+        if address + BLOCK_SIZE > len(data):
+            raise ValueError("file table points beyond the end of the container")
+        for slot in range(64):
+            raw = data[address + slot * 0x40 : address + (slot + 1) * 0x40]
+            name_length = raw[0x28] & 0x3F
+            if name_length and all(0x20 <= value <= 0x7E for value in raw[:name_length]):
+                slots.append(address + slot * 0x40)
+        block = _next_block(data, block, header)
+    return tuple(slots)
+
+
+def repack_stfs_entries(
+    data: bytes,
+    replacements: dict[str, bytes],
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Repack one or more entries within the package's existing block capacity.
+
+    The operation preserves the physical package size and reserves the
+    existing file-table blocks.  It refuses requests that need a larger STFS
+    allocation table, leaving creation of new hash-table levels explicit.
+    """
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    by_path = {entry.path: entry for entry in entries}
+    unknown = sorted(set(replacements) - set(by_path))
+    if unknown:
+        raise FileNotFoundError(unknown[0])
+    for path, payload in replacements.items():
+        if by_path[path].is_directory:
+            raise IsADirectoryError(path)
+
+    original_payloads = {
+        entry.path: read_stfs_entry(data, entry, header)
+        for entry in entries
+        if not entry.is_directory
+    }
+    payloads = {**original_payloads, **replacements}
+    reserved = set(range(header.file_table_block_number, header.file_table_block_number + header.file_table_block_count))
+    available = [block for block in range(header.allocated_block_count) if block not in reserved]
+    allocations: dict[str, tuple[int, ...]] = {}
+    cursor = 0
+    for entry in entries:
+        if entry.is_directory:
+            continue
+        block_count = (len(payloads[entry.path]) + BLOCK_SIZE - 1) // BLOCK_SIZE
+        selected = tuple(available[cursor : cursor + block_count])
+        if len(selected) != block_count:
+            raise ValueError("replacement set exceeds the existing STFS allocation capacity")
+        allocations[entry.path] = selected
+        cursor += block_count
+
+    result = bytearray(data)
+    for path, blocks in allocations.items():
+        payload = payloads[path]
+        for index, block in enumerate(blocks):
+            address = block_offset(block, header.header_size, header.block_separation)
+            if address + BLOCK_SIZE > len(result):
+                raise ValueError("existing container does not contain the declared allocation")
+            chunk = payload[index * BLOCK_SIZE : (index + 1) * BLOCK_SIZE]
+            result[address : address + BLOCK_SIZE] = chunk.ljust(BLOCK_SIZE, b"\x00")
+
+    slots = _stfs_file_table_slots(data, header)
+    if len(slots) != len(entries):
+        raise ValueError("file-table slot count changed while repacking")
+    for entry, slot in zip(entries, slots):
+        if entry.is_directory:
+            continue
+        raw = bytearray(result[slot : slot + 0x40])
+        blocks = allocations[entry.path]
+        raw[0x28] = (raw[0x28] | 0x40) & 0x7F
+        raw[0x29:0x2C] = len(blocks).to_bytes(3, "little")
+        raw[0x2F:0x32] = (blocks[0] if blocks else 0).to_bytes(3, "little")
+        raw[0x34:0x38] = len(payloads[entry.path]).to_bytes(4, "big")
+        result[slot : slot + 0x40] = raw
+
+    changed_blocks = set(reserved)
+    for blocks in allocations.values():
+        changed_blocks.update(blocks)
+    for block in changed_blocks:
+        address = block_offset(block, header.header_size, header.block_separation)
+        record = _hash_record_address(result, block, header)
+        if record < 0 or address + BLOCK_SIZE > len(result):
+            raise ValueError("unable to rebuild an STFS block hash")
+        result[record : record + 0x14] = hashlib.sha1(result[address : address + BLOCK_SIZE]).digest()
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
+    return bytes(result)
+
+
 def verify_stfs_hashes(
     data: bytes,
     entry: StfsEntry | None = None,
@@ -553,6 +649,8 @@ def main() -> int:
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
+    parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
+    parser.add_argument("--repack-source", type=Path, help="Raw replacement bytes for --repack")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
@@ -603,6 +701,22 @@ def main() -> int:
         except (OSError, ValueError, IsADirectoryError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned in-place mutation to {args.write}")
+
+    if args.repack:
+        if args.replace or not args.repack_source or not args.write:
+            parser.error("--repack requires --repack-source and --write, and cannot be combined with --replace")
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        try:
+            raw = repack_stfs_entries(
+                raw,
+                {args.repack: args.repack_source.read_bytes()},
+                report.stfs_header,
+            )
+            args.write.write_bytes(raw)
+        except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned repacked container to {args.write}")
 
     metadata_requested = any(
         value is not None for value in (args.display_name, args.title_id, args.content_type)
