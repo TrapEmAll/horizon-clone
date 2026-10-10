@@ -103,6 +103,13 @@ class ContainerInspectionTests(unittest.TestCase):
         finally:
             target.unlink(missing_ok=True)
 
+    def test_stfs_mutation_integrity_is_verified_before_cli_write(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        self.assertEqual(verify_stfs_hashes(original, header=parse_stfs_header(original))["failures"], [])
+
     def test_desktop_exposes_bulk_gpd_summary_export(self):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
         self.assertTrue(hasattr(HorizonApp, "export_profile_summary"))
