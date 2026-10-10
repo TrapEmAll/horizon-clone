@@ -39,6 +39,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
@@ -210,6 +211,47 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Repack failed", str(exc))
+
+    def add_file(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Add file", "Open a readable STFS container first.")
+            return
+        source = filedialog.askopenfilename(title="Choose file to add")
+        if not source:
+            return
+        package_path = simpledialog.askstring(
+            "Package path",
+            "New package path (for example sidecar.bin or cache/sidecar.bin):",
+            parent=self,
+        )
+        if not package_path:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save container with added file",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            mutated = repack_stfs_entries(
+                self._data,
+                {},
+                self._report.stfs_header,
+                additions={package_path: Path(source).read_bytes()},
+            )
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.tree.delete(*self.tree.get_children())
+            self._entries.clear()
+            for entry in self._report.entries:
+                item = self.tree.insert("", tk.END, text=entry.path, values=(entry.size, "DIR" if entry.is_directory else "FILE"))
+                self._entries[item] = entry
+            self.status.configure(text=f"Wrote unsigned file addition: {package_path}")
+            self._set_details({"path": target, "entry": package_path, "signature_checked": False})
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            messagebox.showerror("Add file failed", str(exc))
 
     def edit_metadata(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
