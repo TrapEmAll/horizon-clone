@@ -1,5 +1,8 @@
 import hashlib
 import os
+import shutil
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -142,6 +145,45 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(result["header_hash_matches"])
         self.assertTrue(result["top_hash_matches"])
         self.assertFalse(result["signature_checked"])
+
+    def test_cli_supports_explicit_in_place_mutation(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path == "Account")
+        directory = self.fixture_dir / "cli-in-place"
+        directory.mkdir(parents=True, exist_ok=True)
+        work_path = directory / "profile.con"
+        replacement_path = directory / "account.bin"
+        try:
+            shutil.copyfile(path, work_path)
+            replacement_path.write_bytes(b"\x00" * entry.size)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "work.horizon_clone",
+                    str(work_path),
+                    "--replace",
+                    "Account",
+                    "--replacement",
+                    str(replacement_path),
+                    "--in-place",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertIn("Wrote unsigned in-place mutation", result.stdout)
+            mutated = work_path.read_bytes()
+            self.assertEqual(read_stfs_entry(mutated, entry, parse_stfs_header(mutated)), b"\x00" * entry.size)
+            self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
+        finally:
+            work_path.unlink(missing_ok=True)
+            replacement_path.unlink(missing_ok=True)
+            directory.rmdir()
 
     def test_rehashes_and_verifies_the_complete_stfs_tree(self):
         path = supplied_fixture()
