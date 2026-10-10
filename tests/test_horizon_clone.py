@@ -656,7 +656,7 @@ class ContainerInspectionTests(unittest.TestCase):
             xuid=0x0123456789ABCDEF,
             gamertag="Test User",
             gamer_picture=b"\x01\x02",
-            profile_id=bytes.fromhex("e9ecc9141e317c7b"),
+            profile_id=0xE9ECC9141E317C7B,
             favorite=True,
         )
         self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
