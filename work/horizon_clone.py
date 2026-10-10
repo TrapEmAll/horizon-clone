@@ -36,6 +36,20 @@ def _atomic_replace_bytes(path: Path, data: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def validate_stfs_mutation(data: bytes) -> None:
+    """Reject STFS bytes whose authenticated hash tree is inconsistent."""
+
+    if data[:4] not in STFS_MAGICS:
+        raise ValueError("expected CON, LIVE, or PIRS STFS bytes")
+    candidate_header = parse_stfs_header(data)
+    integrity = verify_stfs_hashes(data, header=candidate_header)
+    if integrity["failures"]:
+        raise ValueError(
+            "STFS mutation has hash failures: "
+            + "; ".join(json.dumps(item, sort_keys=True) for item in integrity["failures"])
+        )
+
+
 MAGIC = b"CON "
 STFS_MAGICS = {b"CON ", b"LIVE", b"PIRS"}
 BLOCK_SIZE = 0x1000
@@ -1559,13 +1573,7 @@ def main() -> int:
 
     def write_mutation(data: bytes) -> None:
         if data[:4] in STFS_MAGICS:
-            candidate_header = parse_stfs_header(data)
-            integrity = verify_stfs_hashes(data, header=candidate_header)
-            if integrity["failures"]:
-                raise ValueError(
-                    "refusing to write STFS mutation with hash failures: "
-                    + "; ".join(integrity["failures"])
-                )
+            validate_stfs_mutation(data)
         if not args.in_place:
             _atomic_replace_bytes(write_target, data)
             return
