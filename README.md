@@ -63,6 +63,8 @@ copied implementation code.
   data-block capacity are available.
 - Removes STFS files from the desktop front end when the resulting package fits
   the existing allocation capacity.
+- Renames STFS files or directories within their existing parent directory from
+  both the CLI and desktop front end.
 - Resolves and rehashes level-2 STFS hash-table indirection for large
   allocations without growing the package's physical allocation.
 - Removes file-table entries safely when the resulting package fits the
@@ -101,6 +103,7 @@ python -m work.horizon_clone C:\path\to\container --display-name "Edited Profile
 python -m work.horizon_clone C:\path\to\container --repack Account --repack-source account.bin --write repacked.con
 python -m work.horizon_clone C:\path\to\container --remove Account --write without-account.con
 python -m work.horizon_clone C:\path\to\container --add sidecar.bin --add-source sidecar.bin --write with-sidecar.con
+python -m work.horizon_clone C:\path\to\container --rename cache/ph.dat --new-name ph2.dat --write renamed-file.con
 python -m work.horizon_clone C:\path\to\container --thumbnail-source thumbnail.bin --write with-thumbnail.con
 python -m work.horizon_clone C:\path\to\container --thumbnail-output thumbnail.bin --title-thumbnail-output title-thumbnail.bin
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
