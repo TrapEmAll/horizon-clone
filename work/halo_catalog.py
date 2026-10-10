@@ -1,7 +1,8 @@
 """Observed Halo general-class type names from REA metadata.
 
-This catalog records stable managed type names only. It does not claim numeric
-field layouts, save offsets, or title-specific mutation behavior.
+This catalog records stable managed type names and decoded field signatures.
+It does not claim numeric field layouts, save offsets, or title-specific
+mutation behavior.
 """
 
 from __future__ import annotations
@@ -901,7 +902,7 @@ _HALO_GENERAL_CLASS_FIELD_TYPES = {
 }
 
 def halo_general_class_field_types(type_name: str | None = None) -> dict[str, object]:
-    """Return the selected REA-observed managed field-type slice."""
+    """Return the selected REA-observed managed field-type projection."""
 
     if type_name is None:
         return {name: dict(fields) for name, fields in _HALO_GENERAL_CLASS_FIELD_TYPES.items()}
