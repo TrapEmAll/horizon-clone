@@ -87,7 +87,9 @@ imports, including `class3.dll` save encrypt/decrypt exports and the
 `Horizon.dll`/`HVMRun64.dll` DNG/HVM exports. `--native-surface` exposes this
 declaration-only inventory. Calling signatures and native protocols remain
 unresolved until authenticated native analysis or a compatible test provider
-is available; the clone does not load or invoke those DLLs implicitly.
+is available. REA also resolves the managed `Startup` caller for the runtime
+checks and the `CheckString` caller for the user-string exports; the clone
+does not load or invoke those DLLs implicitly.
 
 RSA signing remains behind an authorized signing-provider boundary. The
 library supports detached signatures over caller-labeled development regions,
