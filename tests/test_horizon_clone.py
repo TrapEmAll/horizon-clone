@@ -83,7 +83,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_editor_family_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -267,6 +267,27 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["namespaces"][0]["namespace"], "StateofDecay")
         self.assertEqual(report["namespaces"][0]["field_count"], 1)
         self.assertEqual(report["namespaces"][0]["method_count"], 1)
+
+    def test_reports_throw_observed_managed_methods(self):
+        bundle = self.fixture_dir / "guarded-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_guarded",
+                "normalized_result": {
+                    "methods": [
+                        {"declaring_type": "Demo.Reader", "name": "Read", "token": "0x06000001", "signature": {}, "body": {"status": "present", "instruction_count": 3, "opcode_counts": {"ldstr": 1, "newobj": 1, "throw": 1}, "il_sha256": "abc"}},
+                        {"declaring_type": "Demo.Reader", "name": "Write", "token": "0x06000002", "signature": {}, "body": {"status": "present", "instruction_count": 1, "opcode_counts": {"ret": 1}}},
+                    ]
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_guarded_methods_report(bundle, "Demo\\.Reader")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["counts"]["guarded_methods"], 1)
+        self.assertEqual(report["methods"][0]["status"], "throw-observed-no-return")
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
