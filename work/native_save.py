@@ -8,7 +8,9 @@ not interpret or persist key material.
 
 from __future__ import annotations
 
+import ctypes
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 
@@ -32,6 +34,77 @@ class NativeSaveProvider(Protocol):
 
 class NativeSaveUnavailable(RuntimeError):
     """Raised when no explicit compatible save provider was supplied."""
+
+
+class CtypesNativeSaveProvider:
+    """Explicit Windows adapter for the REA-observed ``class3.dll`` exports.
+
+    Construction is intentionally path-explicit.  The adapter does not search
+    DLL directories, persist keys, or infer the key format; the caller owns
+    authorization and lifecycle of every key passed to an operation.
+    """
+
+    def __init__(self, dll_path: str | Path) -> None:
+        path = Path(dll_path)
+        if not path.is_absolute():
+            raise ValueError("class3.dll path must be absolute")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        loader = getattr(ctypes, "WinDLL", None)
+        if loader is None:
+            raise OSError("class3.dll provider requires Windows ctypes.WinDLL")
+        self.path = path
+        self._dll = loader(str(path))
+        self._decrypt = self._bind("RtsSaveDecrypt", decrypt=True)
+        self._encrypt = self._bind("RtsSaveEncrypt", decrypt=False)
+
+    def _bind(self, name: str, *, decrypt: bool):
+        try:
+            function = getattr(self._dll, name)
+        except AttributeError as exc:
+            raise OSError(f"{self.path} does not export {name}") from exc
+        byte_pointer = ctypes.POINTER(ctypes.c_ubyte)
+        function.restype = ctypes.c_int32
+        function.argtypes = (
+            byte_pointer,
+            ctypes.POINTER(ctypes.c_uint32),
+            byte_pointer,
+            ctypes.c_uint32,
+            byte_pointer,
+        ) if decrypt else (
+            byte_pointer,
+            byte_pointer,
+            ctypes.c_uint32,
+            byte_pointer,
+        )
+        return function
+
+    @staticmethod
+    def _bytes(value: bytes):
+        if not value:
+            raise ValueError("native save buffers and keys must be non-empty")
+        return (ctypes.c_ubyte * len(value)).from_buffer_copy(value)
+
+    @staticmethod
+    def _output(value: bytearray):
+        if not value:
+            raise ValueError("native save output buffer must be non-empty")
+        return (ctypes.c_ubyte * len(value)).from_buffer(value)
+
+    def rts_save_decrypt(self, input_buffer: bytes, output_length: UInt32Ref, output_buffer: bytearray, input_length: int, key: bytes) -> int:
+        source = self._bytes(input_buffer)
+        destination = self._output(output_buffer)
+        key_buffer = self._bytes(key)
+        native_length = ctypes.c_uint32(output_length.value)
+        result = self._decrypt(source, ctypes.byref(native_length), destination, input_length, key_buffer)
+        output_length.value = native_length.value
+        return int(result)
+
+    def rts_save_encrypt(self, input_buffer: bytes, output_buffer: bytearray, input_length: int, key: bytes) -> int:
+        source = self._bytes(input_buffer)
+        destination = self._output(output_buffer)
+        key_buffer = self._bytes(key)
+        return int(self._encrypt(source, destination, input_length, key_buffer))
 
 
 @dataclass(frozen=True)
