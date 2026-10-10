@@ -18,6 +18,8 @@ copied implementation code.
   explicitly unlabeled nonzero-flag counts through the library and
   `--profile-summary` CLI option.
 - Exposes the same profile summary export from the desktop front end.
+- Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
+  legacy, and global catalogs from the desktop front end.
 - Provides bulk embedded-GPD summaries with per-file entry counts, namespace
   distributions, text counts, and achievement counts through the library and
   `--xdbf-summary` CLI option.
