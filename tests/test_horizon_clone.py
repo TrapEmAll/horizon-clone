@@ -2327,6 +2327,10 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["stfs_header"]["content_type"], 0x00010000)
         self.assertEqual(report["stfs_header"]["content_type_name"], "Profile")
 
+    def test_desktop_source_exposes_content_type_label(self):
+        source = Path(__file__).parents[1].joinpath("work", "horizon_app.py").read_text(encoding="utf-8")
+        self.assertIn('header_details["content_type_name"]', source)
+
     def test_labels_observed_and_unknown_stfs_content_types(self):
         self.assertEqual(stfs_content_type_name(0x00010000), "Profile")
         self.assertEqual(stfs_content_type_name(0x000E0000), "XNA")
