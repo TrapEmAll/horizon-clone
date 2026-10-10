@@ -17,13 +17,12 @@ class ProfileData:
     xuid: int = 0
     gamertag: str = ""
     gamer_picture: bytes = b""
-    profile_id: bytes = b""
+    profile_id: int = 0
     favorite: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["gamer_picture"] = self.gamer_picture.hex()
-        result["profile_id"] = self.profile_id.hex()
         return result
 
     @classmethod
@@ -33,7 +32,7 @@ class ProfileData:
             xuid=int(value.get("xuid", 0)),
             gamertag=str(value.get("gamertag", "")),
             gamer_picture=bytes.fromhex(str(value.get("gamer_picture", ""))),
-            profile_id=bytes.fromhex(str(value.get("profile_id", ""))),
+            profile_id=int(value.get("profile_id", 0)),
             favorite=bool(value.get("favorite", False)),
         )
 
