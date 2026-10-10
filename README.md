@@ -18,6 +18,8 @@ copied implementation code.
   across every supplied GPD without writing back to the fixture.
 - Regression coverage replaces the opaque Account entry in memory, rebuilds
   the complete STFS hash tree, and verifies all hash levels afterward.
+- Regression coverage exercises the achievement editor against all 2,339
+  parsed achievement payloads in the supplied fixture.
 - Provides a library API for enumerating parseable XDBF payloads embedded in STFS GPD files.
 - Provides a normalized library API for enumerating observed achievements across embedded GPDs.
 - Provides aggregate profile achievement counts, raw gamerscore totals, and
