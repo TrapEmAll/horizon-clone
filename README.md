@@ -97,6 +97,10 @@ device thumbnail properties and the `i8` `DeviceSize` property. Device
 enumeration, FATX/USB behavior, and IOCTL semantics remain provider-boundary
 items.
 
+The recovered DNG/HVM declarations are exposed through an explicit
+`NativeRuntimeBinding` provider boundary. It never loads the original runtime
+implicitly and leaves native argument semantics to the supplied provider.
+
 RSA signing remains behind an authorized signing-provider boundary. The
 library supports detached signatures over caller-labeled development regions,
 but does not infer Xbox signed regions. This clean-room project does not
