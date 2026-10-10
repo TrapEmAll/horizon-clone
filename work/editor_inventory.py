@@ -100,11 +100,12 @@ def catalog_report(name: str) -> dict[str, object]:
 
         return {"EntryID": list(gears_of_war_3_entry_ids())}
     if name == "halo":
-        from .halo_catalog import halo_general_class_field_counts, halo_general_class_types
+        from .halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_types
 
         return {
             "types": list(halo_general_class_types()),
             "field_counts": halo_general_class_field_counts(),
+            "method_summary": halo_general_class_method_summary(),
         }
     raise KeyError(f"unknown catalog: {name}")
 
