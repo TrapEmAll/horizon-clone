@@ -46,6 +46,7 @@ from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_of_war_3_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_types
+from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, inventory_summary, observed_editor_inventory
 
@@ -677,6 +678,11 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
+
+    def test_reports_observed_embedded_resource_surface(self):
+        surface = observed_resource_surface()
+        self.assertEqual(surface["resource_count"], 205)
+        self.assertEqual(surface["distinct_payload_hashes"], 30)
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
