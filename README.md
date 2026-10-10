@@ -38,6 +38,8 @@ copied implementation code.
 - Uses authenticated same-size STFS mutation for profile-wide edits and verifies
   general repack results by reading modified entries back before returning them.
 - Exposes the same profile summary export from the desktop front end.
+- The desktop front end exposes the canonical FATX path for the loaded
+  container through “FATX path”.
 - Exposes read-only exports of the authenticated shared, Skyrim, Gears, Halo,
   legacy, and global catalogs from the desktop front end.
 - Provides bulk embedded-GPD/FIT summaries with per-file entry counts, namespace
