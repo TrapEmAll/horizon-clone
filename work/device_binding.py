@@ -120,10 +120,39 @@ class DeviceIoBinding:
     def close(self, handle: int) -> None:
         self._require().close(handle)
 
+    def open_session(self, device_path: str) -> "DeviceIoSession":
+        return DeviceIoSession(self, device_path)
+
     def _require(self) -> DeviceIoProvider:
         if self.provider is None:
             raise DeviceProviderUnavailable("device IO requires an explicit compatible provider")
         return self.provider
+
+
+class DeviceIoSession:
+    """Context-managed native device handle owned by a ``DeviceIoBinding``."""
+
+    def __init__(self, binding: DeviceIoBinding, device_path: str) -> None:
+        self.binding = binding
+        self.device_path = device_path
+        self.handle: int | None = None
+
+    def __enter__(self) -> "DeviceIoSession":
+        if self.handle is not None:
+            raise RuntimeError("device IO session is already open")
+        self.handle = self.binding.open_read_only(self.device_path)
+        return self
+
+    def io_control(self, control_code: int, input_data: bytes = b"", output_capacity: int = 0) -> bytes:
+        if self.handle is None:
+            raise RuntimeError("device IO session is not open")
+        return self.binding.device_io_control(self.handle, control_code, input_data, output_capacity)
+
+    def __exit__(self, _exc_type, _exc_value, _traceback) -> None:
+        if self.handle is not None:
+            handle = self.handle
+            self.handle = None
+            self.binding.close(handle)
 
 
 @dataclass(frozen=True)
