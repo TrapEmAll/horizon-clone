@@ -38,6 +38,7 @@ from work.horizon_clone import (
     parse_stfs_header,
     parse_stfs_security_metadata,
     extract_stfs_public_key,
+    read_private_key_json,
     parse_stfs_thumbnails,
     parse_xdbf,
     xdbf_payload_surface,
@@ -902,6 +903,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(provider.message, region.data)
         detached = DetachedSignature("other-region", detached.algorithm, detached.signature)
         self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
+
+    def test_reads_explicit_development_private_key_json(self):
+        path = self.fixture_dir / "development-private-key.json"
+        path.write_text(json.dumps({"modulus_hex": "80", "private_exponent_hex": "03"}), encoding="utf-8")
+        try:
+            key = read_private_key_json(path)
+        finally:
+            path.unlink(missing_ok=True)
+        self.assertEqual(key.modulus, 0x80)
+        self.assertEqual(key.private_exponent, 3)
 
     def test_sha1_verification_dispatch_is_explicit_and_fail_closed(self):
         key = RsaPublicKey(257, 3)
