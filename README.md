@@ -220,6 +220,9 @@ copied implementation code.
 - Reads an exported REA managed-members evidence bundle and exposes a filtered
   observed Horizon type/field/method surface without loading or executing the
   inspected assembly (`--managed-surface`, with optional `--surface-pattern`).
+- Groups that authenticated managed surface into queryable editor families with
+  `--managed-editor-families` and optional `--family-pattern`, without inferring
+  registration, save offsets, or serializers.
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
 - Supports bounded display-description, publisher-name, title-name, and
