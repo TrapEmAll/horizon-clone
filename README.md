@@ -38,6 +38,9 @@ copied implementation code.
   fixture evidence establishes them.
 - Exposes the observed six-field `Horizon.ProfileData` member contract as
   typed metadata without claiming its opaque Account-file layout.
+- Exposes the two REA-observed `Horizon.ProfileData` resource getters with
+  unresolved `class:957` return-type identities; it does not infer image data
+  or Account-file offsets from those declarations.
 - Reports aggregate REA coverage for the observed Skyrim, Gears of War 3, and
   Halo editor families without publishing proprietary-derived member labels.
 - Tracks the REA-observed embedded managed-resource surface (205 payloads)
