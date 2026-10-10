@@ -94,6 +94,51 @@ def managed_reference_report(bundle_path: str | Path, pattern: str | None = None
     return managed_reference_report_from_bundle(bundle, pattern)
 
 
+def managed_artifact_report_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Return authenticated managed-artifact identity and coverage metadata."""
+
+    record = _artifact_record(bundle)
+    result = record.get("normalized_result") or {}
+    resources = [item for item in result.get("resources") or [] if isinstance(item, dict)]
+    references = [item for item in result.get("references") or [] if isinstance(item, dict)]
+    metadata = result.get("metadata") or {}
+    coverage = result.get("coverage") or {}
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "artifact": result.get("artifact"),
+        "pe": result.get("pe"),
+        "classification": result.get("classification"),
+        "module": result.get("module"),
+        "assembly": result.get("assembly"),
+        "target_frameworks": result.get("target_frameworks") or [],
+        "metadata": {
+            "status": metadata.get("status"),
+            "version": metadata.get("version"),
+            "stream_names": metadata.get("stream_names") or [],
+            "table_row_counts": metadata.get("table_row_counts") or {},
+        },
+        "coverage": coverage,
+        "counts": {"references": len(references), "resources": len(resources)},
+        "limitations": [
+            "This report preserves static PE/CLI evidence only; it does not load, resolve, decompile, or execute the assembly.",
+            "Partial metadata or resource coverage is reported as observed and is not silently completed by inference.",
+        ],
+    }
+
+
+def managed_artifact_report(bundle_path: str | Path) -> dict[str, Any]:
+    """Return identity and coverage from a retained REA managed-artifact bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-artifact bundle: {path}") from exc
+    return managed_artifact_report_from_bundle(bundle)
+
+
 def managed_surface_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
     """Return an observed managed surface from an already-decoded bundle."""
 
