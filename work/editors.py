@@ -18,6 +18,7 @@ from .horizon_clone import (
     parse_xdbf,
     repack_xdbf_entries,
 )
+from .managed_surface import managed_surface_report_from_bundle
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,36 @@ class XdbfEditor:
         return mutate_xdbf_text(data, entry_index, text)
 
 
+@dataclass(frozen=True)
+class ManagedSurfaceEditor:
+    """Inspect an exported REA managed-members bundle without executing it."""
+
+    name: str = "REA managed surface"
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        if not data.lstrip().startswith(b"{"):
+            return False
+        try:
+            import json
+
+            bundle = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return False
+        return any(
+            isinstance(record, dict) and record.get("operation") == "inspect_managed_members"
+            for record in bundle.get("records", [])
+        )
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, Any]:
+        import json
+
+        try:
+            bundle = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("managed surface input must be UTF-8 JSON") from exc
+        return managed_surface_report_from_bundle(bundle)
+
+
 class EditorRegistry:
     def __init__(self) -> None:
         self._plugins: list[EditorPlugin] = []
@@ -95,5 +126,6 @@ class EditorRegistry:
 def default_registry() -> EditorRegistry:
     registry = EditorRegistry()
     registry.register(XdbfEditor())
+    registry.register(ManagedSurfaceEditor())
     return registry
 
