@@ -111,6 +111,9 @@ copied implementation code.
 - Queries exported REA resource inventories with `--resource-bundle` and an
   optional `--resource-pattern`, returning authenticated names, offsets,
   lengths, embedding state, and payload hashes without copying payloads.
+- Exposes `--anti-analysis` as an evidence-only report of REA-observed
+  debugger/obfuscation markers and guarded managed types; it does not execute,
+  patch, disable, or bypass Horizon protections.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
