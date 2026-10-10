@@ -266,6 +266,20 @@ class ContainerInspectionTests(unittest.TestCase):
             self.assertEqual(len(mutated), len(gpd))
             self.assertEqual(len(parse_xdbf(mutated)), len(xdbf_entries))
 
+    def test_exercises_same_size_xdbf_mutation_for_profile_fit(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        fit = next(entry for entry in list_stfs_entries(data, header) if entry.name == "FFFE07D1.fit")
+        payload = read_stfs_entry(data, fit, header)
+        entries = parse_xdbf(payload)
+        replacement = bytes(value ^ 0x5A for value in payload)
+        mutated = mutate_xdbf_entry_same_size(payload, entries[0], replacement[entries[0].data_offset:entries[0].data_offset + entries[0].length])
+        self.assertEqual(len(mutated), len(payload))
+        self.assertEqual(len(parse_xdbf(mutated)), len(entries))
+
     def test_rehashes_full_stfs_after_same_size_account_replacement(self):
         path = supplied_fixture()
         if path is None or not path.exists():
