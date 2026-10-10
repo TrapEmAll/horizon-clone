@@ -1249,8 +1249,14 @@ def main() -> int:
             payload = json.dumps(_json_xdbf(raw, args.path), indent=2, ensure_ascii=False)
             if args.output:
                 args.output.write_text(payload + "\n", encoding="utf-8")
+            if args.list:
+                for entry in parse_xdbf(raw):
+                    kind = "achievement" if entry.achievement is not None else "entry"
+                    label = entry.text if entry.text is not None else ""
+                    print(f"{kind} {entry.index:>6} ns={entry.namespace:>5} id=0x{entry.entry_id:X} size={entry.length:>8} {label}")
             if args.as_json or not args.output:
-                print(payload)
+                if not args.list:
+                    print(payload)
             return 0
         report = inspect(args.path)
     except OSError as exc:
