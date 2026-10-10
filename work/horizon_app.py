@@ -41,6 +41,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Open container", command=self.open_container).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
@@ -169,6 +170,16 @@ class HorizonApp(tk.Tk):
             self.status.configure(text=f"Verified {result['checked_blocks']} blocks")
         except (OSError, ValueError) as exc:
             messagebox.showerror("Verify failed", str(exc))
+
+    def show_security(self) -> None:
+        if not self._report or not self._report.stfs_security:
+            messagebox.showinfo("Security", "Open a readable STFS container first.")
+            return
+        self._set_details({
+            "security": self._report.stfs_security,
+            "signature_validity_checked": False,
+        })
+        self.status.configure(text="Displayed public security metadata; signature validity not checked")
 
     def replace_selected(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
