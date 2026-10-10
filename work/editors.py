@@ -184,6 +184,92 @@ class HaloMetadataEditor:
         return (json.dumps(envelope, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
+@dataclass(frozen=True)
+class ConstantCatalogEditor:
+    """Validate explicit envelopes for REA-authenticated Constant tables."""
+
+    name: str = "Authenticated Constant catalog editor"
+
+    @staticmethod
+    def _known(catalog: str) -> dict[str, int]:
+        if catalog.startswith("skyrim:"):
+            from .skyrim_catalog import enum_member_values
+
+            return dict(enum_member_values(catalog.split(":", 1)[1]))
+        if catalog == "gears:EntryID":
+            from .gears_catalog import gears_entry_id_values
+
+            return gears_entry_id_values()
+        if catalog.startswith("shared:"):
+            from .horizon_catalog import catalog_member_values
+
+            return dict(catalog_member_values(catalog.split(":", 1)[1]))
+        if catalog.startswith("global:"):
+            from .global_catalog import global_catalog_report
+
+            values = global_catalog_report()["values"]
+            try:
+                return dict(values[catalog.split(":", 1)[1]])
+            except KeyError as exc:
+                raise KeyError(f"unknown authenticated global catalog: {catalog}") from exc
+        raise KeyError(f"unknown authenticated Constant catalog: {catalog}")
+
+    @classmethod
+    def _decode(cls, data: bytes) -> tuple[dict[str, Any], dict[str, int]]:
+        import json
+
+        try:
+            envelope = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Constant catalog input must be UTF-8 JSON") from exc
+        if not isinstance(envelope, dict) or envelope.get("editor") != "constant-catalog":
+            raise ValueError("expected an explicit constant-catalog envelope")
+        catalog = envelope.get("catalog")
+        values = envelope.get("values")
+        if not isinstance(catalog, str) or not isinstance(values, dict):
+            raise ValueError("Constant catalog requires catalog and object values")
+        return envelope, cls._known(catalog)
+
+    @classmethod
+    def _validate(cls, values: dict[str, object], known: dict[str, int]) -> dict[str, int]:
+        unknown = sorted(set(values) - set(known))
+        if unknown:
+            raise ValueError(f"unknown Constant members: {', '.join(unknown)}")
+        result: dict[str, int] = {}
+        for name, value in values.items():
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"Constant member {name} must be an integer")
+            if value != known[name]:
+                raise ValueError(f"Constant member {name} must equal authenticated value {known[name]}")
+            result[name] = value
+        return result
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        if not data.lstrip().startswith(b"{"):
+            return False
+        try:
+            self._decode(data)
+        except (KeyError, TypeError, ValueError):
+            return False
+        return True
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, object]:
+        envelope, known = self._decode(data)
+        return {
+            "status": "metadata-only",
+            "catalog": envelope["catalog"],
+            "values": self._validate(envelope["values"], known),
+            "limitations": ["No binary save offsets or serialization are inferred."],
+        }
+
+    def edit_values(self, data: bytes, values: dict[str, object]) -> bytes:
+        import json
+
+        envelope, known = self._decode(data)
+        envelope["values"] = self._validate(values, known)
+        return (json.dumps(envelope, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
 class EditorRegistry:
     def __init__(self) -> None:
         self._plugins: list[EditorPlugin] = []
@@ -209,5 +295,6 @@ def default_registry() -> EditorRegistry:
     registry.register(ManagedSurfaceEditor())
     registry.register(AccountEditor())
     registry.register(HaloMetadataEditor())
+    registry.register(ConstantCatalogEditor())
     return registry
 
