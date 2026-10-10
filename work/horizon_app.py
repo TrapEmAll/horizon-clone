@@ -711,7 +711,7 @@ class HorizonApp(tk.Tk):
             self._report = inspect(Path(target))
             self.status.configure(text=f"Wrote unsigned embedded XDBF text edit: {entry.path}")
             self._set_details({"path": target, "entry": entry.path, "xdbf_index": selected_text.index, "signature_checked": False})
-        except (OSError, ValueError, IndexError) as exc:
+        except (OSError, ValueError, IndexError, StopIteration) as exc:
             messagebox.showerror("XDBF text edit failed", str(exc))
 
     def remove_xdbf_entry(self) -> None:
