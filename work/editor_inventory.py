@@ -58,7 +58,7 @@ _CAPABILITIES = (
     Capability("XDBF/GPD inspection", "implemented", "observed XDBF entry and namespace-5/achievement payloads", ("parse_xdbf", "list_embedded_xdbf", "list_embedded_achievements")),
     Capability("XDBF/GPD mutation", "implemented", "bounded XDBF repacking and observed achievement edits", ("repack_xdbf_entries", "mutate_xdbf_text", "mutate_xdbf_achievement")),
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
-    Capability("Account serialization", "unresolved", "supplied Account payload is opaque and REA exposed no serializer, offsets, or replay", ("mutate_stfs_entry_same_size",)),
+    Capability("Account serialization", "unresolved", "supplied Account payload is opaque; REA exposed no managed Account type, serializer, field offsets, or Account-specific call edge", ("mutate_stfs_entry_same_size",)),
     Capability("Skyrim/Gears/Halo title editors", "catalog-only", "REA observed type and member names without authenticated field layouts or behavioral replay", ("observed_editor_inventory", "halo_general_class_types")),
     Capability("Embedded UI/resource surface", "observed-only", "REA observed 205 embedded managed resource payloads; feature ownership, rendering behavior, and signed-resource semantics unresolved", ("observed_resource_surface", "--resource-surface")),
     Capability("Native save/runtime boundaries", "provider-boundary", "REA observed class3 save crypto, LZO, device I/O, and DNG/HVM imports; signatures are modeled but protocols remain unresolved", ("native_surface_report", "NativeSaveBinding", "LzoBinding", "NativeRuntimeBinding")),
