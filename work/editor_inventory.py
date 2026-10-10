@@ -78,6 +78,7 @@ _CAPABILITIES = (
     Capability("Host volume inventory", "implemented", "Read-only Windows logical-volume identity and capacity inventory", ("device_inventory_report", "--device-inventory")),
     Capability("DNG/HVM runtime adapter", "provider-boundary", "REA recovered CheckRuntime, RunHVM, and GetUserString declarations; native argument semantics unresolved", ("NativeRuntimeBinding",)),
     Capability("Console signing", "provider-boundary", "public signature metadata observed; private signing material and console validity unavailable", ("sign_with_provider",)),
+    Capability("CON public-key extraction", "implemented", "Extracts the public RSA modulus and exponent from an observed CON certificate", ("extract_stfs_public_key", "--public-key")),
 )
 
 
