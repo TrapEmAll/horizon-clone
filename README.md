@@ -145,6 +145,9 @@ copied implementation code.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
+- Extracts uniquely hash-verified embedded resource payloads with
+  `--extract-resources DIR --resource-bundle BUNDLE`; unresolved or ambiguous
+  spans are reported without writing unverified bytes.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
