@@ -106,7 +106,8 @@ copied implementation code.
   `class3.dll` or infer the save-crypto protocol.
 - Provides `AccountCodec`, an explicit bridge for opaque STFS `Account`
   payloads once an authorized class3-compatible provider and key are supplied;
-  it does not store keys or claim Account serialization semantics.
+  `encrypt_raw` preserves native status and the caller-sized output buffer;
+  encryption length and Account serialization remain caller-resolved.
 - Provides `LzoBinding`, an explicit provider-only model of the four recovered
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
