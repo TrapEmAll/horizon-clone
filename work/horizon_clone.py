@@ -63,6 +63,10 @@ class StfsHeader:
     file_table_block_number: int
     allocated_block_count: int
     display_name: str
+    display_description: str
+    publisher_name: str
+    title_name: str
+    transfer_flags: int
     top_hash_table_hash: str
     thumbnail_size: int
     title_thumbnail_size: int
@@ -306,6 +310,10 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         file_table_block_number=_u24le(data, 0x37E),
         allocated_block_count=_u32be(data, 0x395),
         display_name=_fixed_text(data, 0x411, 0x80, "utf-16-be"),
+        display_description=_fixed_text(data, 0xD11, 0x80, "utf-16-be"),
+        publisher_name=_fixed_text(data, 0x1611, 0x80, "utf-16-be"),
+        title_name=_fixed_text(data, 0x1691, 0x80, "utf-16-be"),
+        transfer_flags=data[0x1711] if len(data) > 0x1711 else 0,
         top_hash_table_hash=data[0x381:0x395].hex(),
         thumbnail_size=_u32be(data, 0x1712),
         title_thumbnail_size=_u32be(data, 0x1716),
@@ -651,6 +659,10 @@ def mutate_stfs_metadata(
     display_name: str | None = None,
     title_id: int | None = None,
     content_type: int | None = None,
+    display_description: str | None = None,
+    publisher_name: str | None = None,
+    title_name: str | None = None,
+    transfer_flags: int | None = None,
     header: StfsHeader | None = None,
 ) -> bytes:
     """Mutate fixed-width STFS metadata fields and rebuild the metadata hash."""
@@ -669,6 +681,21 @@ def mutate_stfs_metadata(
         if not 0 <= content_type <= 0xFFFFFFFF:
             raise ValueError("content type must fit in an unsigned 32-bit field")
         result[0x344:0x348] = content_type.to_bytes(4, "big")
+    for value, offset in (
+        (display_description, 0xD11),
+        (publisher_name, 0x1611),
+        (title_name, 0x1691),
+    ):
+        if value is None:
+            continue
+        encoded = value.encode("utf-16-be") + b"\x00\x00"
+        if len(encoded) > 0x80:
+            raise ValueError("metadata text exceeds its 0x80-byte field")
+        result[offset : offset + 0x80] = encoded.ljust(0x80, b"\x00")
+    if transfer_flags is not None:
+        if not 0 <= transfer_flags <= 0xFF:
+            raise ValueError("transfer flags must fit in one byte")
+        result[0x1711] = transfer_flags
     return rehash_stfs_hashes(bytes(result), header)
 
 
@@ -1057,6 +1084,10 @@ def main() -> int:
     parser.add_argument("--add-source", action="append", type=Path, help="Raw bytes for --add (repeat in the same order)")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
+    parser.add_argument("--display-description", help="Replace the first STFS display-description locale")
+    parser.add_argument("--publisher-name", help="Replace the STFS publisher name")
+    parser.add_argument("--title-name", help="Replace the STFS title name")
+    parser.add_argument("--transfer-flags", type=lambda value: int(value, 0), help="Replace STFS transfer flags")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
     parser.add_argument("--content-type", type=lambda value: int(value, 0), help="Replace the STFS content type")
     parser.add_argument("--thumbnail-source", type=Path, help="Replace the STFS thumbnail payload")
@@ -1183,7 +1214,16 @@ def main() -> int:
         print(f"Wrote unsigned file addition to {args.write}")
 
     metadata_requested = any(
-        value is not None for value in (args.display_name, args.title_id, args.content_type)
+        value is not None
+        for value in (
+            args.display_name,
+            args.display_description,
+            args.publisher_name,
+            args.title_name,
+            args.transfer_flags,
+            args.title_id,
+            args.content_type,
+        )
     )
     if metadata_requested:
         if not args.write:
@@ -1194,6 +1234,10 @@ def main() -> int:
             raw = mutate_stfs_metadata(
                 raw,
                 display_name=args.display_name,
+                display_description=args.display_description,
+                publisher_name=args.publisher_name,
+                title_name=args.title_name,
+                transfer_flags=args.transfer_flags,
                 title_id=args.title_id,
                 content_type=args.content_type,
                 header=report.stfs_header,
