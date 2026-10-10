@@ -27,6 +27,8 @@ from work.horizon_clone import (
     rehash_stfs_hashes,
     mutate_xdbf_entry_same_size,
     _atomic_replace_bytes,
+    validate_stfs_mutation,
+    block_offset,
     parse_stfs_header,
     parse_stfs_security_metadata,
     extract_stfs_public_key,
@@ -109,6 +111,13 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         self.assertEqual(verify_stfs_hashes(original, header=parse_stfs_header(original))["failures"], [])
+        validate_stfs_mutation(original)
+        corrupted = bytearray(original)
+        account = list_stfs_entries(original, parse_stfs_header(original))[0]
+        data_offset = block_offset(account.first_block, parse_stfs_header(original).header_size, parse_stfs_header(original).block_separation)
+        corrupted[data_offset] ^= 0x01
+        with self.assertRaises(ValueError):
+            validate_stfs_mutation(bytes(corrupted))
 
     def test_desktop_exposes_bulk_gpd_summary_export(self):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
