@@ -1637,6 +1637,16 @@ def repack_stfs_entries(
         if path in removals:
             raise ValueError(f"entry cannot be both replaced and removed: {path}")
 
+    if not removals and not additions and replacements and all(
+        len(payload) == by_path[path].size for path, payload in replacements.items()
+    ):
+        result = data
+        for path, payload in replacements.items():
+            current_header = parse_stfs_header(result)
+            current_entry = next(item for item in list_stfs_entries(result, current_header) if item.path == path)
+            result = mutate_stfs_entry_same_size(result, current_entry, payload, current_header)
+        return result
+
     original_payloads = {
         entry.path: read_stfs_entry(data, entry, header)
         for entry in entries
@@ -1717,7 +1727,16 @@ def repack_stfs_entries(
         raw[0x34:0x38] = len(payload).to_bytes(4, "big")
         result[slot : slot + 0x40] = raw
 
-    return rehash_stfs_hashes(bytes(result), header)
+    candidate = rehash_stfs_hashes(bytes(result), header)
+    candidate_header = parse_stfs_header(candidate)
+    for path, payload in {**replacements, **additions}.items():
+        candidate_entry = next((item for item in list_stfs_entries(candidate, candidate_header) if item.path == path), None)
+        if candidate_entry is None or read_stfs_entry(candidate, candidate_entry, candidate_header) != payload:
+            raise ValueError(
+                "repack allocation layout could not be authenticated for "
+                f"{path!r}; use a same-size replacement or provide a supported STFS allocation layout"
+            )
+    return candidate
 
 
 def verify_stfs_hashes(
