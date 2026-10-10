@@ -28,6 +28,13 @@ _INVENTORY = (
     EditorInventory("Skyrim", 3, "catalog-only"),
     EditorInventory("Gears of War 3", 1, "catalog-only"),
     EditorInventory("Halo general classes", 103, "catalog-only"),
+    EditorInventory("Dragon Ball Xenoverse", 1, "catalog-only"),
+    EditorInventory("Code Veronica X", 1, "catalog-only"),
+    EditorInventory("Devil May Cry", 1, "catalog-only"),
+    EditorInventory("Ninja Gaiden 3", 2, "catalog-only"),
+    EditorInventory("State of Decay", 1, "catalog-only"),
+    EditorInventory("Castle Crashers", 1, "catalog-only"),
+    EditorInventory("Saints Row", 3, "catalog-only"),
 )
 
 
@@ -110,5 +117,9 @@ def catalog_report(name: str) -> dict[str, object]:
             "method_summary": halo_general_class_method_summary(),
             "property_names": list(halo_general_class_property_names()),
         }
+    if name == "legacy":
+        from .legacy_catalog import legacy_catalog_report
+
+        return legacy_catalog_report()
     raise KeyError(f"unknown catalog: {name}")
 
