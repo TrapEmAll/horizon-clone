@@ -1363,6 +1363,44 @@ def list_embedded_achievement_image_links(
     return tuple(records)
 
 
+def extract_embedded_achievement_images(
+    data: bytes, output_dir: str | Path, header: StfsHeader | None = None
+) -> dict[str, object]:
+    """Extract unique linked achievement PNGs with deterministic filenames."""
+
+    destination = Path(output_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    records: list[dict[str, object]] = []
+    written_by_hash: dict[str, Path] = {}
+    for file_entry, _xdbf_entries in list_embedded_xdbf(data, header):
+        payload = read_stfs_entry(data, file_entry, header)
+        for link in xdbf_achievement_image_links(payload):
+            if link["status"] != "linked":
+                continue
+            image = xdbf_achievement_image_payload(payload, int(link["achievement_entry_index"]))
+            digest = hashlib.sha256(image).hexdigest()
+            output_path = written_by_hash.get(digest)
+            if output_path is None:
+                safe_file = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(file_entry.path).stem).strip("._") or "gpd"
+                output_path = destination / f"{safe_file}-{int(link['image_id']):016X}-{digest[:16]}.png"
+                _atomic_replace_bytes(output_path, image)
+                written_by_hash[digest] = output_path
+            records.append({
+                "file": file_entry.path,
+                "achievement_entry_index": link["achievement_entry_index"],
+                "achievement_id": link["achievement_id"],
+                "image_id": link["image_id"],
+                "sha256": digest,
+                "output": str(output_path),
+            })
+    return {
+        "output_dir": str(destination),
+        "linked_references": len(records),
+        "unique_images": len(written_by_hash),
+        "images": records,
+    }
+
+
 def mutate_profile_achievement_flags(
     data: bytes,
     mask: int,
@@ -2157,6 +2195,7 @@ def main() -> int:
     parser.add_argument("--achievements-output", type=Path, help="Write embedded achievement records as JSON")
     parser.add_argument("--achievement-links-output", type=Path, help="Write embedded achievement-to-image links as JSON")
     parser.add_argument("--extract-dir", type=Path, help="Extract STFS files into this directory")
+    parser.add_argument("--extract-achievement-images", type=Path, metavar="DIR", help="Extract unique linked achievement PNGs")
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
@@ -2844,6 +2883,11 @@ def main() -> int:
             "linked": sum(item["status"] == "linked" for item in links),
             "missing": sum(item["status"] == "missing" for item in links),
         }, indent=2))
+    if args.extract_achievement_images:
+        if not report.stfs_header:
+            parser.error("--extract-achievement-images requires a readable STFS header")
+        extraction = extract_embedded_achievement_images(raw, args.extract_achievement_images, report.stfs_header)
+        print(json.dumps({key: value for key, value in extraction.items() if key != "images"}, indent=2))
     if args.profile_summary:
         if not report.stfs_header:
             parser.error("--profile-summary requires a readable STFS header")
