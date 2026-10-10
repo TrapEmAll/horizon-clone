@@ -31,6 +31,11 @@ The shared managed-member evidence also exposes `ProfileLoadout` with its
 controls, game, campaign, campaign-level, and unknown-category labels. Their
 numeric values and binary offsets remain unresolved for the same reason.
 
+The retained member evidence identifies the six `Horizon.ProfileData` fields
+(`FromDevice`, `XUID`, `Gamertag`, `Gamerpicture`, `ProfileId`, and `Favorite`)
+and their managed types. The clone exposes that contract as metadata while
+leaving the opaque Account-file serialization unresolved.
+
 The shared STFS report also exposes public certificate descriptors, signature
 byte digests, and all 16 license slots. It deliberately does not verify or
 forge console signatures.
