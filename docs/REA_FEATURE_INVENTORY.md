@@ -179,6 +179,12 @@ unresolved record. Resource names are largely obfuscated and the evidence only
 establishes aggregate counts and payload digests; the clone does not copy,
 execute, or assign those resources to UI features.
 
+`extract_managed_resource_payloads` and `--extract-resources` now copy only
+embedded payloads whose candidate byte span has exactly one match for the
+authenticated REA digest. Outputs are digest-named binary files; unresolved or
+ambiguous resources are reported without writing unverified bytes. The payloads
+remain uninterpreted and are never executed.
+
 The retained Halo member evidence further counts 1,102 methods, 175 getter
 methods, 168 setter methods, and 140 unique property names across the
 general-class surface. 135 properties have both accessors; five are getter-only
