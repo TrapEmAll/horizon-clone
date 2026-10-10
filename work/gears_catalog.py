@@ -1155,14 +1155,25 @@ def gears_of_war_3_entry_ids() -> tuple[str, ...]:
 
 
 def gears_entry_id_summary() -> dict[str, object]:
-    """Describe the observed EntryID field catalog without guessing values."""
+    """Describe the observed EntryID field catalog and authenticated values."""
+    from .gears_enum_values import _VALUES
+
     return {
-        "status": "metadata-only",
+        "status": "metadata-and-constants",
         "declaring_type": "Horizon.PackageEditors.Gears_of_War_3.EntryID",
         "named_member_count": len(_GEARS_OF_WAR_3_ENTRY_IDS),
         "underlying_field_type": "valuetype:2744",
-        "constant_values_observed": False,
+        "constant_values_observed": True,
+        "constant_value_count": len(_VALUES["EntryID"]),
         "save_offsets_observed": False,
     }
+
+
+def gears_entry_id_values() -> dict[str, int]:
+    """Return authenticated Constant-table values for observed EntryID names."""
+
+    from .gears_enum_values import _VALUES
+
+    return dict(_VALUES["EntryID"])
 
 
