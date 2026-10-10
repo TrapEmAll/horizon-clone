@@ -225,6 +225,19 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(account.block_count, 2)
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
+    def test_adds_a_file_using_existing_table_and_block_capacity(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        payload = b"new profile-sidecar" * 20
+        mutated = repack_stfs_entries(original, {}, additions={"sidecar.bin": payload})
+        header = parse_stfs_header(mutated)
+        entry = next(item for item in list_stfs_entries(mutated, header) if item.path == "sidecar.bin")
+        self.assertEqual(read_stfs_entry(mutated, entry, header), payload)
+        self.assertEqual(verify_stfs_hashes(mutated, header=header)["failures"], [])
+        self.assertEqual(verify_stfs_hashes(mutated, header=header)["hash_table_failures"], [])
+
     def test_removes_a_file_table_entry(self):
         path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
         if not path.exists():
