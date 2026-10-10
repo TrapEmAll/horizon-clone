@@ -51,6 +51,7 @@ from work.horizon_clone import (
     stfs_content_type_name,
     stfs_magic_filename,
     stfs_fatx_device_path,
+    device_ioctl_report,
     read_private_key_json,
     sign_detached_signature,
     sign_detached_bytes,
@@ -247,6 +248,31 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(all(not item.relative_path.startswith("../") for item in entries))
         with self.assertRaises(ValueError):
             enumerate_host_device_entries(root, "..")
+
+    def test_device_ioctl_report_closes_explicit_provider_session(self):
+        class FakeProvider:
+            def __init__(self):
+                self.calls = []
+
+            def open_read_only(self, device_path):
+                self.calls.append(("open", device_path))
+                return 41
+
+            def device_io_control(self, handle, control_code, input_data, output_capacity):
+                self.calls.append(("ioctl", handle, control_code, input_data, output_capacity))
+                return b"\x10\x20"
+
+            def close(self, handle):
+                self.calls.append(("close", handle))
+
+        provider = FakeProvider()
+        report = device_ioctl_report("\\\\.\\PhysicalDrive-test", 0x70000, b"\x01\x02", 16, provider=provider)
+        self.assertEqual(report["output_hex"], "1020")
+        self.assertEqual(provider.calls, [
+            ("open", "\\\\.\\PhysicalDrive-test"),
+            ("ioctl", 41, 0x70000, b"\x01\x02", 16),
+            ("close", 41),
+        ])
 
     def test_reports_selected_managed_surface_from_exported_evidence(self):
         bundle = self.fixture_dir / "managed-surface.json"
