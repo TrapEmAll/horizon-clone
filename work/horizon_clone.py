@@ -1354,7 +1354,7 @@ def main() -> int:
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
-    parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo"), help="Print one REA-observed title catalog")
+    parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
