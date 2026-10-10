@@ -83,7 +83,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_io_contract_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_editor_family_report, managed_io_contract_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -219,6 +219,32 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["counts"]["matched_methods"], 1)
         self.assertEqual(report["methods"][0]["field_accesses"][0]["field_name"], "Value")
         self.assertEqual(report["methods"][0]["call_targets"][0]["target_name"], "Write")
+
+    def test_groups_managed_types_into_observed_editor_families(self):
+        bundle = self.fixture_dir / "family-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_family",
+                "normalized_result": {
+                    "types": [
+                        {"full_name": "Horizon.PackageEditors.Skyrim.Save"},
+                        {"full_name": "Horizon.PackageEditors.Skyrim.Inventory"},
+                        {"full_name": "A.obfuscated"},
+                    ],
+                    "fields": [{"declaring_type": "Horizon.PackageEditors.Skyrim.Save"}],
+                    "methods": [{"declaring_type": "Horizon.PackageEditors.Skyrim.Save"}],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_editor_family_report(bundle, "Horizon\\.PackageEditors")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["counts"]["matched_types"], 2)
+        self.assertEqual(report["families"][0]["family"], "Horizon.PackageEditors.Skyrim")
+        self.assertEqual(report["families"][0]["field_count"], 1)
+        self.assertEqual(report["families"][0]["method_count"], 1)
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
