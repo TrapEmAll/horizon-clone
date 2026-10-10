@@ -105,6 +105,24 @@ class ContainerInspectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mutate_xdbf_entry_same_size(data, parsed[0], b"short")
 
+    def test_adds_xdbf_entry_with_explicit_namespace_and_id(self):
+        payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
+        header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" + b"\x00\x00\x00\x01" + b"\x00\x00\x00\x01"
+        entry = (5).to_bytes(2, "big") + (0x8000).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
+        data = header + entry + b"\x00" * 8 + payload + b"\x00" * 100
+        expanded = bytearray(data)
+        expanded[8:12] = (2).to_bytes(4, "big")
+        expanded[42:42] = b"\x00" * 0x12
+
+        added = repack_xdbf_entries(
+            bytes(expanded), {}, additions={(5, 0x9000): "Added".encode("utf-16-be") + b"\x00\x00"}
+        )
+        parsed = parse_xdbf(added)
+        self.assertEqual(len(parsed), 2)
+        self.assertEqual(parsed[1].namespace, 5)
+        self.assertEqual(parsed[1].entry_id, 0x9000)
+        self.assertEqual(parsed[1].text, "Added")
+
     def test_mutates_xdbf_achievement_fields(self):
         name = "Old".encode("utf-16-le") + b"\x00\x00"
         payload = bytearray(0x18 + len(name))
