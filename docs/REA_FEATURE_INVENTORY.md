@@ -26,6 +26,10 @@ The current title-specific increment publishes the observed Skyrim enum names
 not expose their constant values or save-file offsets, so those remain explicit
 unknowns rather than inferred mutations.
 
+The shared STFS report also exposes public certificate descriptors, signature
+byte digests, and all 16 license slots. It deliberately does not verify or
+forge console signatures.
+
 ## Security observations
 
 REA’s managed static evidence for the shipped executable records debugger and
