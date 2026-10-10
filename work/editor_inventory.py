@@ -56,6 +56,42 @@ def inventory_summary() -> dict[str, object]:
     }
 
 
+def rea_feature_ledger() -> dict[str, object]:
+    """Return the compact REA ledger used to gate reconstruction work."""
+
+    return {
+        "source": "REA shipped-artifact evidence",
+        "artifact": "Horizon.exe",
+        "evidence": {
+            "managed_artifact": "ev_30551abd91b6a09fbc26f7b8264d514c62e4df84ea6ded235f2ae27aa669e2fa",
+            "managed_members": "ev_6514c14f1e6b41b3396b80e944e73751ef34bbcaf65a549262065abbb3ec9301",
+            "native_boundaries": "ev_0db9f22f86a797ce3601eafde37782d66fcb67ae376c1661933b53cb786a3728",
+            "horizon_native": "ev_89e4fc748456e53f0a366f862127d64187af35bf99c73ee9fb91a43837d54631",
+        },
+        "observed": {
+            "managed_types": 7693,
+            "managed_methods": 37401,
+            "managed_pinvoke_declarations": 54,
+            "profile_data_fields": [
+                {"name": "FromDevice", "type": "bool"},
+                {"name": "XUID", "type": "u8"},
+                {"name": "Gamertag", "type": "string"},
+                {"name": "Gamerpicture", "type": "u1[]"},
+                {"name": "ProfileId", "type": "u8"},
+                {"name": "Favorite", "type": "bool"},
+            ],
+            "horizon_native_exports": ["CheckRuntime", "DNG_Runtime", "GetUserString", "RunHVM"],
+        },
+        "unresolved": [
+            "Account type and Horizon Account serializer were not present in authenticated managed evidence",
+            "Title-specific save offsets and serializers were not established by static evidence",
+            "Native DNG/HVM argument semantics and device protocol values remain unresolved",
+            "Retail console-authoritative signing and key-vault ownership remain unresolved",
+            "Windows runtime GUI capture is unavailable in the current REA provider environment",
+        ],
+    }
+
+
 _CAPABILITIES = (
     Capability("STFS inspection", "implemented", "STFS container parsing and file-table evidence", ("inspect", "list_stfs_entries")),
     Capability("STFS extraction", "implemented", "STFS file-table and block traversal", ("extract_stfs", "read_stfs_entry")),
@@ -87,6 +123,7 @@ _CAPABILITIES = (
     Capability("Managed assembly reference inventory", "observed-only", "Exports authenticated declared assembly references and versions from a retained REA artifact bundle without loading dependencies", ("managed_reference_report", "--managed-references")),
     Capability("Managed editor-family inventory", "observed-only", "Groups authenticated managed types into queryable Horizon.PackageEditors families without inferring registration or save layouts", ("managed_editor_family_report", "--managed-editor-families")),
     Capability("Named title namespace inventory", "observed-only", "Separates stable non-obfuscated managed namespaces for follow-on title-editor reconstruction", ("managed_named_namespace_report", "--managed-named-namespaces")),
+    Capability("REA reconstruction ledger", "observed-only", "Preserves exact evidence identities, observed managed/native boundaries, and explicit unresolved parity questions", ("rea_feature_ledger", "--rea-feature-ledger")),
     Capability("Guarded managed-method inventory", "observed-only", "Reports authenticated methods with throw/no-return opcode evidence without executing or bypassing them", ("managed_guarded_methods_report", "--managed-guarded-methods")),
     Capability("Managed body-fidelity audit", "observed-only", "Measures duplicate retained method-body hashes and offsets so guard stubs are not mistaken for serializer implementations", ("managed_body_fidelity_report", "--managed-body-fidelity")),
     Capability("Joined managed editor schemas", "observed-only", "Joins every observed type with its fields and methods without inferring save offsets", ("managed_schema_report", "--managed-schema")),
