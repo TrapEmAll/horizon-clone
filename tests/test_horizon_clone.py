@@ -2001,6 +2001,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(account.block_count, 2)
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
+    def test_repacks_same_size_entry_preserving_authenticated_payload(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        entry = next(item for item in list_stfs_entries(original, header) if item.path == "Account")
+        payload = bytearray(read_stfs_entry(original, entry, header))
+        payload[0] ^= 0x01
+        mutated = repack_stfs_entries(original, {entry.path: bytes(payload)}, header)
+        mutated_header = parse_stfs_header(mutated)
+        mutated_entry = next(item for item in list_stfs_entries(mutated, mutated_header) if item.path == entry.path)
+        self.assertEqual(read_stfs_entry(mutated, mutated_entry, mutated_header), bytes(payload))
+        self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+
     def test_adds_a_file_using_existing_table_and_block_capacity(self):
         path = supplied_fixture()
         if path is None or not path.exists():
