@@ -758,6 +758,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
+        self.assertIn("--resource-surface", by_name["Embedded UI/resource surface"]["entry_points"])
 
     def test_reports_observed_native_save_and_runtime_boundaries(self):
         surface = native_surface_report()
