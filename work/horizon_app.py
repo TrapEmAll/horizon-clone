@@ -53,6 +53,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace XDBF entry", command=self.replace_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -632,6 +633,40 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "achievement_count": len(achievements)})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Achievement export failed", str(exc))
+
+    def export_xdbf_inventory(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("XDBF inventory", "Open a readable STFS profile first.")
+            return
+        inventory = []
+        for entry, xdbf_entries in list_embedded_xdbf(self._data, self._report.stfs_header):
+            for xdbf_entry in xdbf_entries:
+                inventory.append(
+                    {
+                        "file": entry.path,
+                        "index": xdbf_entry.index,
+                        "namespace": xdbf_entry.namespace,
+                        "entry_id": xdbf_entry.entry_id,
+                        "offset": xdbf_entry.offset,
+                        "length": xdbf_entry.length,
+                        "data_offset": xdbf_entry.data_offset,
+                        "text": xdbf_entry.text,
+                        "achievement": xdbf_entry.achievement,
+                    }
+                )
+        target = filedialog.asksaveasfilename(
+            title="Export XDBF inventory",
+            defaultextension=".json",
+            filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            Path(target).write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            self.status.configure(text=f"Exported {len(inventory)} XDBF entries")
+            self._set_details({"path": target, "xdbf_entry_count": len(inventory)})
+        except OSError as exc:
+            messagebox.showerror("XDBF inventory export failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
