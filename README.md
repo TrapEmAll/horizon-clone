@@ -60,9 +60,9 @@ copied implementation code.
   exposes observed per-type field counts and an aggregate 1,102-method/
   140-property surface as structural metadata only, including the exact
   observed getter/setter property names.
-- Exposes a focused REA-authenticated Halo field-type slice for `GameVariant`
-  and selected options/traits classes; field names remain build-local and no
-  save offsets are inferred.
+- Exposes REA-authenticated decoded field types for 92 named Halo general
+  classes (489 fields); field names remain build-local and no save offsets are
+  inferred. Eleven unsupported signatures remain excluded rather than guessed.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
   `SaveEntryCategory`, including the authenticated Constant values for the
   latter; package offsets and mutation behavior remain unclaimed.
