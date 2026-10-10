@@ -21,6 +21,7 @@ from .native_surface import native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import observed_resource_surface
 from .managed_surface import managed_surface_report
+from .device_inventory import device_inventory_report
 
 
 MAGIC = b"CON "
@@ -1393,6 +1394,7 @@ def main() -> int:
     parser.add_argument("--capabilities", action="store_true", help="Print the evidence-qualified implementation capability ledger")
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
+    parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
@@ -1464,6 +1466,10 @@ def main() -> int:
             return 0
     if args.device_surface:
         print(json.dumps(device_surface_report(), indent=2, ensure_ascii=False))
+        if len(__import__("sys").argv) == 3:
+            return 0
+    if args.device_inventory:
+        print(json.dumps(device_inventory_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
     if args.resource_surface:
