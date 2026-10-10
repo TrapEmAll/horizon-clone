@@ -176,13 +176,14 @@ class ContainerInspectionTests(unittest.TestCase):
             }]
         }), encoding="utf-8")
         try:
-            report = managed_schema_report(bundle, "Demo\\.Editor", include_bodies=True)
+            report = managed_schema_report(bundle, "Demo\\.Editor", include_bodies=True, method_pattern="Save")
         finally:
             bundle.unlink(missing_ok=True)
         self.assertEqual(report["counts"]["matched_types"], 1)
         self.assertEqual(report["counts"]["matched_fields"], 1)
         self.assertEqual(report["types"][0]["methods"][0]["name"], "Save")
         self.assertEqual(report["types"][0]["methods"][0]["body"]["status"], "present")
+        self.assertEqual(report["method_pattern"], "Save")
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
