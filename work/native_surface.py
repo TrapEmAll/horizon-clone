@@ -10,7 +10,10 @@ the default report remains declaration-only until that provider is available.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import json
+import re
 from pathlib import Path
+from typing import Any
 
 from .native_loader import compatible_pe_architecture, pe_export_names
 
@@ -159,5 +162,62 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
             "Unknown filenames have no authenticated contract in the current REA evidence.",
         ],
     }
+
+
+def managed_native_import_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
+    """Return the complete REA-authenticated managed P/Invoke inventory."""
+
+    records = bundle.get("records")
+    if not isinstance(records, list):
+        raise ValueError("evidence bundle does not contain a records array")
+    candidates = [
+        record for record in records
+        if isinstance(record, dict) and record.get("operation") == "inspect_managed_native_boundaries"
+    ]
+    if not candidates:
+        raise ValueError("evidence bundle has no managed native-boundary record")
+    record = max(candidates, key=lambda item: len(item.get("normalized_result", {}).get("pinvoke_imports", [])))
+    imports = record.get("normalized_result", {}).get("pinvoke_imports", [])
+    matcher = None
+    if pattern is not None:
+        try:
+            matcher = re.compile(pattern, re.IGNORECASE)
+        except re.error as exc:
+            raise ValueError(f"invalid native-import regex: {pattern}") from exc
+    selected = [
+        {
+            "import_scope_name": item.get("import_scope_name"),
+            "import_name": item.get("import_name"),
+            "member_name": item.get("member_name"),
+            "member_token": item.get("member_token"),
+            "call_convention": item.get("call_convention"),
+            "char_set": item.get("char_set"),
+            "verification": item.get("verification"),
+        }
+        for item in imports
+        if isinstance(item, dict)
+        and (matcher is None or matcher.search(f"{item.get('import_scope_name', '')}!{item.get('import_name', '')}"))
+    ]
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "counts": {"matched": len(selected), "total": len(imports)},
+        "imports": selected,
+        "limitations": [
+            "P/Invoke metadata proves managed declarations only; it does not prove a loaded DLL, implementation, or runtime call behavior.",
+            "Calling convention and character-set metadata remain declaration evidence, not native protocol verification.",
+        ],
+    }
+
+
+def managed_native_import_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read evidence bundle: {path}") from exc
+    return managed_native_import_report_from_bundle(bundle, pattern)
 
 
