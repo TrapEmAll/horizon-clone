@@ -173,7 +173,7 @@ def extract_managed_resource_payloads(
         if output_path.exists():
             raise FileExistsError(output_path)
         output_path.write_bytes(payload)
-        results.append({"name": name, "status": "extracted", "path": str(output_path), "bytes": len(payload), "sha256": expected, "source": kind, "payload_kind": classify_resource_payload(payload)})
+        results.append({"name": name, "status": "extracted", "path": str(output_path), "bytes": len(payload), "sha256": expected, "source": kind, "payload_kind": classify_resource_payload(payload), "payload_metadata": resource_payload_metadata(payload)})
     extracted = sum(item["status"] == "extracted" for item in results)
     unresolved = len(results) - extracted
     return {
@@ -433,6 +433,75 @@ def classify_resource_payload(payload: bytes) -> str:
     if payload.startswith(b"\xce\xca\xef\xbe"):
         return "dotnet-resources"
     return "binary"
+
+
+def resource_payload_metadata(payload: bytes) -> dict[str, Any]:
+    """Return safe format and image-dimension metadata without decoding assets."""
+
+    if not isinstance(payload, bytes):
+        raise TypeError("resource payload must be bytes")
+    kind = classify_resource_payload(payload)
+    result: dict[str, Any] = {"kind": kind, "bytes": len(payload)}
+    if kind == "png" and len(payload) >= 24 and payload[12:16] == b"IHDR":
+        result.update({"width": struct.unpack_from(">I", payload, 16)[0], "height": struct.unpack_from(">I", payload, 20)[0]})
+    elif kind == "gif" and len(payload) >= 10:
+        result.update({"width": struct.unpack_from("<H", payload, 6)[0], "height": struct.unpack_from("<H", payload, 8)[0]})
+    elif kind == "bmp" and len(payload) >= 26:
+        dib_size = struct.unpack_from("<I", payload, 14)[0]
+        if dib_size >= 40 and len(payload) >= 26:
+            width = struct.unpack_from("<i", payload, 18)[0]
+            height = struct.unpack_from("<i", payload, 22)[0]
+            result.update({"width": abs(width), "height": abs(height), "top_down": height < 0})
+    elif kind == "ico" and len(payload) >= 22:
+        count = struct.unpack_from("<H", payload, 4)[0]
+        dimensions = []
+        for index in range(count):
+            offset = 6 + index * 16
+            if offset + 8 > len(payload):
+                break
+            width, height = payload[offset] or 256, payload[offset + 1] or 256
+            dimensions.append({"width": width, "height": height})
+        result["images"] = dimensions
+    elif kind == "jpeg":
+        dimensions = _jpeg_dimensions(payload)
+        if dimensions is not None:
+            result.update({"width": dimensions[0], "height": dimensions[1]})
+    return result
+
+
+def _jpeg_dimensions(payload: bytes) -> tuple[int, int] | None:
+    """Read JPEG SOF dimensions using bounded marker parsing."""
+
+    if len(payload) < 4 or payload[:2] != b"\xff\xd8":
+        return None
+    offset = 2
+    sof_markers = set(range(0xC0, 0xC4)) | set(range(0xC5, 0xC8)) | set(range(0xC9, 0xCC)) | set(range(0xCD, 0xD0))
+    while offset + 3 < len(payload):
+        if payload[offset] != 0xFF:
+            offset += 1
+            continue
+        while offset < len(payload) and payload[offset] == 0xFF:
+            offset += 1
+        if offset >= len(payload):
+            return None
+        marker = payload[offset]
+        offset += 1
+        if marker in {0xD8, 0xD9}:
+            continue
+        if marker == 0xDA:
+            return None
+        if offset + 2 > len(payload):
+            return None
+        segment_length = struct.unpack_from(">H", payload, offset)[0]
+        if segment_length < 2 or offset + segment_length > len(payload):
+            return None
+        if marker in sof_markers and segment_length >= 7:
+            return (
+                struct.unpack_from(">H", payload, offset + 3)[0],
+                struct.unpack_from(">H", payload, offset + 5)[0],
+            )
+        offset += segment_length
+    return None
 
 
 def _managed_resource_blob(data: bytes) -> tuple[int, int]:
