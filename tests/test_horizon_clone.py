@@ -285,6 +285,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(next(item for item in entries if item.path == "cache/NewFolder").is_directory)
         self.assertIn("cache/ph.dat", {item.path for item in entries})
         self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+        with self.assertRaises(ValueError):
+            add_stfs_directory(original, "cache/" + "x" * 41, header)
 
     def test_moves_stfs_entry_between_directories_and_rehashes(self):
         path = supplied_fixture()
