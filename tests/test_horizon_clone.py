@@ -26,6 +26,7 @@ from work.horizon_clone import (
     repack_stfs_entries,
     rehash_stfs_hashes,
     mutate_xdbf_entry_same_size,
+    _atomic_replace_bytes,
     parse_stfs_header,
     parse_stfs_security_metadata,
     extract_stfs_public_key,
@@ -91,6 +92,16 @@ class ContainerInspectionTests(unittest.TestCase):
         finally:
             binary.unlink(missing_ok=True)
             text.unlink(missing_ok=True)
+
+    def test_cli_atomic_replace_cleans_temporary_file(self):
+        self.fixture_dir.mkdir(exist_ok=True)
+        target = self.fixture_dir / "cli-atomic.bin"
+        try:
+            _atomic_replace_bytes(target, b"atomic")
+            self.assertEqual(target.read_bytes(), b"atomic")
+            self.assertFalse(Path(str(target) + ".horizon-tmp").exists())
+        finally:
+            target.unlink(missing_ok=True)
 
     def test_desktop_exposes_bulk_gpd_summary_export(self):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
