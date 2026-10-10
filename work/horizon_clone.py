@@ -1305,8 +1305,12 @@ def main() -> int:
         parser.error(str(exc))
 
     if args.xdbf_file is not None:
-        if not write_target or args.xdbf_text is None or args.xdbf_text_value is None:
-            parser.error("--xdbf-file requires --xdbf-text, --xdbf-text-value, and --write or --in-place")
+        embedded_text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
+        embedded_achievement_requested = args.achievement is not None
+        if not write_target or embedded_text_requested == embedded_achievement_requested:
+            parser.error("--xdbf-file requires exactly one embedded XDBF edit and --write or --in-place")
+        if embedded_text_requested and (args.xdbf_text is None or args.xdbf_text_value is None):
+            parser.error("embedded text editing requires --xdbf-text and --xdbf-text-value")
         if not report.stfs_header:
             parser.error("--xdbf-file requires a readable STFS header")
         entry = next((item for item in report.entries if item.path == args.xdbf_file), None)
@@ -1314,13 +1318,26 @@ def main() -> int:
             parser.error(f"STFS XDBF file not found: {args.xdbf_file}")
         try:
             xdbf_payload = read_stfs_entry(raw, entry, report.stfs_header)
-            edited_payload = mutate_xdbf_text(xdbf_payload, args.xdbf_text, args.xdbf_text_value)
+            if embedded_text_requested:
+                edited_payload = mutate_xdbf_text(xdbf_payload, args.xdbf_text, args.xdbf_text_value)
+                operation_name = "text"
+            else:
+                edited_payload = mutate_xdbf_achievement(
+                    xdbf_payload,
+                    args.achievement,
+                    achievement_id=args.achievement_id,
+                    image_id=args.image_id,
+                    gamerscore=args.gamerscore,
+                    flags=args.achievement_flags,
+                    name=args.achievement_name,
+                )
+                operation_name = "achievement"
             raw = repack_stfs_entries(raw, {entry.path: edited_payload}, report.stfs_header)
             write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError, IndexError, IsADirectoryError) as exc:
             parser.error(str(exc))
-        print(f"Wrote unsigned embedded XDBF text mutation to {write_target}")
+        print(f"Wrote unsigned embedded XDBF {operation_name} mutation to {write_target}")
 
     if args.list:
         if not report.entries:
