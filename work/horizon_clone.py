@@ -23,7 +23,7 @@ from .device_surface import device_surface_report
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
-from .signing import RsaPublicKey
+from .signing import RsaPublicKey, verify_xecrypt_sha1_pkcs1v15
 from .native_loader import compatible_pe_architecture, pe_export_names
 from .anti_analysis import anti_analysis_report
 
@@ -309,7 +309,7 @@ def verify_embedded_signature_region(
     inferred and no bytes are modified.
     """
 
-    from .signing import verify_sha1_pkcs1v15, verify_sha256_pkcs1v15
+    from .signing import verify_sha1_pkcs1v15, verify_sha256_pkcs1v15, verify_xecrypt_sha1_pkcs1v15
 
     if not isinstance(data, bytes):
         raise TypeError("container data must be bytes")
@@ -333,6 +333,8 @@ def verify_embedded_signature_region(
         return verify_sha256_pkcs1v15(region, signature, RsaPublicKey(modulus, exponent))
     if algorithm == "RSA-SHA1-PKCS1v1.5":
         return verify_sha1_pkcs1v15(region, signature, RsaPublicKey(modulus, exponent))
+    if algorithm == "RSA-SHA1-XeCrypt-PKCS1v1.5":
+        return verify_xecrypt_sha1_pkcs1v15(region, signature, RsaPublicKey(modulus, exponent))
     raise ValueError(f"unsupported signature algorithm: {algorithm}")
 
 
@@ -2253,7 +2255,7 @@ def main() -> int:
     parser.add_argument("--signed-end", type=lambda value: int(value, 0), help="Exclusive end offset for --verify-embedded-signature")
     parser.add_argument("--signature-offset", type=lambda value: int(value, 0), help="Signature offset for --verify-embedded-signature")
     parser.add_argument("--signature-label", help="Caller-defined label for --verify-detached-signature")
-    parser.add_argument("--signature-algorithm", choices=("RSA-SHA256-PKCS1v1.5", "RSA-SHA1-PKCS1v1.5"), default="RSA-SHA256-PKCS1v1.5")
+    parser.add_argument("--signature-algorithm", choices=("RSA-SHA256-PKCS1v1.5", "RSA-SHA1-PKCS1v1.5", "RSA-SHA1-XeCrypt-PKCS1v1.5"), default="RSA-SHA256-PKCS1v1.5")
     parser.add_argument("--public-key-modulus", type=lambda value: int(value, 0), help="Public RSA modulus for detached verification")
     parser.add_argument("--public-key-exponent", type=lambda value: int(value, 0), default=65537)
     parser.add_argument("--public-key-json", type=Path, help="JSON key emitted by --public-key for detached verification")
