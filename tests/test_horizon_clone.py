@@ -51,6 +51,7 @@ from work.observed_members import observed_fields, observed_profile_data_fields,
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
+from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
@@ -794,6 +795,29 @@ class ContainerInspectionTests(unittest.TestCase):
         members = {(item.declaring_type, item.name) for item in observed_device_members()}
         self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24"), members)
+
+    def test_device_binding_requires_provider_and_validates_observed_i8_property(self):
+        binding = DeviceBinding()
+        self.assertEqual(binding.status, "unavailable")
+        with self.assertRaises(DeviceProviderUnavailable):
+            binding.get_device_size()
+
+        class Provider:
+            def __init__(self):
+                self.value = 1024
+
+            def get_device_size(self):
+                return self.value
+
+            def set_device_size(self, value):
+                self.value = value
+
+        bound = DeviceBinding(Provider())
+        self.assertEqual(bound.get_device_size(), 1024)
+        bound.set_device_size(-1)
+        self.assertEqual(bound.get_device_size(), -1)
+        with self.assertRaises(ValueError):
+            bound.set_device_size(0x8000_0000_0000_0000)
 
     def test_native_runtime_requires_explicit_provider(self):
         binding = NativeRuntimeBinding()
