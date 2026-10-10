@@ -77,7 +77,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_schema_report, managed_surface_report
+from work.managed_surface import managed_io_contract_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -188,6 +188,28 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["types"][0]["methods"][0]["body"]["status"], "present")
         self.assertEqual(report["method_pattern"], "Save")
         self.assertEqual(report["field_accesses"][0]["opcode"], "stfld")
+
+    def test_reports_managed_io_contract_anchors(self):
+        bundle = self.fixture_dir / "io-contract-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_io",
+                "normalized_result": {
+                    "types": [{"full_name": "Demo.Editor"}],
+                    "methods": [{"declaring_type": "Demo.Editor", "name": "Save", "token": "0x06000001", "signature": {"return_type": "void"}, "body": {"status": "present", "anchors": [{"opcode": "stfld"}]}}],
+                    "field_accesses": [{"method_token": "0x06000001", "field_name": "Value", "field_token": "0x04000001", "opcode": "stfld"}],
+                    "call_edges": [{"caller_token": "0x06000001", "opcode": "call", "target_kind": "method-def", "target_name": "Write", "target_token": "0x06000002"}],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_io_contract_report(bundle, "Demo\\.Editor", "^Save$")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["counts"]["matched_methods"], 1)
+        self.assertEqual(report["methods"][0]["field_accesses"][0]["field_name"], "Value")
+        self.assertEqual(report["methods"][0]["call_targets"][0]["target_name"], "Write")
 
     def test_recognizes_con_and_extracts_utf16(self):
         payload = b"CON " + b"\x00" * 12 + "Achievement One".encode("utf-16-le") + b"\x00\x00"
