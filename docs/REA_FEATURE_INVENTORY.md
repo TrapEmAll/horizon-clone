@@ -82,6 +82,12 @@ behavior, and IOCTL semantics remain unresolved.
 the binding refuses implicit DLL loading and preserves the unresolved native
 argument semantics.
 
+`NativeSaveBinding` now models the recovered `RtsSaveDecrypt` and
+`RtsSaveEncrypt` buffer shapes, including the `u4&` output-length argument.
+It requires an explicit caller-supplied provider, validates the observed
+integer/buffer types, and does not load `class3.dll` or claim the native
+algorithm, key format, or output semantics.
+
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
