@@ -2385,6 +2385,7 @@ def main() -> int:
     parser.add_argument("--verify-detached-signature", type=Path, metavar="SIGNATURE", help="Verify a detached development signature over the input bytes")
     parser.add_argument("--sign-detached-signature", type=Path, metavar="SIGNATURE", help="Sign the input bytes with an explicit development RSA private key")
     parser.add_argument("--sign-written-output", type=Path, metavar="SIGNATURE", help="After a mutation, sign the exact bytes written by --write or --in-place")
+    parser.add_argument("--sign-written-package", type=Path, metavar="OUTPUT", help="After a mutation, XeCrypt-sign the exact CON bytes written by --write or --in-place")
     parser.add_argument("--verify-embedded-signature", action="store_true", help="Verify an explicitly bounded in-container RSA signature")
     parser.add_argument("--signed-start", type=lambda value: int(value, 0), help="Start offset for --verify-embedded-signature")
     parser.add_argument("--signed-end", type=lambda value: int(value, 0), help="Exclusive end offset for --verify-embedded-signature")
@@ -2786,6 +2787,13 @@ def main() -> int:
             parser.error("--sign-written-output currently supports RSA-SHA256-PKCS1v1.5 only")
         if args.sign_written_output.resolve() == write_target.resolve():
             parser.error("--sign-written-output must be different from the written container")
+    if args.sign_written_package:
+        if not write_target:
+            parser.error("--sign-written-package requires --write or --in-place")
+        if not args.private_key_json:
+            parser.error("--sign-written-package requires --private-key-json")
+        if args.sign_written_package.resolve() == write_target.resolve():
+            parser.error("--sign-written-package must be different from the written container")
     mutation_written = False
 
     def write_mutation(data: bytes) -> None:
@@ -2800,6 +2808,20 @@ def main() -> int:
         if args.sign_written_output:
             result = sign_detached_signature(write_target, args.sign_written_output, args.signature_label, args.private_key_json)
             print(json.dumps({"written_signature": result}, indent=2))
+        if args.sign_written_package:
+            signed = sign_stfs_console_package(
+                write_target.read_bytes(),
+                read_private_key_json(args.private_key_json),
+            )
+            _atomic_replace_bytes(args.sign_written_package, signed)
+            verification = verify_stfs_console_signature(signed)
+            print(json.dumps({
+                "written_package": str(args.sign_written_package),
+                "bytes": len(signed),
+                "signature_verified": verification["verified"],
+                "algorithm": verification["algorithm"],
+                "console_authority_established": False,
+            }, indent=2))
 
     if args.managed_body_fidelity:
         try:
