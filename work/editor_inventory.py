@@ -58,6 +58,7 @@ _CAPABILITIES = (
     Capability("XDBF/GPD inspection", "implemented", "observed XDBF entry and namespace-5/achievement payloads", ("parse_xdbf", "list_embedded_xdbf", "list_embedded_achievements")),
     Capability("XDBF/GPD mutation", "implemented", "bounded XDBF repacking and observed achievement edits", ("repack_xdbf_entries", "mutate_xdbf_text", "mutate_xdbf_achievement")),
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
+    Capability("Account serialization", "unresolved", "supplied Account payload is opaque and REA exposed no serializer, offsets, or replay", ("mutate_stfs_entry_same_size",)),
     Capability("Skyrim/Gears/Halo title editors", "catalog-only", "REA observed type names without authenticated field layouts or behavioral replay", ("observed_editor_inventory",)),
     Capability("Console signing", "provider-boundary", "public signature metadata observed; private signing material and console validity unavailable", ("sign_with_provider",)),
 )
