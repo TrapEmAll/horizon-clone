@@ -59,6 +59,12 @@ semantics and native protocols are not inferred. The retained call-edge evidence
 obfuscated managed `Startup` method to both runtime checks and `CheckString`
 to both user-string exports; it also shows `ZYXDNGuard` initializing LZO.
 
+The member inventory also exposes a device-exploration surface: thumbnail
+properties for `DeviceExplorer`, `FatxUSB_24`, `TestDrive`, and `TestDrive2`,
+plus `get_DeviceSize`/`set_DeviceSize` with an `i8` value. These declarations
+are now available through `--device-surface`; device enumeration, FATX/USB
+behavior, and IOCTL semantics remain unresolved.
+
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
