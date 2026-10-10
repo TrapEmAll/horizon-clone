@@ -60,6 +60,8 @@ copied implementation code.
   capacity, updating file-table records and hashes.
 - Adds new root or existing-directory STFS files when both file-table slots and
   data-block capacity are available.
+- Removes STFS files from the desktop front end when the resulting package fits
+  the existing allocation capacity.
 - Resolves and rehashes level-2 STFS hash-table indirection for large
   allocations without growing the package's physical allocation.
 - Removes file-table entries safely when the resulting package fits the
