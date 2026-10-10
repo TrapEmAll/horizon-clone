@@ -140,6 +140,8 @@ copied implementation code.
   instruction counts, opcode counts, and IL digests.
 - Supports `--schema-method-pattern` for focused `Read`/`Write`/`Save` method
   contract queries within matched managed editor types.
+- Supports opt-in `--schema-field-accesses` to expose REA-observed field-access
+  anchors and opcodes for matched managed types.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
