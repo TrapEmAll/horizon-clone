@@ -14,9 +14,15 @@ copied implementation code.
 - Parses extracted XDBF/GPD indexes and common string entries.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
+- Replaces an existing STFS file with same-size bytes in place and rebuilds
+  affected data-block hashes plus the metadata-header hash.
+- Verifies data-block and metadata-header hashes while explicitly reporting
+  that RSA package signing has not been checked.
 
-Container rewriting, signing, and game-specific editors are deliberately not
-implemented yet. Those require verified format and integrity observations.
+RSA signing remains behind an authorized signing-provider boundary. This
+clean-room project does not contain private Xbox/Microsoft signing keys and
+does not claim that a rewritten package is console-valid until an authorized
+provider signs it.
 
 ## Usage
 
@@ -26,6 +32,8 @@ python -m work.horizon_clone C:\path\to\container --output report.json
 python -m work.horizon_clone C:\path\to\container --list
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
+python -m work.horizon_clone C:\path\to\container --verify-hashes
+python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
 python -m work.horizon_app
 ```
