@@ -108,6 +108,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected in place", command=self.replace_selected_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Repack selected in place", command=self.repack_selected_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add directory", command=self.add_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove entry", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
@@ -756,6 +757,43 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Repack failed", str(exc))
+
+    def repack_selected_in_place(self) -> None:
+        """Repack one selected entry back into the loaded container."""
+
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("In-place repack", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("In-place repack", "Select a file first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.is_directory:
+            messagebox.showinfo("In-place repack", "Directories cannot be repacked.")
+            return
+        source = filedialog.askopenfilename(title="Choose replacement bytes")
+        if not source:
+            return
+        if not messagebox.askyesno(
+            "Confirm in-place repack",
+            f"Repack {entry.path} in {self._report.path}? The original bytes will be overwritten.",
+            parent=self,
+        ):
+            return
+        try:
+            replacement = Path(source).read_bytes()
+            mutated = repack_stfs_entries(
+                self._data, {entry.path: replacement}, self._report.stfs_header
+            )
+            target = Path(self._report.path)
+            _atomic_write_bytes(target, mutated)
+            self._data = mutated
+            self._report = inspect(target)
+            self.status.configure(text=f"Wrote unsigned in-place repack: {entry.path}")
+            self._set_details({"path": str(target), "entry": entry.path, "signature_checked": False})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("In-place repack failed", str(exc))
 
     def add_file(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
