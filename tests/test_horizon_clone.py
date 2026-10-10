@@ -76,7 +76,7 @@ from work.editor_inventory import capability_report, catalog_report, inventory_s
 from work.anti_analysis import anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
-from work.native_surface import managed_native_import_report, native_export_contract_report, native_surface_report, observed_native_imports, observed_native_callers
+from work.native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report, enumerate_host_device_entries
@@ -1427,6 +1427,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("CtypesNativeSaveProvider", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("LzoBinding", by_name["Native save/runtime boundaries"]["entry_points"])
+        self.assertIn("--native-installation", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("--resource-surface", by_name["Embedded UI/resource surface"]["entry_points"])
 
     def test_reports_observed_native_save_and_runtime_boundaries(self):
@@ -1626,6 +1627,17 @@ class ContainerInspectionTests(unittest.TestCase):
         contract = native_export_contract_report(path)
         self.assertEqual(contract["status"], "verified")
         self.assertEqual(contract["missing_exports"], [])
+
+    def test_native_installation_inventory_is_read_only_and_reports_missing_x64_helper(self):
+        path = Path(r"C:\Program Files (x86)\Daring Development\Horizon")
+        if not path.exists():
+            self.skipTest("supplied Horizon installation is not available")
+        report = native_installation_report(path)
+        self.assertIn(report["status"], {"partial", "verified"})
+        by_name = {item["name"]: item for item in report["images"]}
+        self.assertEqual(by_name["Horizon.dll"]["status"], "verified")
+        if not by_name["HVMRun64.dll"]["present"]:
+            self.assertEqual(by_name["HVMRun64.dll"]["status"], "missing")
 
     def test_native_loader_reports_observed_hvm_runtime_exports(self):
         path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\HVMRun64.dll")
