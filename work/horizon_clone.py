@@ -382,6 +382,35 @@ def mutate_stfs_entry_same_size(
     return bytes(result)
 
 
+def mutate_stfs_metadata(
+    data: bytes,
+    *,
+    display_name: str | None = None,
+    title_id: int | None = None,
+    content_type: int | None = None,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Mutate fixed-width STFS metadata fields and rebuild the metadata hash."""
+    header = header or parse_stfs_header(data)
+    result = bytearray(data)
+    if display_name is not None:
+        encoded = display_name.encode("utf-16-be") + b"\x00\x00"
+        if len(encoded) > 0x80:
+            raise ValueError("display name exceeds the STFS 0x80-byte field")
+        result[0x411 : 0x411 + 0x80] = encoded.ljust(0x80, b"\x00")
+    if title_id is not None:
+        if not 0 <= title_id <= 0xFFFFFFFF:
+            raise ValueError("title ID must fit in an unsigned 32-bit field")
+        result[0x360:0x364] = title_id.to_bytes(4, "big")
+    if content_type is not None:
+        if not 0 <= content_type <= 0xFFFFFFFF:
+            raise ValueError("content type must fit in an unsigned 32-bit field")
+        result[0x344:0x348] = content_type.to_bytes(4, "big")
+    first_hash_table = (header.header_size + 0xFFF) & 0xFFFFF000
+    result[0x32C:0x340] = hashlib.sha1(result[0x344:first_hash_table]).digest()
+    return bytes(result)
+
+
 def verify_stfs_hashes(
     data: bytes,
     entry: StfsEntry | None = None,
@@ -525,6 +554,9 @@ def main() -> int:
     parser.add_argument("--replace", metavar="ENTRY", help="Replace one STFS file in place")
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
+    parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
+    parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
+    parser.add_argument("--content-type", type=lambda value: int(value, 0), help="Replace the STFS content type")
     args = parser.parse_args()
 
     try:
@@ -571,6 +603,27 @@ def main() -> int:
         except (OSError, ValueError, IsADirectoryError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned in-place mutation to {args.write}")
+
+    metadata_requested = any(
+        value is not None for value in (args.display_name, args.title_id, args.content_type)
+    )
+    if metadata_requested:
+        if not args.write:
+            parser.error("metadata mutation requires --write")
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        try:
+            raw = mutate_stfs_metadata(
+                raw,
+                display_name=args.display_name,
+                title_id=args.title_id,
+                content_type=args.content_type,
+                header=report.stfs_header,
+            )
+            args.write.write_bytes(raw)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned metadata mutation to {args.write}")
 
     payload = json.dumps(_json_report(report), indent=2, ensure_ascii=False)
     if args.output:
