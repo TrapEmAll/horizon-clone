@@ -120,6 +120,8 @@ copied implementation code.
   LZO signatures, without loading `lzo.dll` or claiming codec semantics.
 - Provides `PowerShellLzoProvider`, an explicit x64-to-x86 bridge that invokes
   the supplied `lzo.dll` only through a caller-selected 32-bit PowerShell host.
+- Verifies both observed codec families: `lzo1x` and `lzo2a`; the supplied
+  `lzo2a` path round-trips with a 256 KiB caller-provided work buffer.
 - Provides `PowerShellNativeSaveProvider`, an explicit x64-to-x86 bridge for
   the observed stdcall `class3.dll` save declarations; raw return and length
   values are preserved without inferring Account serialization.
