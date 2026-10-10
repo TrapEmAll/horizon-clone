@@ -1470,10 +1470,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(binding.status, "unavailable")
         with self.assertRaises(NativeRuntimeUnavailable):
             binding.check_runtime()
+        with self.assertRaises(NativeRuntimeUnavailable):
+            binding.check_runtime64()
 
         class Provider:
             def check_runtime(self):
                 return True
+
+            def check_runtime64(self):
+                return False
 
             def run_hvm(self):
                 return 7
@@ -1481,11 +1486,16 @@ class ContainerInspectionTests(unittest.TestCase):
             def get_user_string(self, arg0, arg1, arg2):
                 return arg0 + arg1 + arg2
 
+            def get_user_string64(self, arg0, arg1, arg2):
+                return arg0 - arg1 - arg2
+
         bound = NativeRuntimeBinding(Provider())
         self.assertEqual(bound.status, "provider-bound")
         self.assertTrue(bound.check_runtime())
+        self.assertFalse(bound.check_runtime64())
         self.assertEqual(bound.run_hvm(), 7)
         self.assertEqual(bound.get_user_string(1, 2, 3), 6)
+        self.assertEqual(bound.get_user_string64(9, 2, 1), 6)
 
     def test_native_runtime_provider_requires_explicit_absolute_image(self):
         with self.assertRaises(ValueError):
