@@ -40,6 +40,7 @@ from work.horizon_clone import (
     extract_stfs_public_key,
     read_private_key_json,
     sign_detached_signature,
+    sign_detached_bytes,
     parse_stfs_thumbnails,
     parse_xdbf,
     xdbf_payload_surface,
@@ -134,6 +135,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "export_profile_summary"))
         self.assertTrue(hasattr(HorizonApp, "export_title_catalog"))
         self.assertTrue(hasattr(HorizonApp, "extract_managed_resources"))
+        self.assertTrue(hasattr(HorizonApp, "sign_loaded_bytes"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
 
