@@ -1577,6 +1577,7 @@ def main() -> int:
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--managed-schema", type=Path, help="Read joined type/field/method metadata from an REA bundle")
     parser.add_argument("--schema-pattern", help="Case-insensitive regex for managed-schema type names")
+    parser.add_argument("--schema-bodies", action="store_true", help="Include REA-observed managed method body summaries in --managed-schema")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
     parser.add_argument("--profile-data", action="store_true", help="Inspect an explicit ProfileData metadata envelope")
     parser.add_argument("--editor-inspect", action="store_true", help="Dispatch the input through the clean-room editor registry")
@@ -1717,7 +1718,7 @@ def main() -> int:
         return 0
     if args.managed_schema:
         try:
-            report = managed_schema_report(args.managed_schema, args.schema_pattern)
+            report = managed_schema_report(args.managed_schema, args.schema_pattern, args.schema_bodies)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
