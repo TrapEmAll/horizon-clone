@@ -15,6 +15,7 @@ from .horizon_clone import (
     list_embedded_achievements,
     list_embedded_xdbf,
     summarize_embedded_xdbf,
+    xdbf_payload_surface,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
@@ -79,6 +80,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievements", command=self.export_achievements).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export XDBF surface", command=self.export_xdbf_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -800,6 +802,38 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "gpd_count": len(summary)})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("GPD summary export failed", str(exc))
+
+    def export_xdbf_surface(self) -> None:
+        """Export payload digests for standalone or embedded XDBF files."""
+
+        if not self._data or not self._report:
+            messagebox.showinfo("XDBF surface", "Open an XDBF file or STFS profile first.")
+            return
+        try:
+            surface: list[dict[str, object]] = []
+            if self._standalone_xdbf:
+                for item in xdbf_payload_surface(self._data):
+                    surface.append({"file": str(self._report.path), **item})
+            elif self._report.stfs_header:
+                for entry, _ in list_embedded_xdbf(self._data, self._report.stfs_header):
+                    payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+                    for item in xdbf_payload_surface(payload):
+                        surface.append({"file": entry.path, **item})
+            else:
+                messagebox.showinfo("XDBF surface", "The selected artifact has no readable XDBF payloads.")
+                return
+            target = filedialog.asksaveasfilename(
+                title="Export XDBF payload surface",
+                defaultextension=".json",
+                filetypes=(("JSON", "*.json"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_text(Path(target), json.dumps(surface, indent=2, ensure_ascii=False) + "\n")
+            self.status.configure(text=f"Exported {len(surface)} XDBF payload records")
+            self._set_details({"path": target, "xdbf_payload_count": len(surface)})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("XDBF surface export failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
