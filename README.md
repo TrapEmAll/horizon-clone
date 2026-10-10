@@ -201,6 +201,8 @@ copied implementation code.
 - The desktop front end can export the complete embedded achievement-image
   link inventory, including linked and missing-reference counts.
 - The CLI exposes the same inventory through `--achievement-links-output`.
+- The CLI and desktop front end can extract unique linked PNGs with
+  `--extract-achievement-images DIR` or “Extract achievement images”.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
