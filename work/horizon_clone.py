@@ -396,6 +396,7 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
                 "image_id": int.from_bytes(payload[8:12], "big"),
                 "gamerscore": int.from_bytes(payload[12:16], "big", signed=True),
                 "flags": int.from_bytes(payload[16:18], "big"),
+                "unlock_time_filetime": int.from_bytes(payload[20:28], "big"),
                 "name": name,
             }
         result.append(XdbfEntry(index, namespace, entry_id, offset, length, start, text, achievement))
@@ -521,6 +522,7 @@ def mutate_xdbf_achievement(
     image_id: int | None = None,
     gamerscore: int | None = None,
     flags: int | None = None,
+    unlock_time_filetime: int | None = None,
     name: str | None = None,
 ) -> bytes:
     """Edit the observed XDBF achievement payload fields in place."""
@@ -540,6 +542,8 @@ def mutate_xdbf_achievement(
         payload[12:16] = gamerscore.to_bytes(4, "big", signed=True)
     if flags is not None:
         payload[16:18] = flags.to_bytes(2, "big", signed=False)
+    if unlock_time_filetime is not None:
+        payload[20:28] = unlock_time_filetime.to_bytes(8, "big", signed=False)
     if name is not None:
         encoded = name.encode("utf-16-be")
         name_start = 0x1C
@@ -1756,6 +1760,7 @@ def main() -> int:
     parser.add_argument("--image-id", type=lambda value: int(value, 0))
     parser.add_argument("--gamerscore", type=int)
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
+    parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
     parser.add_argument("--achievement-name")
     args = parser.parse_args()
     if args.capabilities:
@@ -2016,6 +2021,7 @@ def main() -> int:
                         image_id=args.image_id,
                         gamerscore=args.gamerscore,
                         flags=args.achievement_flags,
+                        unlock_time_filetime=args.achievement_unlock_filetime,
                         name=args.achievement_name,
                     )
                 write_mutation(raw)
@@ -2073,6 +2079,7 @@ def main() -> int:
                     image_id=args.image_id,
                     gamerscore=args.gamerscore,
                     flags=args.achievement_flags,
+                    unlock_time_filetime=args.achievement_unlock_filetime,
                     name=args.achievement_name,
                 )
                 operation_name = "achievement"
