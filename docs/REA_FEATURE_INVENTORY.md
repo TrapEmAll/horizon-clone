@@ -93,6 +93,9 @@ persist key material.
 `AccountKeyProvider` adds a caller-owned key-vault boundary: the codec requests
 an operation-specific key using the payload SHA-256 and keeps no key state. The
 REA evidence still does not establish the key format or Account serializer.
+`CommandAccountKeyProvider` supplies a path-bound stdin/stdout helper adapter
+for authorized development or key-vault services; it uses no shell and does
+not write key material locally.
 
 The same evidence identifies two zero-argument `Horizon.ProfileData` resource
 getters, `get_GoWJ_Thumb_New` and `get_GrayDot`, both returning unresolved
