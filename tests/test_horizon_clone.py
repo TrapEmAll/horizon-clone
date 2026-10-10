@@ -706,7 +706,10 @@ class ContainerInspectionTests(unittest.TestCase):
         if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         summaries = summarize_embedded_xdbf(path.read_bytes())
-        self.assertEqual(len(summaries), 67)
+        self.assertEqual(len(summaries), 68)
+        fit = next(item for item in summaries if item["file"] == "FFFE07D1.fit")
+        self.assertEqual(fit["entry_count"], 4)
+        self.assertEqual(fit["achievement_count"], 0)
         dashboard = next(item for item in summaries if item["file"] == "FFFE07D1.gpd")
         self.assertIn(1, dashboard["namespace_counts"])
         self.assertIn(3, dashboard["namespace_counts"])
