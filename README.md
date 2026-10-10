@@ -93,6 +93,7 @@ python -m work.horizon_clone C:\path\to\container --thumbnail-source thumbnail.b
 python -m work.horizon_clone extracted\FFFE07D1.gpd --json
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-replace 5 --xdbf-source payload.bin --write edited.gpd
 python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-remove 5 --write without-entry.gpd
+python -m work.horizon_clone extracted\FFFE07D1.gpd --xdbf-add-namespace 5 --xdbf-add-id 0x9000 --xdbf-add-source payload.bin --write with-entry.gpd
 python -m work.horizon_clone extracted\FFFE07D1.gpd --achievement 5 --gamerscore 1000 --achievement-flags 1 --write achievement.gpd
 python -m work.horizon_app
 ```
