@@ -20,7 +20,10 @@ class DeviceMember:
 
 
 _MEMBERS = (
+    DeviceMember("A.c481e7f09def65aded5645fc775214ae5", "get_Account_Thumb", "0x06000bc9", "class:957", ()),
     DeviceMember("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_DeviceExplorer_Thumb", "0x06000bfc", "class:957", ()),
+    DeviceMember("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxHDD_24", "0x06000c10", "class:957", ()),
+    DeviceMember("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxMU_24", "0x06000c11", "class:957", ()),
     DeviceMember("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24", "0x06000c12", "class:957", ()),
     DeviceMember("A.cfe87d2c16a6420298db515d0ecfcf31b", "get_TestDrive_Thumb", "0x06000cba", "class:957", ()),
     DeviceMember("A.cfe87d2c16a6420298db515d0ecfcf31b", "get_TestDrive2_Thumb", "0x06000cbb", "class:957", ()),
