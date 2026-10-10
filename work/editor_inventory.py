@@ -98,6 +98,7 @@ _CAPABILITIES = (
     Capability("DNG/HVM runtime adapter", "provider-boundary", "REA recovered x86 and x64 CheckRuntime/GetUserString declarations plus RunHVM; explicit path-bound PowerShell bridges preserve raw return values while native argument semantics remain unresolved", ("NativeRuntimeBinding", "PowerShellNativeRuntimeProvider", "check_runtime64", "get_user_string64")),
     Capability("Console signing", "provider-boundary", "public signature metadata observed; explicit detached RSA-SHA256 development signing and post-mutation output signing are available, but package layout and console validity remain unresolved", ("sign_with_provider", "sign_detached_signature", "verify_detached_signature", "verify_embedded_signature_region", "--sign-detached-signature", "--sign-written-output", "--verify-embedded-signature")),
     Capability("CON public-key extraction", "implemented", "Extracts the public RSA modulus and exponent from an observed CON certificate", ("extract_stfs_public_key", "--public-key")),
+    Capability("STFS signature mutation audit", "implemented", "Compares stored signature regions and changed non-signature bytes without claiming console validity", ("stfs_signature_mutation_report", "--signature-compare")),
 )
 
 
