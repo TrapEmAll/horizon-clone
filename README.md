@@ -55,6 +55,8 @@ copied implementation code.
   reparsed afterward. The result is unsigned until an authorized signing step.
 - It also exposes the corresponding confirmation-gated in-place capacity-aware
   repack action for entries whose replacement size differs.
+- Entry removal is likewise available as a confirmation-gated in-place action,
+  with the STFS hash tree rebuilt and the written container reparsed.
 - Repackages XDBF entries to different payload sizes within existing data
   capacity and can remove entries while rebuilding free-space metadata.
 - Edits observed achievement payload fields: achievement ID, image ID,
