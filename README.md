@@ -196,6 +196,8 @@ copied implementation code.
 - Provides `xdbf_achievement_image_links` to join authenticated achievement
   `image_id` values to same-file namespace-2 PNG entries, retaining missing
   references explicitly.
+- Provides `xdbf_achievement_image_payload` for exact linked PNG retrieval,
+  with explicit errors for missing or non-image references.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
