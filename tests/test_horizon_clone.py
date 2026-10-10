@@ -45,7 +45,7 @@ from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_regi
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_of_war_3_entry_ids
-from work.halo_catalog import halo_general_class_field_counts, halo_general_class_types
+from work.halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_types
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
@@ -684,6 +684,9 @@ class ContainerInspectionTests(unittest.TestCase):
         counts = halo_general_class_field_counts()
         self.assertEqual(counts["GameVariant"], 3)
         self.assertEqual(counts["Halo4GameOptionsOrdnanceOptions"], 22)
+        summary = halo_general_class_method_summary()
+        self.assertEqual(summary["method_count"], 1102)
+        self.assertEqual(summary["unique_getter_setter_property_count"], 140)
 
     def test_exposes_observed_shared_horizon_catalog_names_without_guessing_values(self):
         catalogs = observed_catalogs()
