@@ -22,7 +22,7 @@ from .native_surface import managed_native_import_report, native_export_contract
 from .device_surface import device_surface_report
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
-from .device_inventory import device_inventory_report
+from .device_inventory import device_inventory_report, enumerate_host_device_entries
 from .signing import RsaPublicKey
 from .native_loader import compatible_pe_architecture, pe_export_names
 from .anti_analysis import anti_analysis_report
@@ -1916,6 +1916,7 @@ def main() -> int:
     parser.add_argument("--native-import-pattern", help="Case-insensitive regex for --native-import-bundle scope!name")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
+    parser.add_argument("--device-list", type=Path, metavar="DIRECTORY", help="List one host-visible device directory without mutation")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
     parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
@@ -2106,6 +2107,13 @@ def main() -> int:
         print(json.dumps(device_inventory_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
+    if args.device_list:
+        try:
+            entries = enumerate_host_device_entries(args.device_list)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({"root": str(args.device_list), "entries": [asdict(item) for item in entries]}, indent=2))
+        return 0
     if args.resource_surface:
         print(json.dumps(observed_resource_surface(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
