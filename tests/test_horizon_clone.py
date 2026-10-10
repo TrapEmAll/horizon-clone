@@ -301,6 +301,20 @@ class ContainerInspectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             move_stfs_entry(original, "cache", "cache", header=header)
 
+    def test_moves_directory_with_descendants_and_rehashes(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        mutated = move_stfs_entry(original, "cache", "AvatarAssets", "CacheMoved", header)
+        mutated_header = parse_stfs_header(mutated)
+        paths = {entry.path for entry in list_stfs_entries(mutated, mutated_header)}
+        self.assertIn("AvatarAssets/CacheMoved", paths)
+        self.assertIn("AvatarAssets/CacheMoved/ph.dat", paths)
+        self.assertNotIn("cache/ph.dat", paths)
+        self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
+
     def test_removes_empty_stfs_directory_and_rehashes(self):
         path = supplied_fixture()
         if path is None or not path.exists():
