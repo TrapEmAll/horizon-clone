@@ -108,6 +108,11 @@ key JSON file (`modulus_hex` and `private_exponent_hex`) for authorized
 RSA-SHA256 development signatures over explicitly labeled input bytes. This
 does not infer or rewrite an Xbox package signature region.
 
+`--sign-written-output` can be combined with a mutation and `--write` or
+`--in-place` to produce a detached signature over the exact post-mutation
+bytes. The output remains a development signature, not an inferred Xbox
+package signature.
+
 An additional retained-member audit found no authenticated Horizon-managed
 STFS entry timestamp, creation-time, or file-attribute contract. The clone
 therefore continues to expose the observed directory/name/size/block fields
