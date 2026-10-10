@@ -341,9 +341,19 @@ def _hash_record_address(data: bytes, block: int, header: StfsHeader) -> int:
             return -1
         address += (data[top + 0x14] & 0x40) << 6
     else:
-        # The supplied fixture is level 1. Keep level-2 packages readable
-        # only when their top-level layout is unambiguous.
-        return -1
+        # Level 2 uses a top table of level-1 table hashes, followed by the
+        # selected level-1 table's status bit to choose the level-0 half.
+        level_step = 0x718F if shift == 0 else 0x723A
+        top = first_hash_table + (level_step << 12) + (block // 0x70E4) * 0x18
+        if top + 0x15 > len(data):
+            return -1
+        level1_selector = (data[top + 0x14] & 0x40) << 6
+        level1_block = (1 << shift) + (block // 0x70E4) * level_step
+        level1 = first_hash_table + (level1_block << 12) + level1_selector
+        level1_record = level1 + (block % 0xAA) * 0x18
+        if level1_record + 0x15 > len(data):
+            return -1
+        address += (data[level1_record + 0x14] & 0x40) << 6
     record = address + (block % 0xAA) * 0x18
     return record if record + 0x18 <= len(data) else -1
 
