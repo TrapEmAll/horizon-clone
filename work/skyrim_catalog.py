@@ -634,3 +634,26 @@ def enum_member_names(enum_name: str) -> tuple[str, ...]:
         raise KeyError(f"unknown observed Skyrim enum: {enum_name}") from exc
 
 
+def observed_skyrim_enum_summary() -> dict[str, object]:
+    """Describe the authenticated enum surface without inventing constants.
+
+    REA exposed the enum field names and the ``value__`` backing field as an
+    ``i4``.  It did not expose the named constants' numeric values or save
+    offsets, so callers receive counts and explicit resolution status only.
+    """
+    return {
+        "status": "metadata-only",
+        "underlying_type": "i4",
+        "value_field_observed": True,
+        "constant_values_observed": False,
+        "save_offsets_observed": False,
+        "enums": {
+            name: {
+                "named_member_count": len(members),
+                "declared_field_count_including_value__": len(members) + 1,
+            }
+            for name, members in _SKYRIM_ENUMS.items()
+        },
+    }
+
+
