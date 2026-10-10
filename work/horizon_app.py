@@ -30,6 +30,8 @@ from .horizon_clone import (
     repack_xdbf_entries,
     repack_stfs_entries,
     verify_stfs_hashes,
+    editor_edit_values,
+    editor_inspect_report,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -94,6 +96,8 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Edit XDBF text", command=self.edit_xdbf_text).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove XDBF entry", command=self.remove_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Open editor artifact", command=self.open_editor_artifact).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Edit editor artifact", command=self.edit_editor_artifact).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
         self.status.pack(side=tk.RIGHT)
 
@@ -164,6 +168,60 @@ class HorizonApp(tk.Tk):
             self._set_details({"header": self._report.stfs_header, "sha256": self._report.sha256})
         except (OSError, ValueError) as exc:
             messagebox.showerror("Open failed", str(exc))
+
+    def open_editor_artifact(self) -> None:
+        """Inspect an explicit registry-supported metadata/evidence artifact."""
+
+        filename = filedialog.askopenfilename(
+            title="Open editor artifact",
+            filetypes=(("JSON artifacts", "*.json"), ("All files", "*.*")),
+        )
+        if not filename:
+            return
+        try:
+            path = Path(filename)
+            result = editor_inspect_report(path)
+            self._data = None
+            self._report = None
+            self._entries.clear()
+            self.tree.delete(*self.tree.get_children())
+            self.status.configure(text=f"Editor: {result['editor']}")
+            self._set_details(result)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Editor artifact failed", str(exc))
+
+    def edit_editor_artifact(self) -> None:
+        """Apply explicit editor values and require a separate output path."""
+
+        filename = filedialog.askopenfilename(
+            title="Open editor artifact to edit",
+            filetypes=(("JSON artifacts", "*.json"), ("All files", "*.*")),
+        )
+        if not filename:
+            return
+        values_filename = filedialog.askopenfilename(
+            title="Choose editor values JSON",
+            filetypes=(("JSON files", "*.json"), ("All files", "*.*")),
+        )
+        if not values_filename:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save edited editor artifact",
+            defaultextension=".json",
+            filetypes=(("JSON artifacts", "*.json"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        if Path(target).resolve() == Path(filename).resolve():
+            messagebox.showerror("Editor edit failed", "The output path must differ from the input artifact.")
+            return
+        try:
+            editor_name, edited = editor_edit_values(Path(filename), Path(values_filename))
+            _atomic_write_bytes(Path(target), edited)
+            self.status.configure(text=f"Wrote {editor_name}")
+            self._set_details({"editor": editor_name, "input": filename, "output": target, "bytes": len(edited)})
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Editor edit failed", str(exc))
 
     def show_selected(self, _event=None) -> None:
         if not self._data or not self._report:
