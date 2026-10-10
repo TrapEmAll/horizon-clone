@@ -60,7 +60,7 @@ from work.skyrim_catalog import enum_member_names, enum_member_values, observed_
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids, resolve_gears_entry_id, validate_gears_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
-from work.resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
+from work.resource_inventory import extract_managed_resource_payloads, observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.anti_analysis import anti_analysis_report
@@ -1490,6 +1490,23 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["status"], "partial")
         self.assertEqual(report["counts"], {"verified": 205, "unresolved": 1})
         self.assertEqual(sum(item["status"] == "verified" for item in report["resources"]), 205)
+
+    def test_extracts_uniquely_verified_managed_resource_payload(self):
+        executable = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.exe")
+        bundle = Path("work/rea-managed-members-latest.json")
+        if not executable.exists() or not bundle.exists():
+            self.skipTest("supplied Horizon.exe and retained REA bundle are not available")
+        directory_path = Path("work/.test-resource-output")
+        shutil.rmtree(directory_path, ignore_errors=True)
+        try:
+            directory = str(directory_path)
+            report = extract_managed_resource_payloads(executable, bundle, directory, "A\\.c298")
+            self.assertEqual(report["counts"], {"extracted": 1, "unresolved": 0})
+            output = Path(report["resources"][0]["path"])
+            self.assertTrue(output.is_file())
+            self.assertEqual(hashlib.sha256(output.read_bytes()).hexdigest(), report["resources"][0]["sha256"])
+        finally:
+            shutil.rmtree(directory_path, ignore_errors=True)
 
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
