@@ -99,6 +99,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign CON package", command=self.sign_con_package).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Verify CON signature", command=self.verify_con_signature).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
@@ -319,6 +320,19 @@ class HorizonApp(tk.Tk):
             self._set_details(result)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("CON signing failed", str(exc))
+
+    def verify_con_signature(self) -> None:
+        """Verify the observed embedded CON signature without mutation."""
+
+        if self._data is None or self._data[:4] != b"CON ":
+            messagebox.showinfo("CON signature", "Open a CON container first.")
+            return
+        try:
+            report = verify_stfs_console_signature(self._data)
+            self.status.configure(text="Verified embedded CON signature")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("CON signature verification failed", str(exc))
 
     def show_anti_analysis(self) -> None:
         """Display retained REA anti-analysis observations without execution."""
