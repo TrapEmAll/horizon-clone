@@ -1140,7 +1140,11 @@ def repack_stfs_entries(
         result[slot : slot + 0x40] = raw
 
     all_slots = _all_stfs_file_table_slots(data, header)
-    occupied = set(slots)
+    occupied = {
+        slot
+        for entry, slot in zip(entries, slots)
+        if entry.path not in removals
+    }
     free_slots = [slot for slot in all_slots if slot not in occupied]
     if len(free_slots) < len(additions):
         raise ValueError("file-table capacity is exhausted")
