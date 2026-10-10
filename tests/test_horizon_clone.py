@@ -48,7 +48,7 @@ from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
-from work.gears_catalog import gears_entry_id_summary, gears_of_war_3_entry_ids
+from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
@@ -765,7 +765,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(summary["constant_values_observed"])
         self.assertEqual(enum_member_values("ShoutEnums")["AnimalAllegiance"], 392311)
 
-    def test_exposes_observed_gears_entry_id_names_without_guessing_values(self):
+    def test_exposes_observed_gears_entry_id_constants(self):
         entries = gears_of_war_3_entry_ids()
         self.assertGreater(len(entries), 1000)
         self.assertIn("Selected_COG_Character", entries)
@@ -773,7 +773,8 @@ class ContainerInspectionTests(unittest.TestCase):
         summary = gears_entry_id_summary()
         self.assertEqual(summary["declaring_type"], "Horizon.PackageEditors.Gears_of_War_3.EntryID")
         self.assertEqual(summary["named_member_count"], len(entries))
-        self.assertFalse(summary["constant_values_observed"])
+        self.assertTrue(summary["constant_values_observed"])
+        self.assertEqual(summary["constant_value_count"], 1139)
 
     def test_exposes_observed_halo_general_class_names_without_guessing_layouts(self):
         types = halo_general_class_types()
@@ -1068,6 +1069,8 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_exports_observed_title_catalogs(self):
         self.assertIn("EntryID", catalog_report("gears"))
+        self.assertEqual(gears_entry_id_values()["SyncID"], 1)
+        self.assertTrue(catalog_report("gears")["summary"]["constant_values_observed"])
         self.assertEqual(len(catalog_report("halo")["types"]), 103)
         self.assertEqual(len(catalog_report("halo")["property_names"]), 140)
         self.assertEqual(halo_general_class_field_types("GameVariant")["c7a62e9b2608ab1560f963117c637c401"], "i4")
