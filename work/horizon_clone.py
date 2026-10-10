@@ -151,6 +151,63 @@ def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: byte
     return bytes(result)
 
 
+def repack_xdbf_entries(
+    data: bytes,
+    replacements: dict[int, bytes],
+    remove: Iterable[int] = (),
+) -> bytes:
+    """Repack XDBF payloads while preserving the existing table capacity."""
+    entries = list(parse_xdbf(data))
+    by_index = {entry.index: entry for entry in entries}
+    removals = set(remove)
+    unknown = sorted((set(replacements) | removals) - set(by_index))
+    if unknown:
+        raise IndexError(f"unknown XDBF entry index: {unknown[0]}")
+    if removals & set(replacements):
+        raise ValueError("an XDBF entry cannot be both replaced and removed")
+
+    table_length = int.from_bytes(data[8:12], "big")
+    free_length = int.from_bytes(data[16:20], "big")
+    table_offset = 0x18
+    free_offset = table_offset + table_length * 0x12
+    data_base = free_offset + free_length * 8
+    retained = [entry for entry in entries if entry.index not in removals]
+    if len(retained) > table_length:
+        raise ValueError("XDBF entry table capacity is exhausted")
+
+    payloads: list[bytes] = []
+    for entry in retained:
+        payloads.append(replacements.get(entry.index, data[entry.data_offset : entry.data_offset + entry.length]))
+    used = sum(len(payload) for payload in payloads)
+    capacity = len(data) - data_base
+    if used > capacity:
+        raise ValueError("replacement set exceeds the existing XDBF data capacity")
+
+    result = bytearray(data)
+    result[table_offset:free_offset] = b"\x00" * (free_offset - table_offset)
+    result[data_base:] = b"\x00" * capacity
+    cursor = 0
+    for new_index, (entry, payload) in enumerate(zip(retained, payloads)):
+        raw = bytearray(data[table_offset + entry.index * 0x12 : table_offset + (entry.index + 1) * 0x12])
+        raw[10:14] = cursor.to_bytes(4, "big")
+        raw[14:18] = len(payload).to_bytes(4, "big")
+        slot = table_offset + new_index * 0x12
+        result[slot : slot + 0x12] = raw
+        result[data_base + cursor : data_base + cursor + len(payload)] = payload
+        cursor += len(payload)
+    result[12:16] = len(retained).to_bytes(4, "big")
+
+    free_bytes = capacity - cursor
+    result[free_offset : free_offset + free_length * 8] = b"\x00" * (free_length * 8)
+    if free_bytes and free_length:
+        result[free_offset : free_offset + 4] = cursor.to_bytes(4, "big")
+        result[free_offset + 4 : free_offset + 8] = free_bytes.to_bytes(4, "big")
+        result[20:24] = (1).to_bytes(4, "big")
+    else:
+        result[20:24] = (0).to_bytes(4, "big")
+    return bytes(result)
+
+
 def _u16be(data: bytes, offset: int) -> int:
     return int.from_bytes(data[offset : offset + 2], "big")
 
