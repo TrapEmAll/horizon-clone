@@ -1647,11 +1647,17 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(surface["status"], "declaration-only")
         self.assertEqual(surface["observed_module_ref_count"], 14)
         self.assertEqual(surface["observed_pinvoke_count"], 54)
+        self.assertEqual(surface["unique_import_count"], len(observed_native_imports()))
         imports = {(item.module, item.import_name) for item in observed_native_imports()}
         self.assertIn(("class3.dll", "RtsSaveEncrypt"), imports)
         self.assertIn(("class3.dll", "RtsSaveDecrypt"), imports)
         self.assertIn(("Horizon.dll", "RunHVM"), imports)
         self.assertIn(("Horizon.dll", "GetUserString"), imports)
+        self.assertIn(("mscoree.dll", "CLRCreateInstance"), imports)
+        self.assertIn(("lzo.dll", "lzo_version_string"), imports)
+        self.assertIn(("kernel32.dll", "CreatePrivateNamespace"), imports)
+        self.assertIn(("advapi32.dll", "ConvertStringSecurityDescriptorToSecurityDescriptor"), imports)
+        self.assertIn(("gdi32.dll", "CreateCompatibleDC"), imports)
         by_import = {(item.module, item.import_name): item for item in observed_native_imports()}
         self.assertEqual(by_import[("class3.dll", "RtsSaveEncrypt")].return_type, "i4")
         self.assertEqual(
