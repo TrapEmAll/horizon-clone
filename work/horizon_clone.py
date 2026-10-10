@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 23345)
-Total output lines: 2026
+Warning: truncated output (original token count: 23447)
+Total output lines: 2033
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import BinaryIO, Iterable
 
 from .editor_inventory import capability_report, catalog_report
-from .native_surface import native_surface_report
+from .native_surface import native_export_contract_report, native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import observed_resource_surface, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_surface_report
@@ -896,13 +896,7 @@ def mutate_stfs_entry_same_size(
     data: bytes,
     entry: StfsEntry,
     replacement: bytes,
-    header: StfsHeader | None = Non…5345 tokens truncated…data, table_index * 0xAA, header, 0)
-        actual = hashlib.sha1(data[level0_address : level0_address + BLOCK_SIZE]).digest()
-        if top_level == 1:
-            parent_address = _hash_table_address(data, 0, header, 1)
-            expected = data[parent_address + table_index * 0x18 : parent_address + table_index * 0x18 + 0x14]
-        elif top_level == 2:
-            parent_address = _hash_table_address(data, (table_index // 0xAA) * 0x70E4, header, 1)
+    …5447 tokens truncated…arent_address = _hash_table_address(data, (table_index // 0xAA) * 0x70E4, header, 1)
             expected = data[parent_address + (table_index % 0xAA) * 0x18 : parent_address + (table_index % 0xAA) * 0x18 + 0x14]
         else:
             expected = actual
@@ -1031,6 +1025,7 @@ def main() -> int:
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--native-exports", action="store_true", help="Inspect named PE exports without loading the image")
+    parser.add_argument("--native-contract", action="store_true", help="Compare a supplied DLL with its REA-observed export contract")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
@@ -1121,6 +1116,12 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps({"path": str(args.path), "exports": list(exports), "export_count": len(exports)}, indent=2))
+        return 0
+    if args.native_contract:
+        try:
+            print(json.dumps(native_export_contract_report(args.path), indent=2, ensure_ascii=False))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
         return 0
     if args.device_surface:
         print(json.dumps(device_surface_report(), indent=2, ensure_ascii=False))
