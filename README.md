@@ -226,6 +226,9 @@ copied implementation code.
 - Summarizes stable named title namespaces with `--managed-named-namespaces`,
   excluding obfuscated/compiler-generated names while retaining the evidence
   boundary for follow-on editor reconstruction.
+- Reports REA-observed guarded methods with `--managed-guarded-methods`,
+  identifying bodies containing a throw and no observed return opcode without
+  executing or bypassing those methods.
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
 - Supports bounded display-description, publisher-name, title-name, and
