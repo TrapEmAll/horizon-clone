@@ -45,7 +45,7 @@ from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_regi
 from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.observed_members import observed_fields, observed_profile_data_fields
-from work.editor_inventory import inventory_summary, observed_editor_inventory
+from work.editor_inventory import capability_report, inventory_summary, observed_editor_inventory
 
 
 def supplied_fixture():
@@ -650,6 +650,14 @@ class ContainerInspectionTests(unittest.TestCase):
         summary = inventory_summary()
         self.assertEqual(summary["managed_type_count"], 7693)
         self.assertTrue(all(item["implementation_status"] == "catalog-only" for item in summary["editors"]))
+
+    def test_reports_evidence_qualified_capability_ledger(self):
+        report = capability_report()
+        by_name = {item["name"]: item for item in report["capabilities"]}
+        self.assertEqual(report["managed_method_count"], 37401)
+        self.assertEqual(by_name["STFS hash verification"]["status"], "implemented")
+        self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
+        self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
