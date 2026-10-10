@@ -45,7 +45,7 @@ from work.signing import (
     verify_sha256_pkcs1v15,
 )
 from work.profile_model import ProfileData
-from work.editors import EditorContext, EditorRegistry, ManagedSurfaceEditor, XdbfEditor, default_registry
+from work.editors import AccountEditor, EditorContext, EditorRegistry, ManagedSurfaceEditor, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids
@@ -884,6 +884,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["STFS hash verification"]["status"], "implemented")
         self.assertEqual(by_name["Desktop atomic artifact writes"]["status"], "implemented")
         self.assertEqual(by_name["Managed surface editor dispatch"]["status"], "implemented")
+        self.assertEqual(by_name["Opaque Account editor dispatch"]["status"], "implemented")
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
@@ -1100,11 +1101,17 @@ class ContainerInspectionTests(unittest.TestCase):
         registry = default_registry()
         plugin = registry.resolve(EditorContext(filename="profile.gpd"), b"XDBF\x00")
         self.assertIsInstance(plugin, XdbfEditor)
-        self.assertEqual(registry.names(), ("XDBF/GPD editor", "REA managed surface"))
+        self.assertEqual(registry.names(), ("XDBF/GPD editor", "REA managed surface", "Opaque Account editor"))
         managed = json.dumps({"records": [{"operation": "inspect_managed_members", "normalized_result": {"artifact": {}, "types": [], "fields": [], "methods": []}}]}).encode()
         managed_plugin = registry.resolve(EditorContext(filename="rea.json"), managed)
         self.assertIsInstance(managed_plugin, ManagedSurfaceEditor)
         self.assertEqual(managed_plugin.inspect(EditorContext(), managed)["status"], "observed-only")
+        account = registry.resolve(EditorContext(filename="Account"), b"opaque")
+        self.assertIsInstance(account, AccountEditor)
+        self.assertEqual(account.inspect(EditorContext(filename="Account"), b"opaque")["status"], "opaque")
+        self.assertEqual(account.replace_same_size(b"opaque", b"edited"), b"edited")
+        with self.assertRaises(ValueError):
+            account.replace_same_size(b"opaque", b"too-long")
         with self.assertRaises(ValueError):
             registry.register(XdbfEditor())
 
