@@ -47,6 +47,11 @@ only the observed managed types and unsigned 64-bit ranges in its metadata
 model; it does not pretend that this validates or rewrites the opaque Account
 payload.
 
+The same evidence identifies two zero-argument `Horizon.ProfileData` resource
+getters, `get_GoWJ_Thumb_New` and `get_GrayDot`, both returning unresolved
+managed type `class:957`. They are exposed as declaration metadata only; no
+bitmap format or Account-file relationship is inferred.
+
 
 The shared STFS report also exposes public certificate descriptors, signature
 byte digests, and all 16 license slots. It deliberately does not verify or
