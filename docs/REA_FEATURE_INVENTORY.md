@@ -22,9 +22,13 @@ requires format fixtures and behavioral tests before it can be implemented
 without guessing opaque fields.
 
 The current title-specific increment publishes the observed Skyrim enum names
-(`ShoutEnums`, `PerkEnums`, and `MagicEnums`). The retained REA metadata did
-not expose their constant values or save-file offsets, so those remain explicit
-unknowns rather than inferred mutations.
+(`ShoutEnums`, `PerkEnums`, and `MagicEnums`) and an evidence-qualified summary:
+all three use an observed `i4` backing field, with 27, 273, and 295 named
+members respectively. The retained REA metadata did not expose their constant
+values or save-file offsets, so those remain explicit unknowns rather than
+inferred mutations. The Gears `EntryID` catalog likewise records its observed
+declaring type and 1,139 named members, while its `valuetype:2744` values and
+offsets remain unresolved.
 
 The shared managed-member evidence also exposes `ProfileLoadout` with its
 `All_Loadouts` member and `SaveEntryCategory` with observed audio, graphics,
