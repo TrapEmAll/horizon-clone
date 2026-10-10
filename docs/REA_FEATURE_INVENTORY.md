@@ -36,6 +36,13 @@ The retained member evidence identifies the six `Horizon.ProfileData` fields
 and their managed types. The clone exposes that contract as metadata while
 leaving the opaque Account-file serialization unresolved.
 
+Field-access coverage is intentionally conservative: the retained static
+member inventory observes only a `Favorite` field read for this type and does
+not expose an Account serializer or field offsets. The clone therefore enforces
+only the observed managed types and unsigned 64-bit ranges in its metadata
+model; it does not pretend that this validates or rewrites the opaque Account
+payload.
+
 
 The shared STFS report also exposes public certificate descriptors, signature
 byte digests, and all 16 license slots. It deliberately does not verify or
