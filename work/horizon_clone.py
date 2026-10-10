@@ -21,6 +21,7 @@ from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
 from .device_binding import DeviceIoBinding, WindowsDeviceIoProvider
+from .native_runtime import NativeRuntimeBinding, PowerShellNativeRuntimeProvider
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
@@ -2352,6 +2353,49 @@ def device_ioctl_report(
     }
 
 
+def native_runtime_operation_report(
+    dll_path: Path,
+    operation: str,
+    arguments: tuple[int, ...] = (),
+    *,
+    powershell_path: Path | None = None,
+    provider=None,
+) -> dict[str, object]:
+    """Invoke one explicit Horizon/HVM runtime export and preserve its result."""
+
+    allowed = {"check-runtime", "check-runtime64", "run-hvm", "get-user-string", "get-user-string64"}
+    if operation not in allowed:
+        raise ValueError(f"unsupported native runtime operation: {operation}")
+    if operation.startswith("get-user-string") and len(arguments) != 3:
+        raise ValueError(f"{operation} requires exactly three integer arguments")
+    if not operation.startswith("get-user-string") and arguments:
+        raise ValueError(f"{operation} does not accept arguments")
+    if provider is None:
+        provider = PowerShellNativeRuntimeProvider(dll_path, powershell_path=powershell_path)
+    binding = NativeRuntimeBinding(provider)
+    if operation == "check-runtime":
+        result = binding.check_runtime()
+    elif operation == "check-runtime64":
+        result = binding.check_runtime64()
+    elif operation == "run-hvm":
+        result = binding.run_hvm()
+    elif operation == "get-user-string":
+        result = binding.get_user_string(*arguments)
+    else:
+        result = binding.get_user_string64(*arguments)
+    return {
+        "dll": str(dll_path),
+        "operation": operation,
+        "arguments": list(arguments),
+        "result": result,
+        "status": "provider-bound-raw-result",
+        "limitations": [
+            "Native argument meanings and returned handles are not inferred.",
+            "The operation executes the caller-selected native DLL through the explicit provider.",
+        ],
+    }
+
+
 def _json_report(report: ContainerReport) -> dict:
     result = asdict(report)
     result["is_container"] = report.is_container
@@ -2382,6 +2426,9 @@ def main() -> int:
     parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--native-exports", action="store_true", help="Inspect named PE exports without loading the image")
     parser.add_argument("--native-contract", action="store_true", help="Compare a supplied DLL with its REA-observed export contract")
+    parser.add_argument("--native-runtime-operation", choices=("check-runtime", "check-runtime64", "run-hvm", "get-user-string", "get-user-string64"), help="Invoke one explicit Horizon/HVM runtime export on the positional DLL")
+    parser.add_argument("--native-runtime-args", nargs=3, type=lambda value: int(value, 0), metavar=("ARG0", "ARG1", "ARG2"), help="Three raw integer arguments for a GetUserString operation")
+    parser.add_argument("--native-runtime-powershell", type=Path, help="Explicit matching PowerShell host for --native-runtime-operation")
     parser.add_argument("--native-installation", type=Path, metavar="DIRECTORY", help="Inventory expected native Horizon DLLs without loading them")
     parser.add_argument("--native-import-bundle", type=Path, help="Read the complete REA managed P/Invoke inventory")
     parser.add_argument("--native-import-pattern", help="Case-insensitive regex for --native-import-bundle scope!name")
@@ -2592,6 +2639,18 @@ def main() -> int:
             print(json.dumps(native_export_contract_report(args.path), indent=2, ensure_ascii=False))
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
+        return 0
+    if args.native_runtime_operation:
+        try:
+            report = native_runtime_operation_report(
+                args.path,
+                args.native_runtime_operation,
+                tuple(args.native_runtime_args or ()),
+                powershell_path=args.native_runtime_powershell,
+            )
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
     if args.native_installation:
         try:
