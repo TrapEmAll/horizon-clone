@@ -56,6 +56,7 @@ from work.horizon_clone import (
     xdbf_achievement_image_links,
     xdbf_achievement_image_payload,
     historical_account_report,
+    mutate_historical_account,
     read_stfs_entry,
     verify_stfs_hashes,
 )
@@ -149,6 +150,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["plaintext_bytes"], 380)
         self.assertEqual(report["record"]["gamertag"], "Trap Em All")
         self.assertEqual(len(report["record"]["online_key_hex"]), 32)
+
+    def test_historical_account_mutation_rehashes_container(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        key = bytes.fromhex("e1bc159c73b1eae9ab3170f3ad47ebf3")
+        edited = mutate_historical_account(original, key, {"gamertag": "Clone Test"})
+        edited_header = parse_stfs_header(edited)
+        report = historical_account_report(path, key)
+        self.assertEqual(verify_stfs_hashes(edited, header=edited_header)["failures"], [])
+        entry = next(item for item in list_stfs_entries(edited, edited_header) if item.path == "Account")
+        plaintext = unobfuscate_account(read_stfs_entry(edited, entry, edited_header), key)
+        self.assertEqual(AccountRecord.from_bytes(plaintext).gamertag, "Clone Test")
+        self.assertEqual(report["encrypted_bytes"], entry.size)
 
     fixture_dir = Path(__file__).parent / ".tmp"
 
