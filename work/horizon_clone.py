@@ -1189,17 +1189,49 @@ def mutate_profile_achievement_flags(
     """Apply an explicit raw achievement-flags mask across embedded GPDs."""
 
     header = parse_stfs_header(data)
-    replacements: dict[str, bytes] = {}
-    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
+    result = data
+    changed = False
+    for file_entry, xdbf_entries in list_embedded_xdbf(result, header):
         if Path(file_entry.path).suffix.lower() != ".gpd":
             continue
         if not any(item.achievement is not None for item in xdbf_entries):
             continue
-        payload = read_stfs_entry(data, file_entry, header)
-        replacements[file_entry.path] = mutate_xdbf_achievement_flags(payload, mask, mode=mode)
-    if not replacements:
+        payload = read_stfs_entry(result, file_entry, header)
+        edited = mutate_xdbf_achievement_flags(payload, mask, mode=mode)
+        result = mutate_stfs_entry_same_size(result, file_entry, edited, header)
+        changed = True
+    if not changed:
         raise ValueError("STFS contains no embedded GPD achievement payloads")
-    return repack_stfs_entries(data, replacements, header)
+    return result
+
+
+def mutate_profile_xdbf_text(
+    data: bytes,
+    old_text: str,
+    new_text: str,
+) -> bytes:
+    """Replace every exact observed namespace-5 text match in embedded XDBFs."""
+
+    if not isinstance(old_text, str) or not old_text:
+        raise ValueError("profile XDBF search text must be a non-empty string")
+    if not isinstance(new_text, str):
+        raise TypeError("profile XDBF replacement text must be a string")
+    header = parse_stfs_header(data)
+    result = data
+    changed = False
+    for file_entry, xdbf_entries in list_embedded_xdbf(result, header):
+        matching = [entry for entry in xdbf_entries if entry.namespace == 5 and entry.text == old_text]
+        if not matching:
+            continue
+        payload = read_stfs_entry(result, file_entry, header)
+        edited = payload
+        for entry in matching:
+            edited = mutate_xdbf_text(edited, entry.index, new_text)
+        result = mutate_stfs_entry_same_size(result, file_entry, edited, header)
+        changed = True
+    if not changed:
+        raise ValueError(f"no embedded namespace-5 XDBF text matched {old_text!r}")
+    return result
 
 
 def summarize_profile_achievements(
@@ -1967,6 +1999,8 @@ def main() -> int:
     parser.add_argument("--achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask on every observed achievement in one XDBF payload")
     parser.add_argument("--profile-achievement-flags-or", type=lambda value: int(value, 0), help="Set a raw 16-bit flags mask across every observed achievement in embedded GPDs")
     parser.add_argument("--profile-achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask across every observed achievement in embedded GPDs")
+    parser.add_argument("--profile-xdbf-text", metavar="TEXT", help="Replace an exact namespace-5 XDBF string across embedded GPD/FIT files")
+    parser.add_argument("--profile-xdbf-text-value", help="Replacement value for --profile-xdbf-text")
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
     parser.add_argument("--achievement-unlock-utc", help="Replace the achievement unlock time with a timezone-aware ISO-8601 UTC value")
     parser.add_argument("--achievement-name")
@@ -2275,6 +2309,17 @@ def main() -> int:
             write_mutation(raw)
             mutation_written = True
             print(f"Wrote profile achievement flag mutation to {write_target}")
+        if args.profile_xdbf_text is not None or args.profile_xdbf_text_value is not None:
+            if args.profile_xdbf_text is None or args.profile_xdbf_text_value is None:
+                parser.error("--profile-xdbf-text requires --profile-xdbf-text-value")
+            if raw[:4] not in STFS_MAGICS:
+                parser.error("profile XDBF text editing requires an STFS container")
+            if not write_target:
+                parser.error("profile XDBF text editing requires --write or --in-place")
+            raw = mutate_profile_xdbf_text(raw, args.profile_xdbf_text, args.profile_xdbf_text_value)
+            write_mutation(raw)
+            mutation_written = True
+            print(f"Wrote profile XDBF text mutation to {write_target}")
         if raw[:4] == b"XDBF":
             achievement_requested = args.achievement is not None
             bulk_flags_requested = args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
