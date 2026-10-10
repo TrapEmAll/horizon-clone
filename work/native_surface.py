@@ -146,6 +146,7 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
         "class3.dll": ("RtsSaveDecrypt", "RtsSaveEncrypt"),
         "lzo.dll": ("__lzo_init_v2", "lzo1x_1_compress", "lzo2a_999_compress", "lzo1x_decompress", "lzo2a_decompress"),
         "horizon.dll": ("CheckRuntime", "DNG_Runtime", "GetUserString", "RunHVM"),
+        "hvmrun64.dll": ("CheckRuntime", "DNG_Runtime", "GetUserString", "RunHVM"),
     }
     expected = expected_by_name.get(source.name.lower(), ())
     exports = pe_export_names(source)
