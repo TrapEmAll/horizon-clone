@@ -143,6 +143,9 @@ copied implementation code.
 - Provides a provider-oriented RSA PKCS#1 v1.5/SHA-256 signing boundary and
   SHA-256/SHA-1 detached verification primitives for authorized local test or
   development keys.
+- Provides `--verify-embedded-signature` for caller-specified in-container
+  signature and signed-region offsets; it deliberately does not infer Xbox
+  package layout or claim console validity.
 - Exposes STFS hash verification and same-size replacement from the desktop
   front end with explicit unsigned-mutation status.
 - Exposes variable-size STFS repacking and fixed-width display-name/title-ID
