@@ -555,6 +555,46 @@ def xdbf_payload_surface(data: bytes) -> tuple[dict[str, object], ...]:
     return tuple(result)
 
 
+def xdbf_achievement_image_links(data: bytes) -> tuple[dict[str, object], ...]:
+    """Link observed achievement ``image_id`` values to same-file PNG entries.
+
+    The relationship is emitted only when the referenced namespace-2 entry is
+    present in the same XDBF.  Missing references remain explicit rather than
+    being matched by position or by a guessed cross-title catalog.
+    """
+
+    entries = parse_xdbf(data)
+    images = {
+        entry.entry_id: entry
+        for entry in entries
+        if entry.namespace == 2
+        and resource_payload_metadata(data[entry.data_offset : entry.data_offset + entry.length]).get("kind") == "png"
+    }
+    links: list[dict[str, object]] = []
+    for achievement in entries:
+        if achievement.achievement is None:
+            continue
+        image_id = achievement.achievement["image_id"]
+        image = images.get(image_id)
+        item: dict[str, object] = {
+            "achievement_entry_index": achievement.index,
+            "achievement_id": achievement.achievement["achievement_id"],
+            "image_id": image_id,
+            "status": "linked" if image is not None else "missing",
+        }
+        if image is not None:
+            payload = data[image.data_offset : image.data_offset + image.length]
+            item.update({
+                "image_entry_index": image.index,
+                "image_offset": image.data_offset,
+                "image_length": image.length,
+                "image_sha256": hashlib.sha256(payload).hexdigest(),
+                "image_metadata": resource_payload_metadata(payload),
+            })
+        links.append(item)
+    return tuple(links)
+
+
 def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: bytes) -> bytes:
     """Replace an XDBF payload without changing its table allocation."""
     if len(replacement) != entry.length:
