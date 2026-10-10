@@ -70,7 +70,7 @@ from work.native_surface import managed_native_import_report, native_export_cont
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
-from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
+from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable, PowerShellNativeRuntimeProvider
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, PowerShellNativeSaveProvider, UInt32Ref
 from work.account_codec import AccountCodec
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
@@ -1241,6 +1241,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(bound.check_runtime())
         self.assertEqual(bound.run_hvm(), 7)
         self.assertEqual(bound.get_user_string(1, 2, 3), 6)
+
+    def test_native_runtime_provider_requires_explicit_absolute_image(self):
+        with self.assertRaises(ValueError):
+            PowerShellNativeRuntimeProvider("Horizon.dll")
+        with self.assertRaises(FileNotFoundError):
+            PowerShellNativeRuntimeProvider("C:\\does-not-exist\\Horizon.dll")
+
+    def test_native_runtime_provider_reports_supplied_x86_image_without_invoking_exports(self):
+        dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
+        host = Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not dll.exists() or not host.exists():
+            self.skipTest("supplied x86 Horizon.dll or 32-bit PowerShell host is unavailable")
+        provider = PowerShellNativeRuntimeProvider(dll, powershell_path=host, host_architecture="x86")
+        self.assertEqual(provider.architecture, "x86")
+        self.assertEqual(provider.path, dll)
 
     def test_native_save_requires_explicit_provider_and_preserves_observed_shapes(self):
         binding = NativeSaveBinding()
