@@ -138,6 +138,8 @@ copied implementation code.
 - Exposes `--anti-analysis` as an evidence-only report of REA-observed
   debugger/obfuscation markers and guarded managed types; it does not execute,
   patch, disable, or bypass Horizon protections.
+- Exposes the same anti-analysis evidence report from the desktop front end;
+  it remains read-only and non-executing.
 - Exposes the complete 54-row REA managed P/Invoke inventory through
   `--native-import-bundle`, including import scopes, names, calling metadata,
   and declaration-only verification state.
