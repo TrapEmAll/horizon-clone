@@ -70,6 +70,9 @@ copied implementation code.
   and save offsets.
 - Exposes the observed six-field `Horizon.ProfileData` member contract as
   typed metadata without claiming its opaque Account-file layout.
+- Provides a `ProfileData` metadata-editor envelope with strict unsigned-64-bit,
+  string, boolean, and hex-image validation; it remains metadata-only because
+  the Account serializer was not present in authenticated REA evidence.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
