@@ -61,6 +61,7 @@ from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.account_codec import AccountCodec
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
+from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 from work.managed_surface import managed_surface_report
 
@@ -1029,6 +1030,11 @@ class ContainerInspectionTests(unittest.TestCase):
             bound.compress("unknown", b"in", 2, output, length, b"work")
         with self.assertRaises(ValueError):
             bound.compress("lzo1x_1", b"in", 3, output, length, b"work")
+
+        codec = LzoCodec(bound)
+        self.assertEqual(codec.compress("lzo1x_1", b"in", 8, b"work"), b"in")
+        with self.assertRaises(LzoUnavailable):
+            LzoCodec(LzoBinding()).decompress("lzo1x", b"in", 8)
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
