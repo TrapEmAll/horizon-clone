@@ -18,6 +18,10 @@ The current implementation covers the shared STFS/XDBF substrate, including
 capacity-bounded mutation/repacking and complete three-level STFS hash-tree
 rehashing/verification, plus a provider-oriented mutation/signing boundary.
 
+The profile layer now aggregates the authenticated achievement fields across
+all parseable embedded GPDs, exposing entry counts, raw gamerscore totals, and
+nonzero flag counts. Flag-bit meanings are deliberately not inferred.
+
 It also includes an evidence-only managed-surface exporter. Given the retained
 JSON bundle produced by REA's `inspect_managed_members`, it reports the
 authenticated artifact identity and can filter observed type, field, and method
