@@ -102,9 +102,16 @@ def capability_report() -> dict[str, object]:
 def catalog_report(name: str) -> dict[str, object]:
     """Return one REA-observed catalog without claiming binary layouts."""
     if name == "shared":
-        from .horizon_catalog import observed_catalogs
+        from .horizon_catalog import catalog_member_values, observed_catalogs
 
-        return {item.name: list(item.members) for item in observed_catalogs()}
+        return {
+            **{item.name: list(item.members) for item in observed_catalogs()},
+            "values": {
+                item.name: dict(catalog_member_values(item.name))
+                for item in observed_catalogs()
+                if item.values_observed
+            },
+        }
     if name == "skyrim":
         from .skyrim_catalog import enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 
