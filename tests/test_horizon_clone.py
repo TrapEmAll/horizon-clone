@@ -68,7 +68,7 @@ from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.account_codec import AccountCodec
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable
-from work.native_loader import compatible_pe_architecture
+from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 from work.managed_surface import managed_surface_report
@@ -1083,6 +1083,21 @@ class ContainerInspectionTests(unittest.TestCase):
             check=True,
         )
         self.assertEqual(json.loads(result.stdout)["image_architecture"], "x86")
+
+    def test_native_loader_reports_observed_class3_exports_without_loading_it(self):
+        path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\class3.dll")
+        if not path.exists():
+            self.skipTest("supplied class3.dll is not available")
+        exports = pe_export_names(path)
+        self.assertIn("RtsSaveDecrypt", exports)
+        self.assertIn("RtsSaveEncrypt", exports)
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--native-exports"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertIn("RtsSaveDecrypt", json.loads(result.stdout)["exports"])
 
     def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
         with self.assertRaises(NativeSaveUnavailable):
