@@ -82,6 +82,13 @@ copied implementation code.
 - Removes file-table entries safely when the resulting package fits the
   existing allocation capacity.
 
+The managed executable declares 14 native module references and 54 P/Invoke
+imports, including `class3.dll` save encrypt/decrypt exports and the
+`Horizon.dll`/`HVMRun64.dll` DNG/HVM exports. `--native-surface` exposes this
+declaration-only inventory. Calling signatures and native protocols remain
+unresolved until authenticated native analysis or a compatible test provider
+is available; the clone does not load or invoke those DLLs implicitly.
+
 RSA signing remains behind an authorized signing-provider boundary. The
 library supports detached signatures over caller-labeled development regions,
 but does not infer Xbox signed regions. This clean-room project does not
