@@ -7,6 +7,7 @@ from work.horizon_clone import (
     list_stfs_entries,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    repack_stfs_entries,
     mutate_xdbf_entry_same_size,
     parse_stfs_header,
     parse_xdbf,
@@ -122,6 +123,20 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(parsed.display_name, "Edited Profile")
         self.assertEqual(parsed.title_id, 0x12345678)
         self.assertTrue(verify_stfs_hashes(mutated, header=parsed)["header_hash_matches"])
+
+    def test_repacks_entry_with_a_different_size(self):
+        path = Path(r"C:\Users\sjisg\Desktop\E9ECC9141E317C7B")
+        if not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        replacement = b"expanded-account" * 400
+        mutated = repack_stfs_entries(original, {"Account": replacement}, header)
+        entries = list_stfs_entries(mutated, parse_stfs_header(mutated))
+        account = next(item for item in entries if item.path == "Account")
+        self.assertEqual(read_stfs_entry(mutated, account), replacement)
+        self.assertEqual(account.block_count, 2)
+        self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
 
 if __name__ == "__main__":
