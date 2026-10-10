@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 23722)
-Total output lines: 2057
+Warning: truncated output (original token count: 24207)
+Total output lines: 2094
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -80,6 +80,31 @@ def editor_inspect_report(path: Path) -> dict[str, object]:
     if isinstance(inspected, tuple):
         inspected = [asdict(item) if hasattr(item, "__dataclass_fields__") else item for item in inspected]
     return {"editor": plugin.name, "path": str(path), "result": inspected}
+
+
+def editor_edit_values(path: Path, values_path: Path) -> tuple[str, bytes]:
+    """Apply a plugin-declared metadata edit and return the new bytes."""
+
+    from .editors import EditorContext, default_registry
+
+    data = path.read_bytes()
+    try:
+        values = json.loads(values_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"editor values must be UTF-8 JSON: {values_path}") from exc
+    if not isinstance(values, dict):
+        raise ValueError("editor values JSON must be an object")
+    context = EditorContext(filename=path.name)
+    plugin = default_registry().resolve(context, data)
+    if plugin is None:
+        raise ValueError(f"no registered editor accepts {path.name}")
+    edit = getattr(plugin, "edit_values", None)
+    if not callable(edit):
+        raise ValueError(f"editor {plugin.name} does not declare metadata value editing")
+    edited = edit(data, values)
+    if not isinstance(edited, bytes):
+        raise TypeError(f"editor {plugin.name} returned non-byte output")
+    return plugin.name, edited
 
 
 MAGIC = b"CON "
@@ -866,48 +891,7 @@ def summarize_profile_achievements(
     per_file: list[dict[str, object]] = []
     total_entries = total_gamerscore = nonzero_flags = 0
     for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
-        achievements = [item.achievement for item in xdbf_entries if item.achievement is not None]
-        file_score = sum(int(item.get("gamerscore", 0)) for item in achievements)
-        file_flags = sum(bool(item.get("flags", 0)) for item in achievements)
-        per_file.append({
-            "file": file_entry.path,
-            "achievement_count": len(achievements),
-            "gamerscore_total": file_score,
-            "nonzero_flags_count": file_flags,
-        })
-        total_entries += len(achievements)
-        total_gamerscore += file_score
-        nonzero_flags += file_flags
-    return {
-        "gpd_count": len(per_file),
-        "achievement_entry_count": total_entries,
-        "gamerscore_total": total_gamerscore,
-        "nonzero_flags_count": nonzero_flags,
-        "flag_semantics": "raw nonzero flag count; bit meanings are not inferred",
-        "by_gpd": per_file,
-    }
-
-
-def summarize_embedded_xdbf(
-    data: bytes, header: StfsHeader | None = None
-) -> tuple[dict[str, object], ...]:
-    """Summarize every parseable embedded GPD without interpreting game data."""
-
-    summaries: list[dict[str,…5722 tokens truncated…        top_address = _hash_table_address(data, 0, header, 2)
-        for table_index in range(_table_count(header, 1)):
-            level1_address = _hash_table_address(data, table_index * 0x70E4, header, 1)
-            actual = hashlib.sha1(data[level1_address : level1_address + BLOCK_SIZE]).digest()
-            expected = data[top_address + table_index * 0x18 : top_address + table_index * 0x18 + 0x14]
-            if actual != expected:
-                hash_table_failures.append({"level": 1, "table": table_index, "reason": "table_hash"})
-    top_address = _hash_table_address(data, 0, header, top_level)
-    top_hash_matches = (
-        hashlib.sha1(data[top_address : top_address + BLOCK_SIZE]).digest() == data[0x381:0x395]
-    )
-    return {
-        "checked_blocks": checked_blocks,
-        "failures": failures,
-        "hash_table_failures": hash_table_failures,
+        achieveme…6207 tokens truncated…     "hash_table_failures": hash_table_failures,
         "header_hash_matches": header_hash_matches,
         "top_hash_matches": top_hash_matches,
         "signature_checked": False,
@@ -1026,6 +1010,8 @@ def main() -> int:
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
     parser.add_argument("--profile-data", action="store_true", help="Inspect an explicit ProfileData metadata envelope")
     parser.add_argument("--editor-inspect", action="store_true", help="Dispatch the input through the clean-room editor registry")
+    parser.add_argument("--editor-edit-values", type=Path, metavar="JSON", help="Apply registry metadata edits from a JSON object")
+    parser.add_argument("--editor-edit-output", type=Path, metavar="FILE", help="Output path for --editor-edit-values")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1162,6 +1148,16 @@ def main() -> int:
         except (OSError, ValueError, TypeError) as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return 0
+    if args.editor_edit_values:
+        if not args.editor_edit_output:
+            parser.error("--editor-edit-values requires --editor-edit-output")
+        try:
+            editor_name, edited = editor_edit_values(args.path, args.editor_edit_values)
+            _atomic_replace_bytes(args.editor_edit_output, edited)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({"editor": editor_name, "input": str(args.path), "output": str(args.editor_edit_output), "bytes": len(edited)}, indent=2))
         return 0
     if args.achievements_output:
         args.list_achievements = True
