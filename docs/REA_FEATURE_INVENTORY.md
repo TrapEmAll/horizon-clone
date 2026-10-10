@@ -21,6 +21,11 @@ It does not yet claim parity for the game-specific editors above. Each editor
 requires format fixtures and behavioral tests before it can be implemented
 without guessing opaque fields.
 
+The current title-specific increment publishes the observed Skyrim enum names
+(`ShoutEnums`, `PerkEnums`, and `MagicEnums`). The retained REA metadata did
+not expose their constant values or save-file offsets, so those remain explicit
+unknowns rather than inferred mutations.
+
 ## Security observations
 
 REA’s managed static evidence for the shipped executable records debugger and
