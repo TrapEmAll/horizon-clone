@@ -61,6 +61,7 @@ _CAPABILITIES = (
     Capability("STFS extraction", "implemented", "STFS file-table and block traversal", ("extract_stfs", "read_stfs_entry")),
     Capability("STFS hash verification", "implemented", "three-level STFS hash-tree implementation", ("verify_stfs_hashes", "rehash_stfs_hashes")),
     Capability("STFS metadata and thumbnails", "implemented", "observed STFS metadata fields and bounded thumbnail regions", ("mutate_stfs_metadata", "mutate_stfs_thumbnails")),
+    Capability("Canonical FATX content path", "implemented", "Profile filename and Content path derived from authenticated STFS creator/profile, title ID, and content type fields", ("stfs_magic_filename", "stfs_fatx_device_path", "--fatx-path")),
     Capability("STFS file management", "implemented", "observed file-table mutation substrate", ("repack_stfs_entries", "add_stfs_directory", "move_stfs_entry", "rename_stfs_entry")),
     Capability("Desktop atomic artifact writes", "implemented", "same-directory replacement for GUI mutations and exports", ("_atomic_write_bytes", "_atomic_write_text")),
     Capability("Desktop metadata editor dispatch", "implemented", "GUI inspection, separate-output editing, authenticated resource export, and detached development signing for explicit artifacts", ("open_editor_artifact", "edit_editor_artifact", "extract_managed_resources", "sign_loaded_bytes")),
