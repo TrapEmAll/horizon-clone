@@ -17,6 +17,12 @@ observed high-level areas include:
 The current implementation covers the shared STFS/XDBF substrate, including
 capacity-bounded mutation/repacking and complete three-level STFS hash-tree
 rehashing/verification, plus a provider-oriented mutation/signing boundary.
+
+It also includes an evidence-only managed-surface exporter. Given the retained
+JSON bundle produced by REA's `inspect_managed_members`, it reports the
+authenticated artifact identity and can filter observed type, field, and method
+records locally. This preserves build-local token identity and does not load or
+execute Horizon.exe.
 It does not yet claim parity for the game-specific editors above. Each editor
 requires format fixtures and behavioral tests before it can be implemented
 without guessing opaque fields.
@@ -24,9 +30,9 @@ without guessing opaque fields.
 The current title-specific increment publishes the observed Skyrim enum names
 (`ShoutEnums`, `PerkEnums`, and `MagicEnums`) and an evidence-qualified summary:
 all three use an observed `i4` backing field, with 27, 273, and 295 named
-members respectively. The retained REA metadata did not expose their constant
-values or save-file offsets, so those remain explicit unknowns rather than
-inferred mutations. The Gears `EntryID` catalog likewise records its observed
+members respectively. A metadata-only Constant-table extractor recovered their
+numeric values from the authenticated Horizon assembly; save-file offsets and
+mutation behavior remain unresolved. The Gears `EntryID` catalog likewise records its observed
 declaring type and 1,139 named members, while its `valuetype:2744` values and
 offsets remain unresolved.
 
