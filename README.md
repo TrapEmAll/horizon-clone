@@ -23,6 +23,9 @@ copied implementation code.
 - Exposes REA-observed Skyrim enum member names for Shouts, Perks, and Magic;
   numeric values and save offsets remain intentionally unclaimed until fixture
   evidence establishes them.
+- Exposes REA-observed shared catalog names for `ProfileLoadout` and
+  `SaveEntryCategory`; enum values and package offsets remain unclaimed until
+  fixture evidence establishes them.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
