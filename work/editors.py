@@ -19,7 +19,7 @@ from .horizon_clone import (
     parse_xdbf,
     repack_xdbf_entries,
 )
-from .managed_surface import managed_surface_report_from_bundle
+from .managed_surface import managed_schema_report_from_bundle, managed_surface_report_from_bundle
 from .halo_catalog import validate_halo_metadata_values
 from .profile_model import ProfileData
 
@@ -105,6 +105,27 @@ class ManagedSurfaceEditor:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ValueError("managed surface input must be UTF-8 JSON") from exc
         return managed_surface_report_from_bundle(bundle)
+
+
+@dataclass(frozen=True)
+class ManagedSchemaEditor:
+    """Dispatch joined REA managed schemas through the editor registry."""
+
+    name: str = "REA managed schema"
+
+    def can_edit(self, context: EditorContext, data: bytes) -> bool:
+        return context.filename.replace("\\", "/").rsplit("/", 1)[-1].casefold().endswith(".managed-schema.json")
+
+    def inspect(self, context: EditorContext, data: bytes) -> dict[str, Any]:
+        import json
+
+        try:
+            bundle = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("managed schema input must be UTF-8 JSON") from exc
+        if not isinstance(bundle, dict):
+            raise ValueError("managed schema input must be a JSON object")
+        return managed_schema_report_from_bundle(bundle)
 
 
 @dataclass(frozen=True)
@@ -431,6 +452,7 @@ class EditorRegistry:
 def default_registry() -> EditorRegistry:
     registry = EditorRegistry()
     registry.register(XdbfEditor())
+    registry.register(ManagedSchemaEditor())
     registry.register(ManagedSurfaceEditor())
     registry.register(AccountEditor())
     registry.register(ProfileDataEditor())
