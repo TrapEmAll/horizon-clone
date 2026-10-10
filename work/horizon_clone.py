@@ -1558,6 +1558,14 @@ def main() -> int:
     mutation_written = False
 
     def write_mutation(data: bytes) -> None:
+        if data[:4] in STFS_MAGICS:
+            candidate_header = parse_stfs_header(data)
+            integrity = verify_stfs_hashes(data, header=candidate_header)
+            if integrity["failures"]:
+                raise ValueError(
+                    "refusing to write STFS mutation with hash failures: "
+                    + "; ".join(integrity["failures"])
+                )
         if not args.in_place:
             _atomic_replace_bytes(write_target, data)
             return
