@@ -98,7 +98,9 @@ def managed_surface_report(bundle_path: str | Path, pattern: str | None = None) 
     return managed_surface_report_from_bundle(bundle, pattern)
 
 
-def managed_schema_report_from_bundle(bundle: dict[str, Any], pattern: str | None = None) -> dict[str, Any]:
+def managed_schema_report_from_bundle(
+    bundle: dict[str, Any], pattern: str | None = None, include_bodies: bool = False
+) -> dict[str, Any]:
     """Join the observed managed metadata into type-centric editor schemas.
 
     The result is still metadata-only: field names and signatures are not
@@ -141,16 +143,29 @@ def managed_schema_report_from_bundle(bundle: dict[str, Any], pattern: str | Non
             })
     for item in methods:
         if isinstance(item, dict) and item.get("declaring_type") in selected_names:
-            by_type[item["declaring_type"]]["methods"].append({
+            method = {
                 "name": item.get("name"),
                 "token": item.get("token"),
                 "signature": item.get("signature"),
-            })
+            }
+            if include_bodies:
+                body = item.get("body") or {}
+                method["body"] = {
+                    "status": body.get("status"),
+                    "rva": body.get("rva"),
+                    "file_offset": body.get("file_offset"),
+                    "il_sha256": body.get("il_sha256"),
+                    "opcode_counts": body.get("opcode_counts"),
+                    "instruction_count": body.get("instruction_count"),
+                    "exception_regions": body.get("exception_regions"),
+                }
+            by_type[item["declaring_type"]]["methods"].append(method)
     return {
         "status": "observed-only",
         "authority": "shipped-artifact",
         "evidence_id": record.get("evidence_id"),
         "pattern": pattern,
+        "include_bodies": include_bodies,
         "counts": {
             "matched_types": len(by_type),
             "matched_fields": sum(len(item["fields"]) for item in by_type.values()),
@@ -168,7 +183,9 @@ def managed_schema_report_from_bundle(bundle: dict[str, Any], pattern: str | Non
     }
 
 
-def managed_schema_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+def managed_schema_report(
+    bundle_path: str | Path, pattern: str | None = None, include_bodies: bool = False
+) -> dict[str, Any]:
     """Return joined type/field/method metadata from a retained REA bundle."""
 
     path = Path(bundle_path)
@@ -176,5 +193,5 @@ def managed_schema_report(bundle_path: str | Path, pattern: str | None = None) -
         bundle = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unable to read evidence bundle: {path}") from exc
-    return managed_schema_report_from_bundle(bundle, pattern)
+    return managed_schema_report_from_bundle(bundle, pattern, include_bodies)
 
