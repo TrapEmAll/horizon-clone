@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 23087)
-Total output lines: 2009
+Warning: truncated output (original token count: 23222)
+Total output lines: 2018
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -22,7 +22,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import native_surface_report
 from .device_surface import device_surface_report
-from .resource_inventory import observed_resource_surface
+from .resource_inventory import observed_resource_surface, resource_surface_report
 from .managed_surface import managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
@@ -898,16 +898,7 @@ def mutate_stfs_entry_same_size(
     replacement: bytes,
     header: StfsHeader | None = None,
 ) -> bytes:
-    """Replace one file's bytes in place and…5087 tokens truncated…pend({"entry": current.path, "block": block, "reason": "out_of_range"})
-                break
-            expected = hashlib.sha1(data[address : address + BLOCK_SIZE]).digest()
-            actual = data[record : record + 0x14]
-            checked_blocks += 1
-            if actual != expected:
-                failures.append({"entry": current.path, "block": block, "reason": "data_hash"})
-            take = min(BLOCK_SIZE, remaining)
-            remaining -= take
-            block = block + 1 if current.consecutive else _next_block(data, block, header)
+    """Replace one …5222 tokens truncated…ive else _next_block(data, block, header)
         if remaining:
             failures.append({"entry": current.path, "block": block, "reason": "broken_chain"})
 
@@ -1053,6 +1044,8 @@ def main() -> int:
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--device-inventory", action="store_true", help="Print a read-only host-visible volume inventory")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
+    parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
+    parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
     parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
@@ -1150,6 +1143,13 @@ def main() -> int:
         print(json.dumps(observed_resource_surface(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
+    if args.resource_bundle:
+        try:
+            report = resource_surface_report(args.resource_bundle, args.resource_pattern)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
     if args.managed_surface:
         try:
             report = managed_surface_report(args.managed_surface, args.surface_pattern)
