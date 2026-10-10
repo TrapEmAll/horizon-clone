@@ -28,6 +28,7 @@ from work.signing import (
 )
 from work.profile_model import ProfileData
 from work.editors import EditorContext, EditorRegistry, XdbfEditor, default_registry
+from work.skyrim_catalog import enum_member_names, observed_skyrim_enums
 
 
 class ContainerInspectionTests(unittest.TestCase):
@@ -175,6 +176,12 @@ class ContainerInspectionTests(unittest.TestCase):
             favorite=True,
         )
         self.assertEqual(ProfileData.from_dict(profile.to_dict()), profile)
+
+    def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
+        enums = observed_skyrim_enums()
+        self.assertEqual({item.name for item in enums}, {"ShoutEnums", "PerkEnums", "MagicEnums"})
+        self.assertEqual(len(enum_member_names("ShoutEnums")), 27)
+        self.assertFalse(any(item.values_observed for item in enums))
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
