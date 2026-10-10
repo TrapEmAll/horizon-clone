@@ -575,8 +575,12 @@ class HorizonApp(tk.Tk):
             for entry in self._report.entries:
                 if entry.is_directory or not entry.path.lower().endswith(".gpd"):
                     continue
-                payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
-                for xdbf_entry in parse_xdbf(payload):
+                try:
+                    payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+                    xdbf_entries = parse_xdbf(payload)
+                except (OSError, ValueError, IsADirectoryError):
+                    continue
+                for xdbf_entry in xdbf_entries:
                     if xdbf_entry.achievement is None:
                         continue
                     achievements.append(
