@@ -163,6 +163,10 @@ copied implementation code.
 - Exposes the complete 54-row REA managed P/Invoke inventory through
   `--native-import-bundle`, including import scopes, names, calling metadata,
   and declaration-only verification state.
+- Exposes declared managed assembly dependencies through
+  `--managed-references` with optional `--reference-pattern` filtering,
+  retaining authenticated names, versions, and public-key-token metadata
+  without loading or resolving dependencies.
 - Exposes `--native-installation DIRECTORY`, a read-only inventory of the
   observed `class3.dll`, `lzo.dll`, `Horizon.dll`, and `HVMRun64.dll` deployment
   contracts, including PE architecture and named exports; missing runtime
