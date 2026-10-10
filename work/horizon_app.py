@@ -33,6 +33,7 @@ from .horizon_clone import (
     editor_edit_values,
     editor_inspect_report,
     extract_managed_resource_payloads,
+    sign_detached_bytes,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -75,6 +76,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
@@ -224,6 +226,35 @@ class HorizonApp(tk.Tk):
             self._set_details({"editor": editor_name, "input": filename, "output": target, "bytes": len(edited)})
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Editor edit failed", str(exc))
+
+    def sign_loaded_bytes(self) -> None:
+        """Create a detached development signature for the loaded bytes."""
+
+        if self._data is None:
+            messagebox.showinfo("Detached signing", "Open an artifact first.")
+            return
+        label = simpledialog.askstring("Signature label", "Caller-defined development region label:", parent=self)
+        if not label:
+            return
+        key = filedialog.askopenfilename(
+            title="Choose development private-key JSON",
+            filetypes=(("Private-key JSON", "*.json"), ("All files", "*.*")),
+        )
+        if not key:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save detached signature",
+            defaultextension=".sig",
+            filetypes=(("Signature", "*.sig"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            result = sign_detached_bytes(self._data, Path(target), label, Path(key))
+            self.status.configure(text="Wrote detached development signature")
+            self._set_details(result)
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("Detached signing failed", str(exc))
 
     def show_selected(self, _event=None) -> None:
         if not self._data or not self._report:
