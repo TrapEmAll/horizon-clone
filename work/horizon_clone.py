@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 23447)
-Total output lines: 2033
+Warning: truncated output (original token count: 23722)
+Total output lines: 2057
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -64,6 +64,22 @@ def profile_data_report(path: Path) -> dict[str, object]:
     if not editor.can_edit(EditorContext(filename=path.name), data):
         raise ValueError("input is not a valid profile-data envelope")
     return editor.inspect(EditorContext(filename=path.name), data)
+
+
+def editor_inspect_report(path: Path) -> dict[str, object]:
+    """Dispatch one explicit input through the clean-room editor registry."""
+
+    from .editors import EditorContext, default_registry
+
+    data = path.read_bytes()
+    context = EditorContext(filename=path.name)
+    plugin = default_registry().resolve(context, data)
+    if plugin is None:
+        raise ValueError(f"no registered editor accepts {path.name}")
+    inspected = plugin.inspect(context, data)
+    if isinstance(inspected, tuple):
+        inspected = [asdict(item) if hasattr(item, "__dataclass_fields__") else item for item in inspected]
+    return {"editor": plugin.name, "path": str(path), "result": inspected}
 
 
 MAGIC = b"CON "
@@ -877,34 +893,7 @@ def summarize_embedded_xdbf(
 ) -> tuple[dict[str, object], ...]:
     """Summarize every parseable embedded GPD without interpreting game data."""
 
-    summaries: list[dict[str, object]] = []
-    for file_entry, xdbf_entries in list_embedded_xdbf(data, header):
-        namespaces = Counter(item.namespace for item in xdbf_entries)
-        summaries.append(
-            {
-                "file": file_entry.path,
-                "entry_count": len(xdbf_entries),
-                "namespace_counts": dict(sorted(namespaces.items())),
-                "text_count": sum(item.text is not None for item in xdbf_entries),
-                "achievement_count": sum(item.achievement is not None for item in xdbf_entries),
-            }
-        )
-    return tuple(summaries)
-
-
-def mutate_stfs_entry_same_size(
-    data: bytes,
-    entry: StfsEntry,
-    replacement: bytes,
-    …5447 tokens truncated…arent_address = _hash_table_address(data, (table_index // 0xAA) * 0x70E4, header, 1)
-            expected = data[parent_address + (table_index % 0xAA) * 0x18 : parent_address + (table_index % 0xAA) * 0x18 + 0x14]
-        else:
-            expected = actual
-        if actual != expected:
-            hash_table_failures.append({"level": 0, "table": table_index, "reason": "table_hash"})
-
-    if top_level == 2:
-        top_address = _hash_table_address(data, 0, header, 2)
+    summaries: list[dict[str,…5722 tokens truncated…        top_address = _hash_table_address(data, 0, header, 2)
         for table_index in range(_table_count(header, 1)):
             level1_address = _hash_table_address(data, table_index * 0x70E4, header, 1)
             actual = hashlib.sha1(data[level1_address : level1_address + BLOCK_SIZE]).digest()
@@ -1036,6 +1025,7 @@ def main() -> int:
     parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
     parser.add_argument("--profile-data", action="store_true", help="Inspect an explicit ProfileData metadata envelope")
+    parser.add_argument("--editor-inspect", action="store_true", help="Dispatch the input through the clean-room editor registry")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1165,6 +1155,13 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.editor_inspect:
+        try:
+            report = editor_inspect_report(args.path)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False, default=str))
         return 0
     if args.achievements_output:
         args.list_achievements = True
