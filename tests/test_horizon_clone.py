@@ -1737,19 +1737,21 @@ class ContainerInspectionTests(unittest.TestCase):
         payload += (9).to_bytes(4, "little")
         payload += b"\x04test"
         payload += (0).to_bytes(4, "little")
-        payload += b"\x01\x02"
+        payload += b"\x01\x01t\x00"
         report = parse_dotnet_resources(bytes(payload))
         self.assertEqual(report["status"], "observed-index")
         self.assertEqual(report["resource_count"], 1)
         self.assertEqual(report["resources"][0]["name"], "test")
-        self.assertEqual(report["resources"][0]["data_length"], 2)
+        self.assertEqual(report["resources"][0]["data_length"], 4)
+        self.assertEqual(report["resources"][0]["value"]["type_name"], "String")
+        self.assertEqual(report["resources"][0]["value"]["value"], "t")
 
     def test_cli_parses_dotnet_resource_index(self):
         payload = bytearray()
         payload += (0xBEEFCACE).to_bytes(4, "little") + (1).to_bytes(4, "little") + (0).to_bytes(4, "little")
         payload += (2).to_bytes(4, "little") + (1).to_bytes(4, "little") + (0).to_bytes(4, "little")
         payload += (0).to_bytes(4, "little") + (0).to_bytes(4, "little") + (9).to_bytes(4, "little")
-        payload += b"\x04test" + (0).to_bytes(4, "little") + b"\x01\x02"
+        payload += b"\x04test" + (0).to_bytes(4, "little") + b"\x01\x01t\x00"
         path = self.fixture_dir / "synthetic.resources"
         path.write_bytes(payload)
         try:
