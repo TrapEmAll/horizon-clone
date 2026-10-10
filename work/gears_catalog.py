@@ -1177,3 +1177,30 @@ def gears_entry_id_values() -> dict[str, int]:
     return dict(_VALUES["EntryID"])
 
 
+def resolve_gears_entry_id(name: str) -> int:
+    """Resolve one authenticated Gears EntryID name to its Constant value."""
+
+    values = gears_entry_id_values()
+    try:
+        return values[name]
+    except KeyError as exc:
+        raise KeyError(f"unknown authenticated Gears EntryID: {name}") from exc
+
+
+def validate_gears_entry_ids(values: dict[str, int]) -> dict[str, int]:
+    """Validate a name-to-value EntryID edit against REA Constant metadata."""
+
+    known = gears_entry_id_values()
+    unknown = sorted(set(values) - set(known))
+    if unknown:
+        raise ValueError(f"unknown Gears EntryID names: {', '.join(unknown)}")
+    normalized: dict[str, int] = {}
+    for name, value in values.items():
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise TypeError(f"Gears EntryID {name} must be an integer")
+        if value != known[name]:
+            raise ValueError(f"Gears EntryID {name} must equal authenticated value {known[name]}")
+        normalized[name] = value
+    return normalized
+
+
