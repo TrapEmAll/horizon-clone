@@ -36,9 +36,18 @@ The retained member evidence identifies the six `Horizon.ProfileData` fields
 and their managed types. The clone exposes that contract as metadata while
 leaving the opaque Account-file serialization unresolved.
 
+
 The shared STFS report also exposes public certificate descriptors, signature
 byte digests, and all 16 license slots. It deliberately does not verify or
 forge console signatures.
+
+REA's managed native-boundary inspection records 14 module references and 54
+P/Invoke declarations. The most relevant editor boundaries are
+`class3.dll`'s `RtsSaveEncrypt`/`RtsSaveDecrypt`, LZO compression imports,
+device `CreateFile`/`DeviceIoControl`, and `Horizon.dll`/`HVMRun64.dll`
+`DNG_Runtime`, `RunHVM`, and `GetUserString` imports. The clone exposes these
+as a declaration-only native-surface report; their calling signatures and
+protocols are not inferred.
 
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
@@ -59,3 +68,4 @@ available managed call-edge inventory, establish calls to
 `IsDebuggerPresent`, `CheckRemoteDebuggerPresent`, or an equivalent debugger
 API. Accordingly, the clone treats the guard as an anti-analysis observation,
 not as a recovered editor feature or a behavior to reproduce.
+
