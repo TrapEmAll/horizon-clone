@@ -62,7 +62,7 @@ from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.account_codec import AccountCodec
-from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
+from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 from work.managed_surface import managed_surface_report
@@ -1061,6 +1061,12 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(codec.compress("lzo1x_1", b"in", 8, b"work"), b"in")
         with self.assertRaises(LzoUnavailable):
             LzoCodec(LzoBinding()).decompress("lzo1x", b"in", 8)
+
+    def test_ctypes_lzo_provider_requires_explicit_absolute_dll_path(self):
+        with self.assertRaises(ValueError):
+            CtypesLzoProvider("lzo.dll")
+        with self.assertRaises(FileNotFoundError):
+            CtypesLzoProvider("C:\\does-not-exist\\lzo.dll")
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
