@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 24800)
-Total output lines: 2140
+Warning: truncated output (original token count: 25141)
+Total output lines: 2167
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -128,6 +128,25 @@ def verify_detached_signature(
         DetachedSignature(label, algorithm, signature_path.read_bytes()),
         RsaPublicKey(modulus, exponent),
     )
+
+
+def read_public_key_json(path: Path) -> tuple[int, int]:
+    """Read the public-key JSON emitted by ``--public-key``."""
+
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"public-key JSON is not readable: {path}") from exc
+    if not isinstance(value, dict) or not isinstance(value.get("modulus_hex"), str):
+        raise ValueError("public-key JSON must contain modulus_hex")
+    try:
+        modulus = int(value["modulus_hex"], 16)
+    except ValueError as exc:
+        raise ValueError("public-key modulus_hex is not hexadecimal") from exc
+    exponent = value.get("exponent", 65537)
+    if not isinstance(exponent, int) or isinstance(exponent, bool):
+        raise ValueError("public-key exponent must be an integer")
+    return modulus, exponent
 
 
 MAGIC = b"CON "
@@ -871,41 +890,7 @@ def read_stfs_entry(data: bytes, entry: StfsEntry, header: StfsHeader | None = N
 def list_embedded_xdbf(
     data: bytes, header: StfsHeader | None = None
 ) -> tuple[tuple[StfsEntry, tuple[XdbfEntry, ...]], ...]:
-    """Enumerate parseable XDBF payloads embedded in STFS GPD files."""
-    header = header or parse_stfs_header(data)
-    result: list[tuple[StfsEntry, tuple[XdbfEntry, ...]]] = []
-    for entry in list_stfs_entries(data, header):
-        if entry.is_directory or not entry.path.lower().endswith(".gpd"):
-            continue
-        try:
-            entries = parse_xdbf(read_stfs_entry(data, entry, header))
-        except (OSError, ValueError, IsADirectoryError):
-            continue
-        result.append((entry, entries))
-    return tuple(result)
-
-
-def list_embedded_achievements(
-    data: bytes, header: StfsHeader | None = None
-) -> tuple[dict[str, object], ...]:
-    """Return normalized observed achievement records from embedded GPDs."""
-    records: list[dict[str, object]] = []
-    for entry, xdbf_entries in list_embedded_xdbf(data, header):
-        for xdbf_entry in xdbf_entries:
-    …6800 tokens truncated…     while end + 1 < len(data):
-                low, high = data[end], data[end + 1]
-                if high != 0 or not 0x20 <= low <= 0x7E:
-                    break
-                end += 2
-            if end - offset >= 8:
-                yield ExtractedString(offset, encoding, data[offset:end].decode(encoding))
-        return
-
-    for match in _PRINTABLE.finditer(data.decode("latin-1", errors="ignore")):
-        yield ExtractedString(match.start(), "ascii", match.group(0))
-
-
-def inspect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
+    """Enumerate parseable XDBF…7141 tokens truncated…spect(path: Path, *, max_strings: int = 5000) -> ContainerReport:
     data = path.read_bytes()
     magic = data[:4].decode("latin-1", errors="replace")
     package_kind = {
@@ -983,6 +968,7 @@ def main() -> int:
     parser.add_argument("--signature-algorithm", choices=("RSA-SHA256-PKCS1v1.5", "RSA-SHA1-PKCS1v1.5"), default="RSA-SHA256-PKCS1v1.5")
     parser.add_argument("--public-key-modulus", type=lambda value: int(value, 0), help="Public RSA modulus for detached verification")
     parser.add_argument("--public-key-exponent", type=lambda value: int(value, 0), default=65537)
+    parser.add_argument("--public-key-json", type=Path, help="JSON key emitted by --public-key for detached verification")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1133,16 +1119,23 @@ def main() -> int:
         print(json.dumps({"editor": editor_name, "input": str(args.path), "output": str(args.editor_edit_output), "bytes": len(edited)}, indent=2))
         return 0
     if args.verify_detached_signature:
-        if not args.signature_label or args.public_key_modulus is None:
-            parser.error("--verify-detached-signature requires --signature-label and --public-key-modulus")
+        if not args.signature_label or (args.public_key_modulus is None and not args.public_key_json):
+            parser.error("--verify-detached-signature requires --signature-label and a public key")
+        if args.public_key_modulus is not None and args.public_key_json:
+            parser.error("choose one of --public-key-modulus or --public-key-json")
         try:
+            modulus, exponent = (
+                read_public_key_json(args.public_key_json)
+                if args.public_key_json
+                else (args.public_key_modulus, args.public_key_exponent)
+            )
             verified = verify_detached_signature(
                 args.path,
                 args.verify_detached_signature,
                 args.signature_label,
                 args.signature_algorithm,
-                args.public_key_modulus,
-                args.public_key_exponent,
+                modulus,
+                exponent,
             )
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
