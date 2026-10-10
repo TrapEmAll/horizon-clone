@@ -321,6 +321,21 @@ def parse_dotnet_resources(data: bytes) -> dict[str, Any]:
             raise ValueError("truncated .NET resources type name")
         type_names.append(data[cursor:end].decode("utf-8", errors="replace"))
         cursor = end
+    if resource_count == 0:
+        return {
+            "status": "observed-index",
+            "reader_version": reader_version,
+            "resource_manager_version": resource_manager_version,
+            "resource_count": 0,
+            "type_count": type_count,
+            "type_names": type_names,
+            "data_section_offset": None,
+            "resources": [],
+            "limitations": [
+                "The payload contains no named resource values or data section.",
+                "User-defined resource values are never deserialized or instantiated.",
+            ],
+        }
     cursor = (cursor + 7) & ~7
     table_end = cursor + resource_count * 8 + 4
     if table_end > len(data):
