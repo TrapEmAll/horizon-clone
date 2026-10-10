@@ -64,6 +64,39 @@ def profile_data_report(path: Path) -> dict[str, object]:
     return editor.inspect(EditorContext(filename=path.name), data)
 
 
+def decrypt_account_entry(
+    container_path: Path,
+    output_path: Path,
+    class3_path: Path,
+    key_helper_path: Path,
+    output_capacity: int,
+) -> dict[str, object]:
+    """Decrypt the STFS ``Account`` entry through explicit caller providers."""
+
+    from .account_codec import AccountCodec, CommandAccountKeyProvider
+    from .native_save import NativeSaveBinding, PowerShellNativeSaveProvider
+
+    data = container_path.read_bytes()
+    header = parse_stfs_header(data)
+    entry = next((item for item in list_stfs_entries(data, header) if item.path == "Account"), None)
+    if entry is None or entry.is_directory:
+        raise ValueError("STFS Account entry was not found")
+    payload = read_stfs_entry(data, entry, header)
+    provider = PowerShellNativeSaveProvider(class3_path)
+    codec = AccountCodec(NativeSaveBinding(provider))
+    key_provider = CommandAccountKeyProvider(key_helper_path)
+    plaintext = codec.decrypt_with_key_provider(payload, key_provider, output_capacity)
+    _atomic_replace_bytes(output_path, plaintext)
+    return {
+        "operation": "account-decrypt",
+        "entry": entry.path,
+        "input_bytes": len(payload),
+        "output": str(output_path),
+        "output_bytes": len(plaintext),
+        "payload_sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
 def editor_inspect_report(path: Path) -> dict[str, object]:
     """Dispatch one explicit input through the clean-room editor registry."""
 
@@ -1762,11 +1795,29 @@ def main() -> int:
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
     parser.add_argument("--achievement-name")
+    parser.add_argument("--account-decrypt", type=Path, metavar="OUTPUT", help="Decrypt the STFS Account entry to a raw output file through explicit providers")
+    parser.add_argument("--account-class3-dll", type=Path, help="Absolute x86 class3.dll path for --account-decrypt")
+    parser.add_argument("--account-key-helper", type=Path, help="Absolute caller-owned key-vault helper for --account-decrypt")
+    parser.add_argument("--account-output-capacity", type=int, help="Decrypted Account output buffer capacity")
     args = parser.parse_args()
     if args.capabilities:
         print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
+    if args.account_decrypt:
+        if not args.account_class3_dll or not args.account_key_helper or args.account_output_capacity is None:
+            parser.error("--account-decrypt requires --account-class3-dll, --account-key-helper, and --account-output-capacity")
+        try:
+            print(json.dumps(decrypt_account_entry(
+                args.path,
+                args.account_decrypt,
+                args.account_class3_dll,
+                args.account_key_helper,
+                args.account_output_capacity,
+            ), indent=2))
+        except (OSError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        return 0
     if args.native_surface:
         print(json.dumps(native_surface_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
