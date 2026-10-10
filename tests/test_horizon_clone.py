@@ -52,7 +52,7 @@ from work.editors import AccountEditor, EditorContext, EditorRegistry, ManagedSu
 from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums
 from work.horizon_catalog import catalog_member_names, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids
-from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types
+from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
@@ -914,6 +914,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Desktop atomic artifact writes"]["status"], "implemented")
         self.assertEqual(by_name["Managed surface editor dispatch"]["status"], "implemented")
         self.assertEqual(by_name["Opaque Account editor dispatch"]["status"], "implemented")
+        self.assertEqual(by_name["Halo typed metadata validation"]["status"], "metadata-only")
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
@@ -1134,6 +1135,10 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(catalog_report("halo")["types"]), 103)
         self.assertEqual(len(catalog_report("halo")["property_names"]), 140)
         self.assertEqual(halo_general_class_field_types("GameVariant")["c7a62e9b2608ab1560f963117c637c401"], "i4")
+        field = "c7a62e9b2608ab1560f963117c637c401"
+        self.assertEqual(validate_halo_metadata_values("GameVariant", {field: 7})[field], 7)
+        with self.assertRaises(ValueError):
+            validate_halo_metadata_values("GameVariant", {field: 0x1_0000_0000})
         self.assertIn("ShoutEnums", catalog_report("skyrim"))
         self.assertEqual(catalog_report("skyrim")["values"]["ShoutEnums"]["AnimalAllegiance"], 392311)
         self.assertIn("SaveEntryCategory", catalog_report("shared"))
