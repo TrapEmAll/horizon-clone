@@ -1214,6 +1214,7 @@ def main() -> int:
     parser.add_argument("--xdbf-add-source", type=Path, metavar="FILE")
     parser.add_argument("--xdbf-text", type=int, metavar="INDEX", help="Edit one observed namespace-5 XDBF string")
     parser.add_argument("--xdbf-text-value", help="Replacement value for --xdbf-text")
+    parser.add_argument("--xdbf-file", metavar="ENTRY", help="STFS file containing the XDBF entry to edit")
     parser.add_argument("--achievement", type=int, metavar="INDEX", help="Edit one XDBF achievement entry")
     parser.add_argument("--achievement-id", type=lambda value: int(value, 0))
     parser.add_argument("--image-id", type=lambda value: int(value, 0))
@@ -1302,6 +1303,24 @@ def main() -> int:
         report = inspect(args.path)
     except OSError as exc:
         parser.error(str(exc))
+
+    if args.xdbf_file is not None:
+        if not write_target or args.xdbf_text is None or args.xdbf_text_value is None:
+            parser.error("--xdbf-file requires --xdbf-text, --xdbf-text-value, and --write or --in-place")
+        if not report.stfs_header:
+            parser.error("--xdbf-file requires a readable STFS header")
+        entry = next((item for item in report.entries if item.path == args.xdbf_file), None)
+        if entry is None or entry.is_directory:
+            parser.error(f"STFS XDBF file not found: {args.xdbf_file}")
+        try:
+            xdbf_payload = read_stfs_entry(raw, entry, report.stfs_header)
+            edited_payload = mutate_xdbf_text(xdbf_payload, args.xdbf_text, args.xdbf_text_value)
+            raw = repack_stfs_entries(raw, {entry.path: edited_payload}, report.stfs_header)
+            write_mutation(raw)
+            mutation_written = True
+        except (OSError, ValueError, IndexError, IsADirectoryError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned embedded XDBF text mutation to {write_target}")
 
     if args.list:
         if not report.entries:
