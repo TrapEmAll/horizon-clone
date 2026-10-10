@@ -32,6 +32,7 @@ from work.horizon_clone import (
     editor_inspect_report,
     editor_edit_values,
     verify_detached_signature,
+    verify_embedded_signature_region,
     read_public_key_json,
     block_offset,
     parse_stfs_header,
@@ -857,6 +858,26 @@ class ContainerInspectionTests(unittest.TestCase):
         region = SignedRegion("legacy-region", b"test vector")
         detached = DetachedSignature("legacy-region", "RSA-SHA1-PKCS1v1.5", b"bad")
         self.assertFalse(verify_region(region, detached, key))
+
+    def test_embedded_signature_verifier_requires_explicit_nonoverlapping_region(self):
+        data = b"signed-data" + b"\x01" * 32
+        self.assertFalse(verify_embedded_signature_region(
+            data,
+            signed_start=0,
+            signed_end=11,
+            signature_offset=11,
+            modulus=257,
+            exponent=3,
+        ))
+        with self.assertRaises(ValueError):
+            verify_embedded_signature_region(
+                data,
+                signed_start=0,
+                signed_end=12,
+                signature_offset=11,
+                modulus=257,
+                exponent=3,
+            )
 
     def test_profile_model_round_trips_observed_metadata(self):
         profile = ProfileData(
