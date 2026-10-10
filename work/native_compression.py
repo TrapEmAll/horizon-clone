@@ -55,6 +55,8 @@ class LzoBinding:
         if not isinstance(source, bytes) or not isinstance(destination, bytearray) or not isinstance(work_memory, bytes):
             raise TypeError("LZO source/work_memory must be bytes and destination must be bytearray")
         _validate_i32(source_length, "source_length")
+        _validate_span(source_length, len(source), "source_length")
+        _validate_span(destination_length.value, len(destination), "destination_length")
         result = getattr(self._require(), method)(source, source_length, destination, destination_length, work_memory)
         return _validate_i32(result, "provider result")
 
@@ -68,4 +70,11 @@ def _validate_i32(value: int, name: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or not -0x80000000 <= value <= 0x7FFFFFFF:
         raise ValueError(f"{name} must be a signed 32-bit integer")
     return value
+
+
+def _validate_span(value: int, capacity: int, name: str) -> None:
+    """Validate a managed array length before crossing the provider boundary."""
+
+    if value < 0 or value > capacity:
+        raise ValueError(f"{name} exceeds its supplied buffer")
 
