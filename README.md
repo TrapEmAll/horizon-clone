@@ -109,6 +109,10 @@ copied implementation code.
   caller-supplied public key, including the JSON emitted by `--public-key`;
   Xbox signed-region inference and retail signing remain deliberately outside
   this boundary.
+- Supports the observed XeCrypt byte-reversed SHA-1 PKCS#1 signature encoding
+  through `--signature-algorithm RSA-SHA1-XeCrypt-PKCS1v1.5` when the caller
+  supplies exact signed and signature offsets; it does not infer package
+  offsets or claim console validity.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
