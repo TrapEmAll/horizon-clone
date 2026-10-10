@@ -10,12 +10,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from .managed_enum_values import _VALUES
+
 
 @dataclass(frozen=True)
 class ObservedEnum:
     name: str
     members: tuple[str, ...]
     values_observed: bool = False
+    values: Mapping[str, int] | None = None
 
 
 _SKYRIM_ENUMS: Mapping[str, tuple[str, ...]] = {
@@ -624,7 +627,10 @@ _SKYRIM_ENUMS: Mapping[str, tuple[str, ...]] = {
 
 
 def observed_skyrim_enums() -> tuple[ObservedEnum, ...]:
-    return tuple(ObservedEnum(name, tuple(members)) for name, members in _SKYRIM_ENUMS.items())
+    return tuple(
+        ObservedEnum(name, tuple(members), name in _VALUES, _VALUES.get(name))
+        for name, members in _SKYRIM_ENUMS.items()
+    )
 
 
 def enum_member_names(enum_name: str) -> tuple[str, ...]:
@@ -634,23 +640,55 @@ def enum_member_names(enum_name: str) -> tuple[str, ...]:
         raise KeyError(f"unknown observed Skyrim enum: {enum_name}") from exc
 
 
-def observed_skyrim_enum_summary() -> dict[str, object]:
-    """Describe the authenticated enum surface without inventing constants.
+def enum_member_values(enum_name: str) -> Mapping[str, int]:
+    """Return Constant-table values recovered from the authenticated assembly."""
 
-    REA exposed the enum field names and the ``value__`` backing field as an
-    ``i4``.  It did not expose the named constants' numeric values or save
-    offsets, so callers receive counts and explicit resolution status only.
-    """
+    try:
+        return dict(_VALUES[enum_name])
+    except KeyError as exc:
+        raise KeyError(f"unknown observed Skyrim enum: {enum_name}") from exc
+
+
+def resolve_skyrim_enum_member(enum_name: str, member_name: str) -> int:
+    """Resolve one authenticated Skyrim Constant value."""
+
+    values = enum_member_values(enum_name)
+    try:
+        return values[member_name]
+    except KeyError as exc:
+        raise KeyError(f"unknown {enum_name} member: {member_name}") from exc
+
+
+def validate_skyrim_enum_values(enum_name: str, values: Mapping[str, int]) -> dict[str, int]:
+    """Validate a Skyrim enum edit against its authenticated Constant table."""
+
+    known = enum_member_values(enum_name)
+    unknown = sorted(set(values) - set(known))
+    if unknown:
+        raise ValueError(f"unknown {enum_name} members: {', '.join(unknown)}")
+    normalized: dict[str, int] = {}
+    for name, value in values.items():
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise TypeError(f"{enum_name}.{name} must be an integer")
+        if value != known[name]:
+            raise ValueError(f"{enum_name}.{name} must equal authenticated value {known[name]}")
+        normalized[name] = value
+    return normalized
+
+
+def observed_skyrim_enum_summary() -> dict[str, object]:
+    """Describe the authenticated enum surface and Constant-table values."""
     return {
-        "status": "metadata-only",
+        "status": "metadata-and-constants",
         "underlying_type": "i4",
         "value_field_observed": True,
-        "constant_values_observed": False,
+        "constant_values_observed": True,
         "save_offsets_observed": False,
         "enums": {
             name: {
                 "named_member_count": len(members),
                 "declared_field_count_including_value__": len(members) + 1,
+                "constant_values": dict(_VALUES.get(name, {})),
             }
             for name, members in _SKYRIM_ENUMS.items()
         },
