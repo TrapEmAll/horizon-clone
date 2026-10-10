@@ -421,6 +421,10 @@ class StfsLicense:
 class StfsSecurityMetadata:
     signature_kind: str
     certificate_size: int | None
+    certificate_signature_offset: int | None
+    certificate_signature_length: int | None
+    package_signature_offset: int
+    package_signature_length: int
     owner_console_id: str | None
     owner_console_part_number: str | None
     owner_console_type: int | None
@@ -814,6 +818,10 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
         return StfsSecurityMetadata(
             signature_kind="console-certificate",
             certificate_size=_u16be(data, 0x04),
+            certificate_signature_offset=0xAC,
+            certificate_signature_length=0x100,
+            package_signature_offset=0x1AC,
+            package_signature_length=0x80,
             owner_console_id=data[0x06:0x0B].hex(),
             owner_console_part_number=_fixed_text(data, 0x0B, 0x14),
             owner_console_type=data[0x1F],
@@ -828,6 +836,10 @@ def parse_stfs_security_metadata(data: bytes) -> StfsSecurityMetadata:
     return StfsSecurityMetadata(
         signature_kind="remote-package-signature",
         certificate_size=None,
+        certificate_signature_offset=None,
+        certificate_signature_length=None,
+        package_signature_offset=0x04,
+        package_signature_length=0x100,
         owner_console_id=None,
         owner_console_part_number=None,
         owner_console_type=None,
