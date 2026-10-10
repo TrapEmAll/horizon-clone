@@ -162,6 +162,10 @@ PE export table without loading the DLL, allowing the supplied `class3.dll` and
 checks and the `CheckString` caller for the user-string exports; the clone
 does not load or invoke those DLLs implicitly.
 
+`--native-contract` performs that comparison against the exact observed
+`class3.dll` and `lzo.dll` export contracts and reports missing names without
+claiming native calling or algorithm semantics.
+
 `--device-surface` reports the observed device-exploration members, including
 device thumbnail properties and the `i8` `DeviceSize` property. Device
 enumeration, FATX/USB behavior, and IOCTL semantics remain provider-boundary
