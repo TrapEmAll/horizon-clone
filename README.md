@@ -181,6 +181,9 @@ copied implementation code.
 - Exposes the authenticated `Horizon.dll`/HVM runtime boundary through
   `--native-runtime-operation`, preserving raw runtime results and requiring
   an explicit DLL path and caller-supplied arguments.
+- Runtime adapters enforce the observed x86 versus x64 image boundary; the
+  supplied installation currently lacks `HVMRun64.dll`, so x64 operations fail
+  explicitly until that authorized artifact is provided.
 - Tracks the REA-observed managed-resource surface as 206 metadata records,
   205 embedded payloads, and one non-embedded unresolved record, separately
   from implementation claims.
