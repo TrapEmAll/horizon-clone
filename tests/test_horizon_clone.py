@@ -784,6 +784,11 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(summary["achievement_entry_count"], len(list_embedded_achievements(path.read_bytes())))
         self.assertIn("raw nonzero flag count", summary["flag_semantics"])
         self.assertEqual(summary["gamerscore_total"], 63450)
+        self.assertEqual(summary["unlock_time_count"], 721)
+        self.assertEqual(summary["earliest_unlock_time_filetime"], 47966688000000000)
+        self.assertEqual(summary["earliest_unlock_time_utc"], "1753-01-01T00:00:00.000000Z")
+        self.assertEqual(summary["latest_unlock_time_filetime"], 134191513390450000)
+        self.assertEqual(summary["latest_unlock_time_utc"], "2026-03-28T06:02:19.045000Z")
 
     def test_decodes_observed_gpd_achievement_endianness_and_text(self):
         path = supplied_fixture()
