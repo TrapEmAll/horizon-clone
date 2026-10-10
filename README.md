@@ -113,6 +113,10 @@ copied implementation code.
   through `--signature-algorithm RSA-SHA1-XeCrypt-PKCS1v1.5` when the caller
   supplies exact signed and signature offsets; it does not infer package
   offsets or claim console validity.
+- Provides `--verify-stfs-signature` for the observed CON package layout,
+  reporting the actual verification result over bytes `0x22C..0x344` with the
+  stored certificate key; a failed result is preserved as evidence rather than
+  treated as an implementation success.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
