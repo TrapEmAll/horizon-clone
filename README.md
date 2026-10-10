@@ -350,9 +350,10 @@ through an explicit provider boundary; it never opens or enumerates a
 physical device.
 
 `WindowsDeviceIoProvider` and `DeviceIoBinding` expose the REA-observed
-read-only `CreateFile`/`DeviceIoControl` boundary for an explicitly supplied
-Windows device path. The caller supplies the IOCTL and buffers; FATX command
-codes, device identity, and Xbox filesystem semantics remain unresolved.
+`CreateFile`/`DeviceIoControl` boundary for an explicitly supplied Windows
+device path. The adapter requests no generic-write access, but IOCTL safety
+semantics remain the caller's responsibility. FATX command codes, device
+identity, and Xbox filesystem semantics remain unresolved.
 
 The recovered DNG/HVM declarations are exposed through an explicit
 `NativeRuntimeBinding` provider boundary. It never loads the original runtime
