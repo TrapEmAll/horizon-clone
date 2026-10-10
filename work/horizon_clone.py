@@ -97,6 +97,35 @@ def decrypt_account_entry(
     }
 
 
+def encrypt_account_payload(
+    plaintext_path: Path,
+    output_path: Path,
+    class3_path: Path,
+    key_helper_path: Path,
+    output_capacity: int,
+    output_length: int,
+) -> dict[str, object]:
+    """Encrypt raw Account plaintext through explicit caller providers."""
+
+    from .account_codec import AccountCodec, CommandAccountKeyProvider
+    from .native_save import NativeSaveBinding, PowerShellNativeSaveProvider
+
+    plaintext = plaintext_path.read_bytes()
+    provider = PowerShellNativeSaveProvider(class3_path)
+    codec = AccountCodec(NativeSaveBinding(provider))
+    key_provider = CommandAccountKeyProvider(key_helper_path)
+    encrypted = codec.encrypt_with_key_provider(plaintext, key_provider, output_capacity, output_length)
+    _atomic_replace_bytes(output_path, encrypted)
+    return {
+        "operation": "account-encrypt",
+        "input": str(plaintext_path),
+        "input_bytes": len(plaintext),
+        "output": str(output_path),
+        "output_bytes": len(encrypted),
+        "plaintext_sha256": hashlib.sha256(plaintext).hexdigest(),
+    }
+
+
 def editor_inspect_report(path: Path) -> dict[str, object]:
     """Dispatch one explicit input through the clean-room editor registry."""
 
@@ -1796,9 +1825,13 @@ def main() -> int:
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
     parser.add_argument("--achievement-name")
     parser.add_argument("--account-decrypt", type=Path, metavar="OUTPUT", help="Decrypt the STFS Account entry to a raw output file through explicit providers")
+    parser.add_argument("--account-encrypt", type=Path, metavar="PLAINTEXT", help="Encrypt raw Account plaintext through explicit providers")
+    parser.add_argument("--account-encrypt-output", type=Path, metavar="OUTPUT", help="Raw output path for --account-encrypt")
     parser.add_argument("--account-class3-dll", type=Path, help="Absolute x86 class3.dll path for --account-decrypt")
     parser.add_argument("--account-key-helper", type=Path, help="Absolute caller-owned key-vault helper for --account-decrypt")
     parser.add_argument("--account-output-capacity", type=int, help="Decrypted Account output buffer capacity")
+    parser.add_argument("--account-encrypt-capacity", type=int, help="Caller-sized encrypted Account output buffer capacity")
+    parser.add_argument("--account-encrypt-length", type=int, help="Caller-known encrypted Account output length")
     args = parser.parse_args()
     if args.capabilities:
         print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
@@ -1814,6 +1847,23 @@ def main() -> int:
                 args.account_class3_dll,
                 args.account_key_helper,
                 args.account_output_capacity,
+            ), indent=2))
+        except (OSError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        return 0
+    if args.account_encrypt:
+        if not args.account_encrypt_output or not args.account_class3_dll or not args.account_key_helper:
+            parser.error("--account-encrypt requires --account-encrypt-output, --account-class3-dll, and --account-key-helper")
+        if args.account_encrypt_capacity is None or args.account_encrypt_length is None:
+            parser.error("--account-encrypt requires --account-encrypt-capacity and --account-encrypt-length")
+        try:
+            print(json.dumps(encrypt_account_payload(
+                args.account_encrypt,
+                args.account_encrypt_output,
+                args.account_class3_dll,
+                args.account_key_helper,
+                args.account_encrypt_capacity,
+                args.account_encrypt_length,
             ), indent=2))
         except (OSError, ValueError, RuntimeError) as exc:
             parser.error(str(exc))
