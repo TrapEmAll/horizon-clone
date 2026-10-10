@@ -13,6 +13,7 @@ import json
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import BinaryIO, Iterable
 
@@ -444,6 +445,38 @@ class XdbfEntry:
     achievement: dict | None
 
 
+_FILETIME_EPOCH = datetime(1601, 1, 1, tzinfo=timezone.utc)
+
+
+def filetime_to_utc(value: int) -> str:
+    """Convert an observed Windows FILETIME integer to canonical UTC ISO-8601."""
+
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError("FILETIME must be a non-negative integer")
+    seconds, remainder = divmod(value, 10_000_000)
+    moment = _FILETIME_EPOCH + timedelta(seconds=seconds, microseconds=remainder // 10)
+    return moment.isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def utc_to_filetime(value: str) -> int:
+    """Convert a timezone-aware ISO-8601 UTC value to Windows FILETIME units."""
+
+    if not isinstance(value, str):
+        raise TypeError("UTC timestamp must be a string")
+    text = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError("UTC timestamp must be ISO-8601") from exc
+    if moment.tzinfo is None:
+        raise ValueError("UTC timestamp must include a timezone")
+    delta = moment.astimezone(timezone.utc) - _FILETIME_EPOCH
+    result = delta.days * 86400 * 10_000_000 + delta.seconds * 10_000_000 + delta.microseconds * 10
+    if result < 0:
+        raise ValueError("UTC timestamp predates the FILETIME epoch")
+    return result
+
+
 def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
     """Parse XDBF/GPD entry indexes and common text/achievement payloads."""
     if len(data) < 0x18 or data[:4] != b"XDBF":
@@ -486,6 +519,7 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
                 "gamerscore": int.from_bytes(payload[12:16], "big", signed=True),
                 "flags": int.from_bytes(payload[16:18], "big"),
                 "unlock_time_filetime": int.from_bytes(payload[20:28], "big"),
+                "unlock_time_utc": filetime_to_utc(int.from_bytes(payload[20:28], "big")) if any(payload[20:28]) else None,
                 "name": name,
             }
         result.append(XdbfEntry(index, namespace, entry_id, offset, length, start, text, achievement))
@@ -612,6 +646,7 @@ def mutate_xdbf_achievement(
     gamerscore: int | None = None,
     flags: int | None = None,
     unlock_time_filetime: int | None = None,
+    unlock_time_utc: str | None = None,
     name: str | None = None,
 ) -> bytes:
     """Edit the observed XDBF achievement payload fields in place."""
@@ -631,6 +666,10 @@ def mutate_xdbf_achievement(
         payload[12:16] = gamerscore.to_bytes(4, "big", signed=True)
     if flags is not None:
         payload[16:18] = flags.to_bytes(2, "big", signed=False)
+    if unlock_time_filetime is not None and unlock_time_utc is not None:
+        raise ValueError("provide either unlock_time_filetime or unlock_time_utc, not both")
+    if unlock_time_utc is not None:
+        unlock_time_filetime = utc_to_filetime(unlock_time_utc)
     if unlock_time_filetime is not None:
         payload[20:28] = unlock_time_filetime.to_bytes(8, "big", signed=False)
     if name is not None:
@@ -1854,6 +1893,7 @@ def main() -> int:
     parser.add_argument("--gamerscore", type=int)
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
+    parser.add_argument("--achievement-unlock-utc", help="Replace the achievement unlock time with a timezone-aware ISO-8601 UTC value")
     parser.add_argument("--achievement-name")
     parser.add_argument("--account-decrypt", type=Path, metavar="OUTPUT", help="Decrypt the STFS Account entry to a raw output file through explicit providers")
     parser.add_argument("--account-encrypt", type=Path, metavar="PLAINTEXT", help="Encrypt raw Account plaintext through explicit providers")
@@ -2155,6 +2195,7 @@ def main() -> int:
                         gamerscore=args.gamerscore,
                         flags=args.achievement_flags,
                         unlock_time_filetime=args.achievement_unlock_filetime,
+                        unlock_time_utc=args.achievement_unlock_utc,
                         name=args.achievement_name,
                     )
                 write_mutation(raw)
@@ -2213,6 +2254,7 @@ def main() -> int:
                     gamerscore=args.gamerscore,
                     flags=args.achievement_flags,
                     unlock_time_filetime=args.achievement_unlock_filetime,
+                    unlock_time_utc=args.achievement_unlock_utc,
                     name=args.achievement_name,
                 )
                 operation_name = "achievement"
