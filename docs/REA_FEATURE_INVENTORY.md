@@ -131,8 +131,10 @@ argument semantics.
 `NativeSaveBinding` now models the recovered `RtsSaveDecrypt` and
 `RtsSaveEncrypt` buffer shapes, including the `u4&` output-length argument.
 It requires an explicit caller-supplied provider, validates the observed
-integer/buffer types, and does not load `class3.dll` or claim the native
-algorithm, key format, or output semantics.
+integer/buffer types. The opt-in `CtypesNativeSaveProvider` can bind an
+absolute caller-supplied `class3.dll` path to those exports; it does not search
+for DLLs, persist keys, or claim the native algorithm, key format, or output
+semantics.
 
 `LzoBinding` models the four recovered LZO declarations and their `i4&`
 output-length argument. It requires an explicit provider and does not load
