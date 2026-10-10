@@ -92,13 +92,15 @@ def catalog_report(name: str) -> dict[str, object]:
 
         return {item.name: list(item.members) for item in observed_catalogs()}
     if name == "skyrim":
-        from .skyrim_catalog import observed_skyrim_enums
+        from .skyrim_catalog import observed_skyrim_enum_summary, observed_skyrim_enums
 
-        return {item.name: list(item.members) for item in observed_skyrim_enums()}
+        report = {item.name: list(item.members) for item in observed_skyrim_enums()}
+        report["summary"] = observed_skyrim_enum_summary()
+        return report
     if name == "gears":
-        from .gears_catalog import gears_of_war_3_entry_ids
+        from .gears_catalog import gears_entry_id_summary, gears_of_war_3_entry_ids
 
-        return {"EntryID": list(gears_of_war_3_entry_ids())}
+        return {"EntryID": list(gears_of_war_3_entry_ids()), "summary": gears_entry_id_summary()}
     if name == "halo":
         from .halo_catalog import halo_general_class_field_counts, halo_general_class_method_summary, halo_general_class_types
 
