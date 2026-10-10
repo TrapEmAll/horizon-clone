@@ -20,6 +20,7 @@ from .editor_inventory import capability_report, catalog_report
 from .native_surface import native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import observed_resource_surface
+from .managed_surface import managed_surface_report
 
 
 MAGIC = b"CON "
@@ -1375,6 +1376,8 @@ def main() -> int:
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
+    parser.add_argument("--managed-surface", type=Path, help="Read an exported REA managed-members bundle and print its observed surface")
+    parser.add_argument("--surface-pattern", help="Case-insensitive regex for --managed-surface member selection")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo", "legacy", "global"), help="Print one REA-observed title catalog")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
@@ -1448,6 +1451,13 @@ def main() -> int:
         print(json.dumps(observed_resource_surface(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
+    if args.managed_surface:
+        try:
+            report = managed_surface_report(args.managed_surface, args.surface_pattern)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
     if args.catalog:
         print(json.dumps(catalog_report(args.catalog), indent=2, ensure_ascii=False))
         return 0
