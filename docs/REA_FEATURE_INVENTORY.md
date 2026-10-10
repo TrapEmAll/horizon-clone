@@ -50,6 +50,11 @@ The same Constant table recovers the global `XGearSlot` values (`Null=0`,
 `Hat=10`, `Shirt=11`, `Boots=12`, `Pants=13`). These are metadata values, not
 proof of a complete title save layout.
 
+Additional global Constant rows are now exposed for `GeneralContentTypes`,
+`DifficultyOption`, `XOnlineLanguage`, `XOnlineTierType`, and
+`XOnlinePassCodeTypes`. They are authenticated enum metadata only; duplicate
+title rows, package offsets, and mutation behavior remain unresolved.
+
 The retained member evidence identifies the six `Horizon.ProfileData` fields
 (`FromDevice`, `XUID`, `Gamertag`, `Gamerpicture`, `ProfileId`, and `Favorite`)
 and their managed types. The clone exposes that contract as metadata while
