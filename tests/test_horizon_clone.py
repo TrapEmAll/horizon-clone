@@ -1823,6 +1823,13 @@ class ContainerInspectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             native_runtime_operation_report(Path("C:/explicit/Horizon.dll"), "run-hvm", (1,), provider=Provider())
 
+    def test_native_runtime_operation_preflights_supplied_image_without_execution(self):
+        dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
+        if not dll.exists():
+            self.skipTest("supplied Horizon.dll is unavailable")
+        with self.assertRaises(OSError):
+            native_runtime_operation_report(dll, "check-runtime64")
+
     def test_native_runtime_provider_requires_explicit_absolute_image(self):
         with self.assertRaises(ValueError):
             PowerShellNativeRuntimeProvider("Horizon.dll")
