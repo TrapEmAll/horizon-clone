@@ -14,6 +14,7 @@ from work.horizon_clone import (
     mutate_stfs_metadata,
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
+    mutate_xdbf_text,
     repack_xdbf_entries,
     repack_stfs_entries,
     rehash_stfs_hashes,
@@ -98,6 +99,9 @@ class ContainerInspectionTests(unittest.TestCase):
         longer = "Longer Dashboard".encode("utf-16-be") + b"\x00\x00"
         repacked = repack_xdbf_entries(data, {0: longer})
         self.assertEqual(parse_xdbf(repacked)[0].text, "Longer Dashboard")
+
+        text_mutated = mutate_xdbf_text(data, 0, "Preferences")
+        self.assertEqual(parse_xdbf(text_mutated)[0].text, "Preferences")
 
         removed = repack_xdbf_entries(data, {}, remove=(0,))
         self.assertEqual(parse_xdbf(removed), ())
