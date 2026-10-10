@@ -186,6 +186,10 @@ copied implementation code.
 - Exposes `--managed-io-contract` for focused static `Read`/`Write`/`Load`/
   `Save` method contracts, including authenticated CIL anchors, field accesses,
   and call targets without inferring save offsets.
+- Exposes `--managed-body-fidelity` to measure duplicate retained IL hashes and
+  file offsets. This records when REA presents shared guard/throw bodies across
+  title-editor members, preventing metadata stubs from being mistaken for
+  serializer implementations.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
