@@ -121,6 +121,11 @@ copied implementation code.
   payloads once an authorized class3-compatible provider and key are supplied;
   `encrypt_raw` preserves native status and the caller-sized output buffer;
   encryption length and Account serialization remain caller-resolved.
+- Provides an isolated `AccountRecord` body codec based on the public,
+  Unlicense historical XProfile reference. It authenticates and round-trips the
+  supplied 404-byte Account entry with a caller-supplied 16-byte key, but is
+  labeled historical-reference rather than REA-recovered Horizon behavior and
+  does not claim retail signing or console validity.
 - Provides `AccountKeyProvider` integration for caller-owned key-vault or
   development-key services; keys are requested per operation and payload digest
   and are not persisted by the clone.
