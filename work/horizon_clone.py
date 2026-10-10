@@ -17,6 +17,7 @@ from typing import BinaryIO, Iterable
 
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import native_surface_report
+from .device_surface import device_surface_report
 
 
 MAGIC = b"CON "
@@ -1350,6 +1351,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--capabilities", action="store_true", help="Print the evidence-qualified implementation capability ledger")
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
+    parser.add_argument("--device-surface", action="store_true", help="Print the REA-observed device exploration surface")
     parser.add_argument("--catalog", choices=("shared", "skyrim", "gears", "halo"), help="Print one REA-observed title catalog")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
@@ -1412,6 +1414,10 @@ def main() -> int:
             return 0
     if args.native_surface:
         print(json.dumps(native_surface_report(), indent=2, ensure_ascii=False))
+        if len(__import__("sys").argv) == 3:
+            return 0
+    if args.device_surface:
+        print(json.dumps(device_surface_report(), indent=2, ensure_ascii=False))
         if len(__import__("sys").argv) == 3:
             return 0
     if args.catalog:
