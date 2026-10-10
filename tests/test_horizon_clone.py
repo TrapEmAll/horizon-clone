@@ -66,6 +66,7 @@ from work.horizon_clone import (
     mutate_historical_account,
     read_stfs_entry,
     verify_stfs_hashes,
+    native_runtime_operation_report,
 )
 from work.signing import (
     DetachedSignature,
@@ -1792,6 +1793,31 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(bound.run_hvm(), 7)
         self.assertEqual(bound.get_user_string(1, 2, 3), 6)
         self.assertEqual(bound.get_user_string64(9, 2, 1), 6)
+
+    def test_native_runtime_operation_report_preserves_raw_provider_result(self):
+        class Provider:
+            def check_runtime(self):
+                return True
+
+            def check_runtime64(self):
+                return False
+
+            def run_hvm(self):
+                return 0x1234
+
+            def get_user_string(self, arg0, arg1, arg2):
+                return arg0 + arg1 + arg2
+
+            def get_user_string64(self, arg0, arg1, arg2):
+                return arg0 - arg1 - arg2
+
+        report = native_runtime_operation_report(
+            Path("C:/explicit/Horizon.dll"), "get-user-string64", (9, 2, 1), provider=Provider()
+        )
+        self.assertEqual(report["result"], 6)
+        self.assertEqual(report["arguments"], [9, 2, 1])
+        with self.assertRaises(ValueError):
+            native_runtime_operation_report(Path("C:/explicit/Horizon.dll"), "run-hvm", (1,), provider=Provider())
 
     def test_native_runtime_provider_requires_explicit_absolute_image(self):
         with self.assertRaises(ValueError):
