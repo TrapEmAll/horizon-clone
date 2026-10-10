@@ -1955,6 +1955,8 @@ class ContainerInspectionTests(unittest.TestCase):
         codec = LzoCodec(bound)
         self.assertEqual(codec.compress("lzo1x_1", b"in", 8, b"work"), b"in")
         with self.assertRaises(LzoUnavailable):
+            codec.version_string()
+        with self.assertRaises(LzoUnavailable):
             LzoCodec(LzoBinding()).decompress("lzo1x", b"in", 8)
 
     def test_ctypes_lzo_provider_requires_explicit_absolute_dll_path(self):
@@ -1978,6 +1980,8 @@ class ContainerInspectionTests(unittest.TestCase):
         restored_length = Int32Ref(len(restored))
         self.assertEqual(provider.lzo1x_decompress(bytes(compressed[:compressed_length.value]), compressed_length.value, restored, restored_length, work_memory), 0)
         self.assertEqual(bytes(restored[:restored_length.value]), source)
+        self.assertTrue(provider.lzo_version_string())
+        self.assertTrue(provider.lzo_version_date())
 
     def test_x86_powershell_lzo2a_provider_round_trips_with_observed_work_memory(self):
         dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\lzo.dll")
