@@ -77,7 +77,7 @@ def obfuscate_account(plain: bytes, key: bytes, *, confounder: bytes | None = No
 
 
 def _read_ascii(data: bytes, start: int, length: int) -> str:
-    return data[start : start + length].split(b"\x00", 1)[0].decode("ascii", errors="replace")
+    return data[start : start + length].split(bytes([0]), 1)[0].decode("ascii", errors="replace")
 
 
 def _write_ascii(value: str, length: int) -> bytes:
@@ -86,23 +86,23 @@ def _write_ascii(value: str, length: int) -> bytes:
     encoded = value.encode("ascii")
     if len(encoded) > length:
         raise ValueError(f"Account text field exceeds {length} bytes")
-    return encoded.ljust(length, b"\x00")
+    return encoded.ljust(length, bytes([0]))
 
 
 @dataclass
 class AccountRecord:
     """The historical 380-byte Account body, with fixed-width fields."""
 
-    live_flags: int = 0
     reserved: int = 0
+    live_flags: int = 0
     gamertag: str = ""
     xuid_online: int = 0
     cached_user_flags: int = 0
     online_service_network_id: int = 0
-    passcode: bytes = b"\x00" * 4
+    passcode: bytes = bytes([0]) * 4
     online_domain: str = ""
     online_kerberos_realm: str = ""
-    online_key: bytes = b"\x00" * 16
+    online_key: bytes = bytes([0]) * 16
     user_passport_membername: str = ""
     user_passport_password: str = ""
     owner_passport_membername: str = ""
@@ -111,7 +111,7 @@ class AccountRecord:
     def from_bytes(cls, data: bytes) -> "AccountRecord":
         if not isinstance(data, bytes) or len(data) != ACCOUNT_PLAIN_LENGTH:
             raise ValueError(f"Account plaintext must be {ACCOUNT_PLAIN_LENGTH} bytes")
-        gamertag = data[8:40].decode("utf-16-be", errors="replace").rstrip("\x00")
+        gamertag = data[8:40].decode("utf-16-be", errors="replace").rstrip(chr(0))
         return cls(
             int.from_bytes(data[0:4], "big"),
             int.from_bytes(data[4:8], "big"),
@@ -139,9 +139,9 @@ class AccountRecord:
             if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < (1 << (64 if name == "xuid_online" else 32)):
                 raise ValueError(f"Account {name} is out of range")
         result = bytearray()
-        result.extend(self.live_flags.to_bytes(4, "big"))
         result.extend(self.reserved.to_bytes(4, "big"))
-        result.extend(self.gamertag.encode("utf-16-be").ljust(32, b"\x00"))
+        result.extend(self.live_flags.to_bytes(4, "big"))
+        result.extend(self.gamertag.encode("utf-16-be").ljust(32, bytes([0])))
         result.extend(self.xuid_online.to_bytes(8, "big"))
         result.extend(self.cached_user_flags.to_bytes(4, "big"))
         result.extend(self.online_service_network_id.to_bytes(4, "big"))
@@ -153,3 +153,4 @@ class AccountRecord:
         result.extend(_write_ascii(self.user_passport_password, 32))
         result.extend(_write_ascii(self.owner_passport_membername, 114))
         return bytes(result)
+
