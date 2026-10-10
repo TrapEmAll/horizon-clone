@@ -15,6 +15,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import BinaryIO, Iterable
 
+from .editor_inventory import capability_report
+
 
 MAGIC = b"CON "
 STFS_MAGICS = {b"CON ", b"LIVE", b"PIRS"}
@@ -1328,6 +1330,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Inspect an Xbox 360 content container")
     parser.add_argument("path", type=Path)
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--capabilities", action="store_true", help="Print the evidence-qualified implementation capability ledger")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -1383,6 +1386,10 @@ def main() -> int:
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
     parser.add_argument("--achievement-name")
     args = parser.parse_args()
+    if args.capabilities:
+        print(json.dumps(capability_report(), indent=2, ensure_ascii=False))
+        if len(__import__("sys").argv) == 3:
+            return 0
     if args.achievements_output:
         args.list_achievements = True
     if args.write and args.in_place:
