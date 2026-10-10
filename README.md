@@ -21,9 +21,10 @@ copied implementation code.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
-  affected data-block hashes plus the metadata-header hash.
-- Verifies data-block and metadata-header hashes while explicitly reporting
-  that RSA package signing has not been checked.
+  the complete STFS hash tree plus the metadata digest.
+- Rebuilds and verifies level-0, level-1, and top-level STFS hash tables for
+  allocations within the supported three-level range, while explicitly
+  reporting that RSA package signing has not been checked.
 - Provides a provider-oriented RSA PKCS#1 v1.5/SHA-256 boundary for
   authorized local test or development keys.
 - Exposes STFS hash verification and same-size replacement from the desktop
@@ -32,7 +33,8 @@ copied implementation code.
   mutation through the library and CLI.
 - Repackages entries to different sizes within existing STFS allocation
   capacity, updating file-table records and hashes.
-- Resolves level-2 STFS hash-table indirection for large allocations.
+- Resolves and rehashes level-2 STFS hash-table indirection for large
+  allocations without growing the package's physical allocation.
 - Removes file-table entries safely when the resulting package fits the
   existing allocation capacity.
 
