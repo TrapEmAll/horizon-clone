@@ -81,3 +81,27 @@ def capability_report() -> dict[str, object]:
         ],
     }
 
+
+def catalog_report(name: str) -> dict[str, object]:
+    """Return one REA-observed catalog without claiming binary layouts."""
+    if name == "shared":
+        from .horizon_catalog import observed_catalogs
+
+        return {item.name: list(item.members) for item in observed_catalogs()}
+    if name == "skyrim":
+        from .skyrim_catalog import observed_skyrim_enums
+
+        return {item.name: list(item.members) for item in observed_skyrim_enums()}
+    if name == "gears":
+        from .gears_catalog import gears_of_war_3_entry_ids
+
+        return {"EntryID": list(gears_of_war_3_entry_ids())}
+    if name == "halo":
+        from .halo_catalog import halo_general_class_field_counts, halo_general_class_types
+
+        return {
+            "types": list(halo_general_class_types()),
+            "field_counts": halo_general_class_field_counts(),
+        }
+    raise KeyError(f"unknown catalog: {name}")
+
