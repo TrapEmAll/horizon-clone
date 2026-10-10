@@ -8,13 +8,44 @@ to that provider boundary without loading ``class3.dll`` or persisting keys.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+from typing import Protocol
 
 from .native_save import NativeSaveBinding, UInt32Ref
+
+
+class AccountKeyProvider(Protocol):
+    """Caller-owned key service; implementations must not persist keys here."""
+
+    def get_account_key(self, operation: str, payload_sha256: str) -> bytes:
+        """Return an authorized key for one opaque Account operation."""
+
+
+class AccountKeyProviderUnavailable(RuntimeError):
+    """Raised when an Account operation has no explicit key provider."""
 
 
 @dataclass(frozen=True)
 class AccountCodec:
     binding: NativeSaveBinding
+
+    def decrypt_with_key_provider(self, payload: bytes, provider: AccountKeyProvider, output_capacity: int) -> bytes:
+        """Decrypt using a caller-owned provider selected for this payload."""
+
+        key = _provider_key(provider, "decrypt", payload)
+        return self.decrypt(payload, key, output_capacity)
+
+    def encrypt_with_key_provider(
+        self,
+        plaintext: bytes,
+        provider: AccountKeyProvider,
+        output_capacity: int,
+        output_length: int | None = None,
+    ) -> bytes:
+        """Encrypt using a caller-owned provider selected for this plaintext."""
+
+        key = _provider_key(provider, "encrypt", plaintext)
+        return self.encrypt(plaintext, key, output_capacity, output_length)
 
     def decrypt(self, payload: bytes, key: bytes, output_capacity: int) -> bytes:
         _validate_payload(payload)
@@ -56,6 +87,15 @@ class AccountCodec:
 def _validate_payload(payload: bytes) -> None:
     if not isinstance(payload, bytes):
         raise TypeError("Account payload must be bytes")
+
+
+def _provider_key(provider: AccountKeyProvider, operation: str, payload: bytes) -> bytes:
+    if provider is None or not callable(getattr(provider, "get_account_key", None)):
+        raise AccountKeyProviderUnavailable("Account operations require an explicit key provider")
+    key = provider.get_account_key(operation, hashlib.sha256(payload).hexdigest())
+    if not isinstance(key, bytes) or not key:
+        raise ValueError("Account key provider must return non-empty bytes")
+    return key
 
 
 def _validate_capacity(value: int) -> None:
