@@ -474,7 +474,7 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
         achievement = None
         if namespace == 5:
             text = payload.decode("utf-16-be", errors="replace").rstrip("\x00")
-        elif namespace == 1 and entry_id not in (0x100000000, 0x200000000) and len(payload) >= 0x1C:
+        elif namespace == 1 and entry_id <= 0xFFFFFFFF and len(payload) >= 0x1C:
             name_start = 0x1C
             name_end = payload.find(b"\x00\x00", name_start)
             if name_end >= 0 and (name_end - name_start) % 2:
@@ -1077,11 +1077,11 @@ def read_stfs_entry(data: bytes, entry: StfsEntry, header: StfsHeader | None = N
 def list_embedded_xdbf(
     data: bytes, header: StfsHeader | None = None
 ) -> tuple[tuple[StfsEntry, tuple[XdbfEntry, ...]], ...]:
-    """Enumerate parseable XDBF payloads embedded in STFS GPD files."""
+    """Enumerate parseable XDBF payloads embedded in STFS GPD/FIT files."""
     header = header or parse_stfs_header(data)
     result: list[tuple[StfsEntry, tuple[XdbfEntry, ...]]] = []
     for entry in list_stfs_entries(data, header):
-        if entry.is_directory or not entry.path.lower().endswith(".gpd"):
+        if entry.is_directory or Path(entry.path).suffix.lower() not in {".gpd", ".fit"}:
             continue
         try:
             entries = parse_xdbf(read_stfs_entry(data, entry, header))
