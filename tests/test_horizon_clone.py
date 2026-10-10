@@ -1435,6 +1435,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(surface["status"], "metadata-only")
         members = {(item.declaring_type, item.name) for item in observed_device_members()}
         self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
+        self.assertIn(("A.c481e7f09def65aded5645fc775214ae5", "get_Account_Thumb"), members)
+        self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxHDD_24"), members)
+        self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxMU_24"), members)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24"), members)
 
     def test_device_binding_requires_provider_and_validates_observed_i8_property(self):
