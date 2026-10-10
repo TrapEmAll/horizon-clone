@@ -214,6 +214,9 @@ remain uninterpreted and are never executed.
 
 The desktop front end exposes the same operation with explicit file and output
 directory selection, plus an optional resource-name regex.
+Extracted payloads also receive conservative magic classifications for common
+image, archive, audio, PE, and .NET-resource signatures; classification does
+not deserialize or execute them.
 
 The retained Halo member evidence further counts 1,102 methods, 175 getter
 methods, 168 setter methods, and 140 unique property names across the
