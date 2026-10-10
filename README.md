@@ -61,6 +61,9 @@ copied implementation code.
   Crashers, and Saints Row) with authenticated type/field names; enum values
   and mutation behavior remain unresolved. Their observed `i4` backing fields
   are reported separately from named members.
+- Provides authenticated Constant-value resolvers and validators for the
+  Skyrim enum families and Gears of War 3 `EntryID`; these validate metadata
+  values only and do not infer save offsets.
 - Exposes a collision-safe structural report for the largest authenticated
   global-namespace title rows (`--catalog global`), retaining duplicate CLR
   type names as separate metadata rows and explicitly withholding enum values
