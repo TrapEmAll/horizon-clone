@@ -22,6 +22,7 @@ from work.horizon_clone import (
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     mutate_xdbf_achievement_flags,
+    mutate_profile_achievement_flags,
     mutate_xdbf_text,
     repack_xdbf_entries,
     repack_stfs_entries,
@@ -909,6 +910,19 @@ class ContainerInspectionTests(unittest.TestCase):
         restored_entries = [item for item in parse_xdbf(restored) if item.achievement is not None]
         for before, after in zip(achievements, restored_entries):
             self.assertEqual(after.achievement["flags"], before.achievement["flags"] & ~0x0004)
+
+    def test_profile_achievement_flags_apply_across_embedded_gpd_files(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        mutated = mutate_profile_achievement_flags(original, 0x0004, mode="or")
+        before = list_embedded_achievements(original)
+        after = list_embedded_achievements(mutated)
+        self.assertEqual(len(after), len(before))
+        self.assertGreater(len(after), 0)
+        for left, right in zip(before, after):
+            self.assertEqual(right["achievement"]["flags"], left["achievement"]["flags"] | 0x0004)
 
     def test_cli_edits_embedded_xdbf_achievement(self):
         path = supplied_fixture()
