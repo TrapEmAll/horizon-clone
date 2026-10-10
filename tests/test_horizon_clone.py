@@ -1838,6 +1838,17 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(provider.architecture, "x86")
         self.assertEqual(provider.path, dll)
 
+    def test_native_runtime_provider_rejects_wrong_width_operation(self):
+        dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
+        host = Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
+        if not dll.exists() or not host.exists():
+            self.skipTest("supplied x86 Horizon.dll or 32-bit PowerShell host is unavailable")
+        provider = PowerShellNativeRuntimeProvider(dll, powershell_path=host, host_architecture="x86")
+        with self.assertRaises(OSError):
+            provider.check_runtime64()
+        with self.assertRaises(OSError):
+            provider.get_user_string64(1, 2, 3)
+
     def test_native_runtime_provider_invokes_shipped_runtime_check(self):
         dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
         host = Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
