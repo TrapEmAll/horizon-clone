@@ -126,6 +126,10 @@ copied implementation code.
   supplied 404-byte Account entry with a caller-supplied 16-byte key, but is
   labeled historical-reference rather than REA-recovered Horizon behavior and
   does not claim retail signing or console validity.
+- Exposes `--historical-account-inspect` for authenticated, read-only Account
+  field inspection with an explicit caller-supplied 16-byte key; secrets are
+  returned only as field values in the caller's local JSON output and are not
+  persisted by the clone.
 - Provides `AccountKeyProvider` integration for caller-owned key-vault or
   development-key services; keys are requested per operation and payload digest
   and are not persisted by the clone.
@@ -363,6 +367,7 @@ python -m work.horizon_clone C:\path\to\profile.con --achievements-output achiev
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
+python -m work.horizon_clone C:\path\to\profile.con --historical-account-inspect --historical-account-key-hex e1bc159c73b1eae9ab3170f3ad47ebf3
 python -m work.horizon_clone C:\path\to\container --security
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place
