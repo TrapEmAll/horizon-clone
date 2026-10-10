@@ -56,6 +56,7 @@ from work.global_catalog import global_catalog_report, observed_global_types
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
+from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
@@ -88,6 +89,12 @@ class ContainerInspectionTests(unittest.TestCase):
 
     def test_desktop_exposes_bulk_gpd_summary_export(self):
         self.assertTrue(hasattr(HorizonApp, "export_gpd_summary"))
+
+    def test_device_inventory_is_read_only_and_explicitly_bounded(self):
+        report = device_inventory_report()
+        self.assertIn(report["status"], {"host-visible-read-only", "unsupported-host"})
+        self.assertEqual(len(report["volumes"]), len({item["root"] for item in report["volumes"]}))
+        self.assertTrue(any("FATX" in item for item in report["limitations"]))
 
     def test_reports_selected_managed_surface_from_exported_evidence(self):
         bundle = self.fixture_dir / "managed-surface.json"
