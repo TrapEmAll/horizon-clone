@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from .horizon_clone import (
+    add_stfs_directory,
     extract_stfs,
     inspect,
     list_embedded_achievements,
@@ -50,6 +51,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Add directory", command=self.add_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove file", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Rename file", command=self.rename_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
@@ -336,6 +338,35 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
             messagebox.showerror("Remove file failed", str(exc))
+
+    def add_directory(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
+            messagebox.showinfo("Add directory", "Open a readable STFS container first.")
+            return
+        directory_path = simpledialog.askstring("Add directory", "Directory path:", parent=self)
+        if not directory_path:
+            return
+        try:
+            mutated = add_stfs_directory(self._data, directory_path, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(
+                title="Save container with directory",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.tree.delete(*self.tree.get_children())
+            self._entries.clear()
+            for item in self._report.entries:
+                tree_item = self.tree.insert("", tk.END, text=item.path, values=(item.size, "DIR" if item.is_directory else "FILE"))
+                self._entries[tree_item] = item
+            self.status.configure(text=f"Wrote unsigned directory addition: {directory_path}")
+            self._set_details({"path": target, "directory": directory_path, "signature_checked": False})
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            messagebox.showerror("Add directory failed", str(exc))
 
     def rename_file(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
