@@ -87,7 +87,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_artifact_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -210,6 +210,32 @@ class ContainerInspectionTests(unittest.TestCase):
             bundle.unlink(missing_ok=True)
         self.assertEqual(report["counts"], {"matched": 1, "total": 2})
         self.assertEqual(report["references"][0]["name"], "System.Data.SQLite")
+
+    def test_reports_managed_artifact_identity_and_partial_coverage(self):
+        bundle = self.fixture_dir / "managed-artifact-provenance.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_artifact",
+                "evidence_id": "ev_artifact_provenance",
+                "normalized_result": {
+                    "artifact": {"sha256": "abc", "path": "Horizon.exe"},
+                    "pe": {"architecture": "x86"},
+                    "classification": {"status": "managed", "implementation": "cil"},
+                    "assembly": {"name": "Horizon", "version": "2.9.0.0"},
+                    "metadata": {"status": "partial", "version": "v2.0.50727", "stream_names": ["#~"], "table_row_counts": {"TypeDef": 1}},
+                    "coverage": {"state": "partial", "issues": [{"code": "invalid-row"}]},
+                    "references": [{"name": "System"}],
+                    "resources": [{"name": "ui.resources"}],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_artifact_report(bundle)
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["assembly"]["version"], "2.9.0.0")
+        self.assertEqual(report["metadata"]["status"], "partial")
+        self.assertEqual(report["counts"], {"references": 1, "resources": 1})
 
     def test_joins_managed_editor_schema_by_type(self):
         bundle = self.fixture_dir / "schema-bundle.json"
