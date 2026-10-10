@@ -922,6 +922,35 @@ def _all_stfs_file_table_slots(data: bytes, header: StfsHeader) -> tuple[int, ..
     return tuple(slots)
 
 
+def rename_stfs_entry(
+    data: bytes,
+    entry_path: str,
+    new_name: str,
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Rename one STFS file or directory without changing its parent."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    entry = next((item for item in entries if item.path == entry_path), None)
+    if entry is None:
+        raise FileNotFoundError(entry_path)
+    encoded_name = new_name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS names must be non-empty ASCII basenames of at most 40 bytes")
+    parent = entry_path.rsplit("/", 1)[0] if "/" in entry_path else ""
+    new_path = f"{parent}/{new_name}" if parent else new_name
+    if any(item.path == new_path for item in entries if item.path != entry_path):
+        raise ValueError(f"STFS entry already exists: {new_path}")
+    slots = _stfs_file_table_slots(data, header)
+    if entry.index >= len(slots):
+        raise ValueError("STFS entry index does not resolve to a file-table slot")
+    result = bytearray(data)
+    slot = slots[entry.index]
+    result[slot : slot + 0x28] = encoded_name.ljust(0x28, b"\x00")
+    result[slot + 0x28] = (result[slot + 0x28] & 0xC0) | len(encoded_name)
+    return rehash_stfs_hashes(bytes(result), header)
+
+
 def repack_stfs_entries(
     data: bytes,
     replacements: dict[str, bytes],
@@ -1229,6 +1258,8 @@ def main() -> int:
     parser.add_argument("--remove", action="append", metavar="ENTRY", help="Remove an STFS file-table entry")
     parser.add_argument("--add", action="append", metavar="ENTRY", help="Add an STFS file-table entry")
     parser.add_argument("--add-source", action="append", type=Path, help="Raw bytes for --add (repeat in the same order)")
+    parser.add_argument("--rename", metavar="ENTRY", help="Rename an STFS file or directory")
+    parser.add_argument("--new-name", help="New ASCII basename for --rename")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument(
         "--in-place",
@@ -1415,6 +1446,19 @@ def main() -> int:
         except (OSError, ValueError, IndexError, IsADirectoryError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned embedded XDBF {operation_name} mutation to {write_target}")
+
+    if args.rename:
+        if not args.new_name or not write_target:
+            parser.error("--rename requires --new-name and --write or --in-place")
+        if not report.stfs_header:
+            parser.error("--rename requires a readable STFS header")
+        try:
+            raw = rename_stfs_entry(raw, args.rename, args.new_name, report.stfs_header)
+            write_mutation(raw)
+            mutation_written = True
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned STFS rename to {write_target}")
 
     if args.list:
         if not report.entries:
