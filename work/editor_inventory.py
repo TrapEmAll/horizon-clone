@@ -63,6 +63,7 @@ _CAPABILITIES = (
     Capability("STFS metadata and thumbnails", "implemented", "observed STFS metadata fields and bounded thumbnail regions", ("mutate_stfs_metadata", "mutate_stfs_thumbnails")),
     Capability("STFS file management", "implemented", "observed file-table mutation substrate", ("repack_stfs_entries", "add_stfs_directory", "move_stfs_entry", "rename_stfs_entry")),
     Capability("Desktop atomic artifact writes", "implemented", "same-directory replacement for GUI mutations and exports", ("_atomic_write_bytes", "_atomic_write_text")),
+    Capability("Desktop metadata editor dispatch", "implemented", "GUI inspection and separate-output editing for registry-supported explicit artifacts", ("open_editor_artifact", "edit_editor_artifact")),
     Capability("XDBF/GPD inspection", "implemented", "observed XDBF entries, payload digests, namespace-5 strings, achievement payloads, and profile aggregates", ("parse_xdbf", "xdbf_payload_surface", "list_embedded_xdbf", "list_embedded_achievements", "summarize_profile_achievements", "--editor-inspect")),
     Capability("XDBF/GPD mutation", "implemented", "bounded XDBF repacking and observed achievement edits", ("repack_xdbf_entries", "mutate_xdbf_text", "mutate_xdbf_achievement")),
     Capability("Managed surface editor dispatch", "implemented", "Read-only editor-registry dispatch for exported REA managed-members evidence", ("ManagedSurfaceEditor", "EditorRegistry")),
