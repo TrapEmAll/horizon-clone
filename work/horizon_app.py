@@ -48,6 +48,7 @@ from .horizon_clone import (
     decrypt_account_entry,
     encrypt_account_payload,
     native_runtime_operation_report,
+    native_lzo_operation_report,
     native_installation_report,
 )
 from .editor_inventory import catalog_report
@@ -98,6 +99,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device IOCTL", command=self.device_ioctl).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Runtime export", command=self.runtime_export).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="LZO operation", command=self.lzo_operation).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Native installation", command=self.show_native_installation).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
@@ -510,6 +512,68 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("Native installation check failed", str(exc))
+
+    def lzo_operation(self) -> None:
+        """Run one explicit observed LZO operation through the x86 provider."""
+
+        dll = filedialog.askopenfilename(
+            title="Choose x86 lzo.dll",
+            filetypes=(("Dynamic library", "*.dll"), ("All files", "*.*")),
+        )
+        if not dll:
+            return
+        operation = simpledialog.askstring(
+            "LZO operation",
+            "Operation (version-string, version-date, compress, decompress):",
+            parent=self,
+        )
+        if not operation:
+            return
+        source = b""
+        variant = "lzo1x_1"
+        capacity = 0
+        work_memory = None
+        if operation in {"compress", "decompress"}:
+            source_path = filedialog.askopenfilename(title="Choose LZO source bytes")
+            if not source_path:
+                return
+            variant = simpledialog.askstring(
+                "LZO variant", "Variant (lzo1x_1, lzo2a_999, lzo1x, lzo2a):", initialvalue=variant, parent=self
+            ) or variant
+            capacity = simpledialog.askinteger("LZO output capacity", "Output buffer capacity:", minvalue=1, parent=self) or 0
+            if not capacity:
+                return
+            work_memory = simpledialog.askinteger(
+                "LZO work memory",
+                "Work-memory bytes (blank uses the observed default):",
+                minvalue=1,
+                parent=self,
+            )
+            try:
+                source = Path(source_path).read_bytes()
+            except OSError as exc:
+                messagebox.showerror("LZO operation failed", str(exc))
+                return
+        try:
+            report = native_lzo_operation_report(
+                Path(dll),
+                operation,
+                source=source,
+                variant=variant,
+                output_capacity=capacity,
+                work_memory_size=work_memory,
+            )
+            output = report.pop("output")
+            if output:
+                target = filedialog.asksaveasfilename(title="Save LZO output")
+                if not target:
+                    return
+                _atomic_write_bytes(Path(target), output)
+                report["output_path"] = target
+            self.status.configure(text=f"Completed LZO operation: {operation}")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("LZO operation failed", str(exc))
 
     def decrypt_account(self) -> None:
         """Decrypt an STFS Account entry through explicit caller providers."""
