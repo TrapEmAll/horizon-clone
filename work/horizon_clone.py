@@ -465,6 +465,38 @@ class StfsHeader:
     title_thumbnail_size: int
 
 
+_STFS_CONTENT_TYPE_NAMES = {
+    0x00000001: "SavedGame",
+    0x00000002: "Marketplace",
+    0x00000003: "Publisher",
+    0x00004000: "InstalledXbox360Title",
+    0x00005000: "XboxTitle",
+    0x00007000: "Xbox360Title",
+    0x00009000: "AvatarAsset",
+    0x00010000: "Profile",
+    0x00020000: "GamerPicture",
+    0x00030000: "ThematicSkin",
+    0x00040000: "Cache",
+    0x00060000: "XboxSavedGame",
+    0x00070000: "XboxDownload",
+    0x00080000: "GameDemo",
+    0x00090000: "Video",
+    0x000A0000: "GameTitle",
+    0x000B0000: "Installer",
+    0x000C0000: "GameTrailer",
+    0x000D0000: "Arcade",
+    0x000E0000: "XNA",
+}
+
+
+def stfs_content_type_name(content_type: int) -> str:
+    """Return the authenticated XContent type label or ``Unknown``."""
+
+    if not isinstance(content_type, int) or isinstance(content_type, bool) or content_type < 0:
+        raise ValueError("content type must be a non-negative integer")
+    return _STFS_CONTENT_TYPE_NAMES.get(content_type, "Unknown")
+
+
 def stfs_magic_filename(header: StfsHeader, filename: str | None = None) -> str:
     """Return the canonical FATX-facing filename for an observed package.
 
@@ -3113,6 +3145,7 @@ def main() -> int:
             header = parse_stfs_header(raw)
             print(json.dumps({
                 "content_type": f"0x{header.content_type:08X}",
+                "content_type_name": stfs_content_type_name(header.content_type),
                 "title_id": f"0x{header.title_id:08X}",
                 "profile_id": header.profile_id.upper(),
                 "magic_filename": stfs_magic_filename(header, args.fatx_filename),
