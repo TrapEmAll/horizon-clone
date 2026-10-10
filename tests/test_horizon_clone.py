@@ -2196,6 +2196,20 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["resources"][0]["value"]["type_name"], "String")
         self.assertEqual(report["resources"][0]["value"]["value"], "t")
 
+    def test_parses_empty_dotnet_resource_marker(self):
+        payload = (
+            (0xBEEFCACE).to_bytes(4, "little")
+            + (1).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+            + (2).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+            + (0).to_bytes(4, "little")
+        )
+        report = parse_dotnet_resources(payload)
+        self.assertEqual(report["status"], "observed-index")
+        self.assertEqual(report["resource_count"], 0)
+        self.assertEqual(report["resources"], [])
+
     def test_cli_parses_dotnet_resource_index(self):
         payload = bytearray()
         payload += (0xBEEFCACE).to_bytes(4, "little") + (1).to_bytes(4, "little") + (0).to_bytes(4, "little")
