@@ -112,7 +112,9 @@ families: Dragon Ball Xenoverse (1 type), Code Veronica X (1), Devil May Cry
 (1), Ninja Gaiden 3 (2), State of Decay (1), Castle Crashers (1), and Saints
 Row (3). Together they contribute 10 types and 150 observed fields; their
 authenticated field names are now exposed, but enum values, layouts, and
-mutation behavior remain unresolved.
+mutation behavior remain unresolved. REA observed an `i4` `value__` backing
+field for each of these 10 types; the report separates that field from the
+named-member counts.
 
 The 205 embedded managed resources are available through the clone's
 `--resource-surface` inspection command. Resource names are largely obfuscated
