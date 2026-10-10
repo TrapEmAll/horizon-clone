@@ -21,7 +21,7 @@ from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_surface_report
 from .device_surface import device_surface_report
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_surface_report, verify_managed_resource_payloads
-from .managed_surface import managed_editor_family_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
+from .managed_surface import managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report
 from .signing import RsaPublicKey
 from .native_loader import compatible_pe_architecture, pe_export_names
@@ -1855,6 +1855,8 @@ def main() -> int:
     parser.add_argument("--family-pattern", help="Case-insensitive regex for --managed-editor-families type names")
     parser.add_argument("--managed-named-namespaces", type=Path, help="Summarize stable named namespaces from an exported REA managed-members bundle")
     parser.add_argument("--namespace-pattern", help="Case-insensitive regex for --managed-named-namespaces type names")
+    parser.add_argument("--managed-guarded-methods", type=Path, help="Report REA-observed methods with throw and no return opcode")
+    parser.add_argument("--guarded-method-pattern", help="Case-insensitive regex for --managed-guarded-methods declaring type or method")
     parser.add_argument("--managed-schema", type=Path, help="Read joined type/field/method metadata from an REA bundle")
     parser.add_argument("--schema-pattern", help="Case-insensitive regex for managed-schema type names")
     parser.add_argument("--schema-bodies", action="store_true", help="Include REA-observed managed method body summaries in --managed-schema")
@@ -2078,6 +2080,13 @@ def main() -> int:
     if args.managed_named_namespaces:
         try:
             report = managed_named_namespace_report(args.managed_named_namespaces, args.namespace_pattern)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.managed_guarded_methods:
+        try:
+            report = managed_guarded_methods_report(args.managed_guarded_methods, args.guarded_method_pattern)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
