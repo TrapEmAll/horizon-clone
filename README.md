@@ -190,6 +190,9 @@ copied implementation code.
   file offsets. This records when REA presents shared guard/throw bodies across
   title-editor members, preventing metadata stubs from being mistaken for
   serializer implementations.
+- Adds conservative XDBF payload metadata to `--xdbf-surface`; observed PNG
+  payloads expose format and dimensions without decoding or assigning title
+  semantics.
 - Verifies the 4-byte length-prefixed managed-resource payload spans in the
   shipped executable with `--verify-resources`, currently matching 205 of 205
   embedded resources and reporting the one unresolved non-embedded record.
