@@ -93,6 +93,11 @@ plus `get_DeviceSize`/`set_DeviceSize` with an `i8` value. These declarations
 are now available through `--device-surface`; device enumeration, FATX/USB
 behavior, and IOCTL semantics remain unresolved.
 
+The clone now provides `--device-inventory` for the separately verifiable
+read-only host-volume portion of this surface. It reports logical-drive type,
+label, filesystem, serial, and capacity when Windows exposes them, while
+keeping Xbox-specific FATX and IOCTL behavior unresolved.
+
 `DeviceBinding` models the observed signed-64-bit `DeviceSize` getter/setter
 behind an explicit provider. It does not enumerate devices, open USB/FATX
 handles, or infer IOCTL semantics.
