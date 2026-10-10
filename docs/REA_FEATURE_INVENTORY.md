@@ -112,11 +112,13 @@ The 205 embedded managed resources are available through the clone's
 and the evidence only establishes aggregate counts and payload digests; the
 clone does not copy, execute, or assign those resources to UI features.
 
-The retained Halo member evidence further counts 1,102 methods and 140 unique
-getter/setter property names across the general-class surface. The clone now
-exposes those exact property names in the Halo catalog report. Return types and
-the largest declaring-type groups are exposed as metadata; save offsets and
-mutation behavior remain unresolved.
+The retained Halo member evidence further counts 1,102 methods, 175 getter
+methods, 168 setter methods, and 140 unique property names across the
+general-class surface. 135 properties have both accessors; five are getter-only
+(`c511c...`, `EngineVariant`, `Is_Currently_Custom`, `IsValid`, and `RealArray`).
+The clone exposes these coverage counts and exact property names in the Halo
+catalog report. Return types and the largest declaring-type groups are exposed
+as metadata; save offsets and mutation behavior remain unresolved.
 
 ## Security observations
 
