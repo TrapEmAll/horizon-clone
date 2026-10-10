@@ -208,6 +208,48 @@ def repack_xdbf_entries(
     return bytes(result)
 
 
+def mutate_xdbf_achievement(
+    data: bytes,
+    entry_index: int,
+    *,
+    achievement_id: int | None = None,
+    image_id: int | None = None,
+    gamerscore: int | None = None,
+    flags: int | None = None,
+    name: str | None = None,
+) -> bytes:
+    """Edit the observed XDBF achievement payload fields in place."""
+    entries = parse_xdbf(data)
+    try:
+        entry = next(item for item in entries if item.index == entry_index)
+    except StopIteration as exc:
+        raise IndexError(f"unknown XDBF entry index: {entry_index}") from exc
+    if entry.achievement is None:
+        raise ValueError("XDBF entry is not an achievement payload")
+    payload = bytearray(data[entry.data_offset : entry.data_offset + entry.length])
+    if achievement_id is not None:
+        payload[4:8] = achievement_id.to_bytes(4, "little", signed=False)
+    if image_id is not None:
+        payload[8:12] = image_id.to_bytes(4, "little", signed=False)
+    if gamerscore is not None:
+        payload[12:16] = gamerscore.to_bytes(4, "little", signed=True)
+    if flags is not None:
+        payload[16:20] = flags.to_bytes(4, "little", signed=False)
+    if name is not None:
+        encoded = name.encode("utf-16-le")
+        name_start = 0x18
+        name_end = payload.find(b"\x00\x00", name_start)
+        if name_end < 0:
+            name_end = len(payload)
+        if name_end % 2:
+            name_end += 1
+        capacity = name_end - name_start
+        if len(encoded) > capacity:
+            raise ValueError("achievement name does not fit the existing XDBF payload")
+        payload[name_start:name_end] = encoded.ljust(capacity, b"\x00")
+    return mutate_xdbf_entry_same_size(data, entry, bytes(payload))
+
+
 def _u16be(data: bytes, offset: int) -> int:
     return int.from_bytes(data[offset : offset + 2], "big")
 
