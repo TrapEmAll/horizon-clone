@@ -517,6 +517,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(surface[0]["kind"], "text")
         self.assertEqual(surface[0]["length"], len(payload))
         self.assertEqual(len(surface[0]["sha256"]), 64)
+        self.assertEqual(surface[0]["metadata"]["kind"], "binary")
+
+    def test_reports_conservative_xdbf_png_metadata(self):
+        payload = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + (64).to_bytes(4, "big") + (32).to_bytes(4, "big") + b"\x08\x06\x00\x00\x00"
+        header = b"XDBF" + b"\x00\x01\x00\x00" + b"\x00\x00\x00\x01" * 4
+        entry = (2).to_bytes(2, "big") + (1).to_bytes(8, "big") + (0).to_bytes(4, "big") + len(payload).to_bytes(4, "big")
+        data = header + entry + b"\x00" * 8 + payload
+        surface = xdbf_payload_surface(data)
+        self.assertEqual(surface[0]["kind"], "opaque")
+        self.assertEqual(surface[0]["metadata"], {"kind": "png", "bytes": len(payload), "width": 64, "height": 32})
 
     def test_adds_xdbf_entry_with_explicit_namespace_and_id(self):
         payload = "Dashboard".encode("utf-16-be") + b"\x00\x00"
