@@ -84,6 +84,11 @@ War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
 package-format parity.
 
+The 205 embedded managed resources are available through the clone's
+`--resource-surface` inspection command. Resource names are largely obfuscated
+and the evidence only establishes aggregate counts and payload digests; the
+clone does not copy, execute, or assign those resources to UI features.
+
 The retained Halo member evidence further counts 1,102 methods and 140 unique
 getter/setter property names across the general-class surface. Return types and
 the largest declaring-type groups are exposed as metadata; save offsets and
