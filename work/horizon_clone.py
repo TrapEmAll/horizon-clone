@@ -687,6 +687,35 @@ def mutate_xdbf_achievement(
     return mutate_xdbf_entry_same_size(data, entry, bytes(payload))
 
 
+def mutate_xdbf_achievement_flags(
+    data: bytes,
+    mask: int,
+    *,
+    mode: str = "or",
+) -> bytes:
+    """Apply an explicit raw flags mask to every observed achievement entry.
+
+    The mask is deliberately exposed as a raw operation: REA authenticates
+    the two-byte flags field, but does not establish the meaning of its bits.
+    ``mode='or'`` sets selected bits and ``mode='and-not'`` clears them.
+    """
+
+    if not isinstance(mask, int) or isinstance(mask, bool) or not 0 <= mask <= 0xFFFF:
+        raise ValueError("achievement flags mask must be a 16-bit integer")
+    if mode not in {"or", "and-not"}:
+        raise ValueError("achievement flags mode must be 'or' or 'and-not'")
+    entries = parse_xdbf(data)
+    selected = [entry for entry in entries if entry.achievement is not None]
+    if not selected:
+        raise ValueError("XDBF contains no observed achievement payloads")
+    result = data
+    for entry in selected:
+        current = int(entry.achievement["flags"])
+        flags = current | mask if mode == "or" else current & ~mask
+        result = mutate_xdbf_achievement(result, entry.index, flags=flags)
+    return result
+
+
 def mutate_xdbf_text(data: bytes, entry_index: int, text: str) -> bytes:
     """Replace an observed namespace-5 XDBF UTF-16BE string entry."""
     entries = parse_xdbf(data)
@@ -1905,6 +1934,8 @@ def main() -> int:
     parser.add_argument("--image-id", type=lambda value: int(value, 0))
     parser.add_argument("--gamerscore", type=int)
     parser.add_argument("--achievement-flags", type=lambda value: int(value, 0))
+    parser.add_argument("--achievement-flags-or", type=lambda value: int(value, 0), help="Set a raw 16-bit flags mask on every observed achievement in one XDBF payload")
+    parser.add_argument("--achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask on every observed achievement in one XDBF payload")
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
     parser.add_argument("--achievement-unlock-utc", help="Replace the achievement unlock time with a timezone-aware ISO-8601 UTC value")
     parser.add_argument("--achievement-name")
@@ -2171,12 +2202,15 @@ def main() -> int:
         raw = args.path.read_bytes()
         if raw[:4] == b"XDBF":
             achievement_requested = args.achievement is not None
+            bulk_flags_requested = args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
+            if args.achievement_flags_or is not None and args.achievement_flags_and_not is not None:
+                parser.error("choose one of --achievement-flags-or or --achievement-flags-and-not")
             xdbf_add_requested = any(
                 value is not None
                 for value in (args.xdbf_add_namespace, args.xdbf_add_id, args.xdbf_add_source)
             )
             text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
-            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or xdbf_add_requested or text_requested:
+            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or bulk_flags_requested or xdbf_add_requested or text_requested:
                 if not write_target:
                     parser.error("XDBF mutation requires --write or --in-place")
                 if args.xdbf_replace is not None and not args.xdbf_source:
@@ -2200,6 +2234,8 @@ def main() -> int:
                     additions=additions,
                 )
                 if achievement_requested:
+                    if bulk_flags_requested:
+                        parser.error("single-achievement editing cannot be combined with bulk flag editing")
                     raw = mutate_xdbf_achievement(
                         raw,
                         args.achievement,
@@ -2210,6 +2246,12 @@ def main() -> int:
                         unlock_time_filetime=args.achievement_unlock_filetime,
                         unlock_time_utc=args.achievement_unlock_utc,
                         name=args.achievement_name,
+                    )
+                if bulk_flags_requested:
+                    raw = mutate_xdbf_achievement_flags(
+                        raw,
+                        args.achievement_flags_or if args.achievement_flags_or is not None else args.achievement_flags_and_not,
+                        mode="or" if args.achievement_flags_or is not None else "and-not",
                     )
                 write_mutation(raw)
                 print(f"Wrote XDBF mutation to {write_target}")
@@ -2233,7 +2275,9 @@ def main() -> int:
 
     if args.xdbf_file is not None:
         embedded_text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
-        embedded_achievement_requested = args.achievement is not None
+        embedded_achievement_requested = args.achievement is not None or args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
+        if args.achievement_flags_or is not None and args.achievement_flags_and_not is not None:
+            parser.error("choose one of --achievement-flags-or or --achievement-flags-and-not")
         embedded_structural_requested = (
             args.xdbf_replace is not None
             or bool(args.xdbf_remove)
@@ -2259,18 +2303,28 @@ def main() -> int:
                 edited_payload = mutate_xdbf_text(xdbf_payload, args.xdbf_text, args.xdbf_text_value)
                 operation_name = "text"
             elif embedded_achievement_requested:
-                edited_payload = mutate_xdbf_achievement(
-                    xdbf_payload,
-                    args.achievement,
-                    achievement_id=args.achievement_id,
-                    image_id=args.image_id,
-                    gamerscore=args.gamerscore,
-                    flags=args.achievement_flags,
-                    unlock_time_filetime=args.achievement_unlock_filetime,
-                    unlock_time_utc=args.achievement_unlock_utc,
-                    name=args.achievement_name,
-                )
-                operation_name = "achievement"
+                if args.achievement is not None:
+                    if args.achievement_flags_or is not None or args.achievement_flags_and_not is not None:
+                        parser.error("single-achievement editing cannot be combined with bulk flag editing")
+                    edited_payload = mutate_xdbf_achievement(
+                        xdbf_payload,
+                        args.achievement,
+                        achievement_id=args.achievement_id,
+                        image_id=args.image_id,
+                        gamerscore=args.gamerscore,
+                        flags=args.achievement_flags,
+                        unlock_time_filetime=args.achievement_unlock_filetime,
+                        unlock_time_utc=args.achievement_unlock_utc,
+                        name=args.achievement_name,
+                    )
+                    operation_name = "achievement"
+                else:
+                    edited_payload = mutate_xdbf_achievement_flags(
+                        xdbf_payload,
+                        args.achievement_flags_or if args.achievement_flags_or is not None else args.achievement_flags_and_not,
+                        mode="or" if args.achievement_flags_or is not None else "and-not",
+                    )
+                    operation_name = "achievement-flags"
             else:
                 if args.xdbf_replace is not None and not args.xdbf_source:
                     parser.error("embedded --xdbf-replace requires --xdbf-source")
