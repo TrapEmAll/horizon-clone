@@ -47,6 +47,7 @@ from work.horizon_clone import (
     stfs_signature_region_report,
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
+    sign_stfs_console_package,
     stfs_content_type_name,
     stfs_magic_filename,
     stfs_fatx_device_path,
@@ -67,6 +68,8 @@ from work.horizon_clone import (
 )
 from work.signing import (
     DetachedSignature,
+    RsaPrivateKey,
+    LocalRsaSha1Signer,
     RsaPublicKey,
     SignedRegion,
     sign_region,
@@ -2307,6 +2310,17 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual((result["signature_offset"], result["signature_length"]), (0x1AC, 0x80))
         self.assertEqual((result["signed_start"], result["signed_end"]), (0x22C, 0x344))
         self.assertFalse(result["verified"])
+
+    def test_package_signing_requires_matching_explicit_private_key(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        with self.assertRaises(ValueError):
+            sign_stfs_console_package(path.read_bytes(), RsaPrivateKey(1, 1))
+
+    def test_xecrypt_signer_rejects_short_rsa_modulus(self):
+        with self.assertRaises(ValueError):
+            LocalRsaSha1Signer(RsaPrivateKey(0x80, 3)).sign_sha1(b"test")
 
     def test_builds_canonical_profile_fatx_path(self):
         path = supplied_fixture()
