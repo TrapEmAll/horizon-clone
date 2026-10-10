@@ -157,6 +157,9 @@ copied implementation code.
 - Extracts uniquely hash-verified embedded resource payloads with
   `--extract-resources DIR --resource-bundle BUNDLE`; unresolved or ambiguous
   spans are reported without writing unverified bytes.
+- Labels extracted payloads with conservative non-executing magic
+  classifications such as PNG, JPEG, GIF, BMP, ICO, WAV, ZIP, and .NET
+  resources.
 - Exposes the same managed-resource extraction flow from the desktop front end
   through an explicit executable, REA bundle, output directory, and optional
   resource-name filter.
