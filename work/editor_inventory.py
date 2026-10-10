@@ -68,7 +68,7 @@ _CAPABILITIES = (
     Capability("Managed surface editor dispatch", "implemented", "Read-only editor-registry dispatch for exported REA managed-members evidence", ("ManagedSurfaceEditor", "EditorRegistry")),
     Capability("Opaque Account editor dispatch", "implemented", "Deterministic Account payload inspection and same-size replacement without schema inference", ("AccountEditor", "EditorRegistry")),
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
-    Capability("ProfileData metadata editor dispatch", "metadata-only", "Typed editor for the authenticated six-field ProfileData envelope; Account serialization remains unresolved", ("ProfileDataEditor",)),
+    Capability("ProfileData metadata editor dispatch", "metadata-only", "Typed editor for the authenticated six-field ProfileData envelope; Account serialization remains unresolved", ("ProfileDataEditor", "--editor-edit-values")),
     Capability("Account serialization", "unresolved", "supplied Account payload is opaque; REA exposed no managed Account type, serializer, field offsets, or Account-specific call edge", ("mutate_stfs_entry_same_size",)),
     Capability("Account crypto provider bridge", "provider-boundary", "Connects opaque Account payloads to the authenticated class3 save signatures without loading DLLs or storing keys", ("AccountCodec", "NativeSaveBinding")),
     Capability("Skyrim enum catalogs", "metadata-only", "REA-managed Constant rows authenticate named enum values; save layouts and editor behavior remain unresolved", ("enum_member_values", "resolve_skyrim_enum_member", "validate_skyrim_enum_values")),
