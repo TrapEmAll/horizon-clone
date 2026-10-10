@@ -18,6 +18,7 @@ from .horizon_clone import (
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     mutate_xdbf_text,
+    rename_stfs_entry,
     parse_xdbf,
     parse_stfs_thumbnails,
     read_stfs_entry,
@@ -50,6 +51,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add file", command=self.add_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Remove file", command=self.remove_file).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Rename file", command=self.rename_file).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit metadata", command=self.edit_metadata).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit thumbnails", command=self.edit_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export thumbnails", command=self.export_thumbnails).pack(side=tk.LEFT, padx=(8, 0))
@@ -334,6 +336,40 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
         except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
             messagebox.showerror("Remove file failed", str(exc))
+
+    def rename_file(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header or self._standalone_xdbf:
+            messagebox.showinfo("Rename file", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Rename file", "Select a file first.")
+            return
+        entry = self._entries[selected[0]]
+        new_name = simpledialog.askstring("Rename file", "New ASCII basename:", initialvalue=entry.name, parent=self)
+        if new_name is None:
+            return
+        try:
+            mutated = rename_stfs_entry(self._data, entry.path, new_name, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(
+                title="Save renamed container",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.tree.delete(*self.tree.get_children())
+            self._entries.clear()
+            for item in self._report.entries:
+                tree_item = self.tree.insert("", tk.END, text=item.path, values=(item.size, "DIR" if item.is_directory else "FILE"))
+                self._entries[tree_item] = item
+            self.status.configure(text=f"Wrote unsigned file rename: {entry.path} -> {new_name}")
+            self._set_details({"path": target, "entry": entry.path, "new_name": new_name, "signature_checked": False})
+        except (OSError, ValueError, FileNotFoundError, IsADirectoryError) as exc:
+            messagebox.showerror("Rename file failed", str(exc))
 
     def edit_metadata(self) -> None:
         if not self._data or not self._report or not self._report.stfs_header:
