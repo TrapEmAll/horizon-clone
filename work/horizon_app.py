@@ -44,6 +44,7 @@ from .horizon_clone import (
     anti_analysis_report,
     sign_detached_bytes,
     device_inventory_report,
+    device_ioctl_report,
     decrypt_account_entry,
     encrypt_account_payload,
 )
@@ -93,6 +94,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Device IOCTL", command=self.device_ioctl).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
@@ -364,6 +366,37 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Device directory listing failed", str(exc))
+
+    def device_ioctl(self) -> None:
+        """Forward one explicit IOCTL through the read-only device adapter."""
+
+        device_path = simpledialog.askstring(
+            "Device path", "Windows device path (for example \\\\?\\PhysicalDrive0):", parent=self
+        )
+        if not device_path:
+            return
+        control_text = simpledialog.askstring("IOCTL", "Control code (decimal or 0x-prefixed):", parent=self)
+        if not control_text:
+            return
+        input_text = simpledialog.askstring("IOCTL input", "Input bytes as hex (optional):", parent=self)
+        if input_text is None:
+            return
+        capacity = simpledialog.askinteger(
+            "IOCTL output capacity", "Output buffer capacity:", minvalue=0, parent=self
+        )
+        if capacity is None:
+            return
+        try:
+            report = device_ioctl_report(
+                device_path,
+                int(control_text, 0),
+                bytes.fromhex(input_text),
+                capacity,
+            )
+            self.status.configure(text="Completed explicit device IOCTL")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("Device IOCTL failed", str(exc))
 
     def decrypt_account(self) -> None:
         """Decrypt an STFS Account entry through explicit caller providers."""
