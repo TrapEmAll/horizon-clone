@@ -60,7 +60,7 @@ from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
 from work.device_inventory import device_inventory_report
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
-from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
+from work.native_save import CtypesNativeSaveProvider, NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
 from work.account_codec import AccountCodec
 from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
 from work.lzo_codec import LzoCodec
@@ -892,6 +892,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
+        self.assertIn("CtypesNativeSaveProvider", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("LzoBinding", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("--resource-surface", by_name["Embedded UI/resource surface"]["entry_points"])
 
@@ -998,6 +999,12 @@ class ContainerInspectionTests(unittest.TestCase):
             bound.encrypt(b"in", output, 0x1_0000_0000, b"key")
         with self.assertRaises(ValueError):
             bound.encrypt(b"in", output, 3, b"key")
+
+    def test_ctypes_native_save_provider_requires_explicit_absolute_dll_path(self):
+        with self.assertRaises(ValueError):
+            CtypesNativeSaveProvider("class3.dll")
+        with self.assertRaises(FileNotFoundError):
+            CtypesNativeSaveProvider("C:\\does-not-exist\\class3.dll")
 
     def test_account_codec_requires_provider_and_round_trips_provider_bytes(self):
         with self.assertRaises(NativeSaveUnavailable):
