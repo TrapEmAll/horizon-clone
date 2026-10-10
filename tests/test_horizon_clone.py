@@ -1729,6 +1729,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(bound.open_read_only(r"\\.\PhysicalDrive0"), 7)
         self.assertEqual(bound.device_io_control(7, 0x222000, b"request", 64), b"raw-response")
         bound.close(7)
+        with bound.open_session(r"\\.\PhysicalDrive0") as session:
+            self.assertEqual(session.io_control(0x222000, b"request", 64), b"raw-response")
 
     def test_native_runtime_requires_explicit_provider(self):
         binding = NativeRuntimeBinding()
