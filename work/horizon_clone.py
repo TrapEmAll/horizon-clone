@@ -1307,7 +1307,17 @@ def main() -> int:
     if args.xdbf_file is not None:
         embedded_text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
         embedded_achievement_requested = args.achievement is not None
-        if not write_target or embedded_text_requested == embedded_achievement_requested:
+        embedded_structural_requested = (
+            args.xdbf_replace is not None
+            or bool(args.xdbf_remove)
+            or args.xdbf_add_namespace is not None
+            or args.xdbf_add_id is not None
+            or args.xdbf_add_source is not None
+        )
+        requested_operations = sum(
+            (embedded_text_requested, embedded_achievement_requested, embedded_structural_requested)
+        )
+        if not write_target or requested_operations != 1:
             parser.error("--xdbf-file requires exactly one embedded XDBF edit and --write or --in-place")
         if embedded_text_requested and (args.xdbf_text is None or args.xdbf_text_value is None):
             parser.error("embedded text editing requires --xdbf-text and --xdbf-text-value")
@@ -1321,7 +1331,7 @@ def main() -> int:
             if embedded_text_requested:
                 edited_payload = mutate_xdbf_text(xdbf_payload, args.xdbf_text, args.xdbf_text_value)
                 operation_name = "text"
-            else:
+            elif embedded_achievement_requested:
                 edited_payload = mutate_xdbf_achievement(
                     xdbf_payload,
                     args.achievement,
@@ -1332,6 +1342,30 @@ def main() -> int:
                     name=args.achievement_name,
                 )
                 operation_name = "achievement"
+            else:
+                if args.xdbf_replace is not None and not args.xdbf_source:
+                    parser.error("embedded --xdbf-replace requires --xdbf-source")
+                if args.xdbf_replace is None and args.xdbf_source:
+                    parser.error("embedded --xdbf-source requires --xdbf-replace")
+                add_requested = any(
+                    value is not None
+                    for value in (args.xdbf_add_namespace, args.xdbf_add_id, args.xdbf_add_source)
+                )
+                additions = {}
+                if add_requested:
+                    if args.xdbf_add_namespace is None or args.xdbf_add_id is None or not args.xdbf_add_source:
+                        parser.error("embedded XDBF addition requires namespace, ID, and source")
+                    additions[(args.xdbf_add_namespace, args.xdbf_add_id)] = args.xdbf_add_source.read_bytes()
+                replacements = {}
+                if args.xdbf_replace is not None:
+                    replacements[args.xdbf_replace] = args.xdbf_source.read_bytes()
+                edited_payload = repack_xdbf_entries(
+                    xdbf_payload,
+                    replacements,
+                    remove=args.xdbf_remove or (),
+                    additions=additions,
+                )
+                operation_name = "structural"
             raw = repack_stfs_entries(raw, {entry.path: edited_payload}, report.stfs_header)
             write_mutation(raw)
             mutation_written = True
