@@ -50,6 +50,7 @@ from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
+from work.device_surface import device_surface_report, observed_device_members
 
 
 def supplied_fixture():
@@ -759,6 +760,13 @@ class ContainerInspectionTests(unittest.TestCase):
         callers = {(item.caller, item.import_name) for item in observed_native_callers()}
         self.assertIn(("A.cd936781820a998f272eb4df3bd2b8c2a.Startup", "DNG_Runtime"), callers)
         self.assertIn(("A.cd9276f49d88a260398f12b2584c549ca.CheckString", "GetUserString"), callers)
+
+    def test_reports_observed_device_exploration_surface(self):
+        surface = device_surface_report()
+        self.assertEqual(surface["status"], "metadata-only")
+        members = {(item.declaring_type, item.name) for item in observed_device_members()}
+        self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
+        self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24"), members)
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
