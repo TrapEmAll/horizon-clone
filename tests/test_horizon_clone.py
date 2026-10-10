@@ -48,7 +48,7 @@ from work.gears_catalog import gears_of_war_3_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_types
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields
-from work.editor_inventory import capability_report, inventory_summary, observed_editor_inventory
+from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
 
 
 def supplied_fixture():
@@ -711,6 +711,12 @@ class ContainerInspectionTests(unittest.TestCase):
         surface = observed_resource_surface()
         self.assertEqual(surface["resource_count"], 205)
         self.assertEqual(surface["distinct_payload_hashes"], 30)
+
+    def test_exports_observed_title_catalogs(self):
+        self.assertIn("EntryID", catalog_report("gears"))
+        self.assertEqual(len(catalog_report("halo")["types"]), 103)
+        self.assertIn("ShoutEnums", catalog_report("skyrim"))
+        self.assertIn("SaveEntryCategory", catalog_report("shared"))
 
     def test_editor_registry_dispatches_xdbf_plugins(self):
         registry = default_registry()
