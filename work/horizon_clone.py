@@ -432,6 +432,7 @@ def repack_stfs_entries(
     data: bytes,
     replacements: dict[str, bytes],
     header: StfsHeader | None = None,
+    remove: Iterable[str] = (),
 ) -> bytes:
     """Repack one or more entries within the package's existing block capacity.
 
@@ -441,13 +442,21 @@ def repack_stfs_entries(
     """
     header = header or parse_stfs_header(data)
     entries = list(list_stfs_entries(data, header))
+    removals = set(remove)
     by_path = {entry.path: entry for entry in entries}
-    unknown = sorted(set(replacements) - set(by_path))
+    unknown = sorted((set(replacements) | removals) - set(by_path))
     if unknown:
         raise FileNotFoundError(unknown[0])
+    for path in removals:
+        if by_path[path].is_directory:
+            if any(item.path.startswith(path + "/") for item in entries):
+                raise IsADirectoryError(f"directory is not empty: {path}")
+            continue
     for path, payload in replacements.items():
         if by_path[path].is_directory:
             raise IsADirectoryError(path)
+        if path in removals:
+            raise ValueError(f"entry cannot be both replaced and removed: {path}")
 
     original_payloads = {
         entry.path: read_stfs_entry(data, entry, header)
@@ -455,12 +464,14 @@ def repack_stfs_entries(
         if not entry.is_directory
     }
     payloads = {**original_payloads, **replacements}
+    for path in removals:
+        payloads.pop(path, None)
     reserved = set(range(header.file_table_block_number, header.file_table_block_number + header.file_table_block_count))
     available = [block for block in range(header.allocated_block_count) if block not in reserved]
     allocations: dict[str, tuple[int, ...]] = {}
     cursor = 0
     for entry in entries:
-        if entry.is_directory:
+        if entry.is_directory or entry.path in removals:
             continue
         block_count = (len(payloads[entry.path]) + BLOCK_SIZE - 1) // BLOCK_SIZE
         selected = tuple(available[cursor : cursor + block_count])
@@ -483,6 +494,9 @@ def repack_stfs_entries(
     if len(slots) != len(entries):
         raise ValueError("file-table slot count changed while repacking")
     for entry, slot in zip(entries, slots):
+        if entry.path in removals:
+            result[slot : slot + 0x40] = b"\x00" * 0x40
+            continue
         if entry.is_directory:
             continue
         raw = bytearray(result[slot : slot + 0x40])
@@ -651,6 +665,7 @@ def main() -> int:
     parser.add_argument("--replacement", type=Path, help="Raw replacement bytes for --replace")
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
     parser.add_argument("--repack-source", type=Path, help="Raw replacement bytes for --repack")
+    parser.add_argument("--remove", action="append", metavar="ENTRY", help="Remove an STFS file-table entry")
     parser.add_argument("--write", type=Path, help="Write a mutated container to this path")
     parser.add_argument("--display-name", help="Replace the fixed-width STFS display name")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
@@ -717,6 +732,18 @@ def main() -> int:
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
             parser.error(str(exc))
         print(f"Wrote unsigned repacked container to {args.write}")
+
+    if args.remove:
+        if args.replace or args.repack or not args.write:
+            parser.error("--remove requires --write and cannot be combined with --replace or --repack")
+        if not report.stfs_header:
+            parser.error("the file does not contain a readable STFS header")
+        try:
+            raw = repack_stfs_entries(raw, {}, remove=args.remove, header=report.stfs_header)
+            args.write.write_bytes(raw)
+        except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
+            parser.error(str(exc))
+        print(f"Wrote unsigned removal mutation to {args.write}")
 
     metadata_requested = any(
         value is not None for value in (args.display_name, args.title_id, args.content_type)
