@@ -16,6 +16,7 @@ from .horizon_clone import (
     list_embedded_xdbf,
     summarize_embedded_xdbf,
     summarize_profile_achievements,
+    xdbf_achievement_image_payload,
     xdbf_payload_surface,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
@@ -103,6 +104,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Extract managed resources", command=self.extract_managed_resources).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF inventory", command=self.export_xdbf_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export XDBF surface", command=self.export_xdbf_surface).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Export achievement image", command=self.export_achievement_image).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -1132,6 +1134,55 @@ class HorizonApp(tk.Tk):
             self._set_details({"path": target, "xdbf_payload_count": len(surface)})
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("XDBF surface export failed", str(exc))
+
+    def export_achievement_image(self) -> None:
+        """Export one authenticated same-file achievement PNG."""
+
+        if not self._data or not self._report:
+            messagebox.showinfo("Achievement image", "Open an XDBF file or STFS profile first.")
+            return
+        try:
+            if self._standalone_xdbf:
+                selected = self.tree.selection()
+                if not selected:
+                    messagebox.showinfo("Achievement image", "Select an achievement entry first.")
+                    return
+                entry = self._entries[selected[0]]
+                if entry.achievement is None:
+                    messagebox.showinfo("Achievement image", "The selected entry is not an achievement.")
+                    return
+                payload = xdbf_achievement_image_payload(self._data, entry.index)
+                source = f"XDBF[{entry.index}]"
+            else:
+                if not self._report.stfs_header:
+                    messagebox.showinfo("Achievement image", "The selected artifact has no readable STFS profile.")
+                    return
+                selected = self.tree.selection()
+                if not selected:
+                    messagebox.showinfo("Achievement image", "Select a GPD/XDBF file first.")
+                    return
+                entry = self._entries[selected[0]]
+                raw = read_stfs_entry(self._data, entry, self._report.stfs_header)
+                if raw[:4] != b"XDBF":
+                    messagebox.showinfo("Achievement image", "The selected file is not an XDBF payload.")
+                    return
+                index = simpledialog.askinteger("Achievement image", "Achievement XDBF entry index:", minvalue=0, parent=self)
+                if index is None:
+                    return
+                payload = xdbf_achievement_image_payload(raw, index)
+                source = f"{entry.path}[{index}]"
+            target = filedialog.asksaveasfilename(
+                title="Export achievement image",
+                defaultextension=".png",
+                filetypes=(("PNG image", "*.png"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_bytes(Path(target), payload)
+            self.status.configure(text=f"Exported achievement image: {source}")
+            self._set_details({"path": target, "source": source, "bytes": len(payload)})
+        except (OSError, ValueError, LookupError, IsADirectoryError) as exc:
+            messagebox.showerror("Achievement image export failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
