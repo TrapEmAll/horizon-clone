@@ -627,21 +627,37 @@ class HorizonApp(tk.Tk):
             messagebox.showerror("XDBF entry addition failed", str(exc))
 
     def replace_xdbf_entry(self) -> None:
-        if not self._standalone_xdbf:
-            messagebox.showinfo("XDBF entry", "Open a standalone GPD/XDBF file first.")
-            return
         selected = self.tree.selection()
         if not selected:
             messagebox.showinfo("XDBF entry", "Select an XDBF entry first.")
             return
         entry = self._entries[selected[0]]
-        source = filedialog.askopenfilename(title="Choose replacement XDBF payload")
-        if not source:
-            return
         try:
-            edited = repack_xdbf_entries(self._data, {entry.index: Path(source).read_bytes()})
-            self._save_standalone_xdbf(edited, "Save standalone XDBF replacement", "Wrote unsigned standalone XDBF replacement")
-        except (OSError, ValueError, IndexError, StopIteration) as exc:
+            source = filedialog.askopenfilename(title="Choose replacement XDBF payload")
+            if not source:
+                return
+            if self._standalone_xdbf:
+                edited = repack_xdbf_entries(self._data, {entry.index: Path(source).read_bytes()})
+                self._save_standalone_xdbf(edited, "Save standalone XDBF replacement", "Wrote unsigned standalone XDBF replacement")
+                return
+            if not self._report or not self._report.stfs_header or entry.is_directory:
+                messagebox.showinfo("XDBF entry", "Select a readable GPD/XDBF file first.")
+                return
+            index_text = simpledialog.askstring("XDBF entry index", "Entry index to replace:", parent=self)
+            if index_text is None:
+                return
+            payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+            edited_payload = repack_xdbf_entries(payload, {int(index_text, 0): Path(source).read_bytes()})
+            mutated = repack_stfs_entries(self._data, {entry.path: edited_payload}, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(title="Save embedded XDBF replacement", defaultextension=".con", filetypes=(("Xbox content", "*.con"), ("All files", "*.*")))
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned embedded XDBF replacement: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "xdbf_index": int(index_text, 0), "signature_checked": False})
+        except (OSError, ValueError, IndexError, StopIteration, IsADirectoryError) as exc:
             messagebox.showerror("XDBF replacement failed", str(exc))
 
     def edit_xdbf_text(self) -> None:
@@ -699,9 +715,6 @@ class HorizonApp(tk.Tk):
             messagebox.showerror("XDBF text edit failed", str(exc))
 
     def remove_xdbf_entry(self) -> None:
-        if not self._standalone_xdbf:
-            messagebox.showinfo("XDBF entry", "Open a standalone GPD/XDBF file first.")
-            return
         selected = self.tree.selection()
         if not selected:
             messagebox.showinfo("XDBF entry", "Select an XDBF entry first.")
@@ -710,9 +723,28 @@ class HorizonApp(tk.Tk):
         if not messagebox.askyesno("Remove XDBF entry", f"Remove entry {entry.index}?", parent=self):
             return
         try:
-            edited = repack_xdbf_entries(self._data, {}, remove=(entry.index,))
-            self._save_standalone_xdbf(edited, "Save standalone XDBF removal", "Wrote unsigned standalone XDBF removal")
-        except (OSError, ValueError, IndexError) as exc:
+            if self._standalone_xdbf:
+                edited = repack_xdbf_entries(self._data, {}, remove=(entry.index,))
+                self._save_standalone_xdbf(edited, "Save standalone XDBF removal", "Wrote unsigned standalone XDBF removal")
+                return
+            if not self._report or not self._report.stfs_header or entry.is_directory:
+                messagebox.showinfo("XDBF entry", "Select a readable GPD/XDBF file first.")
+                return
+            index_text = simpledialog.askstring("XDBF entry index", "Entry index to remove:", parent=self)
+            if index_text is None:
+                return
+            payload = read_stfs_entry(self._data, entry, self._report.stfs_header)
+            edited_payload = repack_xdbf_entries(payload, {}, remove=(int(index_text, 0),))
+            mutated = repack_stfs_entries(self._data, {entry.path: edited_payload}, self._report.stfs_header)
+            target = filedialog.asksaveasfilename(title="Save embedded XDBF removal", defaultextension=".con", filetypes=(("Xbox content", "*.con"), ("All files", "*.*")))
+            if not target:
+                return
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned embedded XDBF removal: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "xdbf_index": int(index_text, 0), "signature_checked": False})
+        except (OSError, ValueError, IndexError, IsADirectoryError) as exc:
             messagebox.showerror("XDBF removal failed", str(exc))
 
     def export_report(self) -> None:
