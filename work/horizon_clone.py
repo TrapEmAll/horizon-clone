@@ -1434,24 +1434,15 @@ def main() -> int:
     if args.list_achievements:
         if not report.stfs_header:
             parser.error("--list-achievements requires a readable STFS header")
-        achievement_records = []
-        for file_entry, xdbf_entries in list_embedded_xdbf(raw, report.stfs_header):
-            for xdbf_entry in xdbf_entries:
-                achievement = xdbf_entry.achievement
-                if achievement is None:
-                    continue
-                achievement_records.append(
-                    {
-                        "file": file_entry.path,
-                        "index": xdbf_entry.index,
-                        "namespace": xdbf_entry.namespace,
-                        "entry_id": xdbf_entry.entry_id,
-                        "achievement": achievement,
-                    }
-                )
+        achievement_records = list_embedded_achievements(raw, report.stfs_header)
+        for record in achievement_records:
+                file_entry = record["file"]
+                xdbf_index = record["index"]
+                entry_id = record["entry_id"]
+                achievement = record["achievement"]
                 safe_name = str(achievement.get("name", "")).encode("ascii", errors="backslashreplace").decode("ascii")
                 print(
-                    f"{file_entry.path} {xdbf_entry.index:>6} id=0x{xdbf_entry.entry_id:X} "
+                    f"{file_entry} {xdbf_index:>6} id=0x{entry_id:X} "
                     f"achievement_id={achievement['achievement_id']} image_id={achievement['image_id']} "
                     f"gamerscore={achievement['gamerscore']} flags=0x{achievement['flags']:X} {safe_name}"
                 )
