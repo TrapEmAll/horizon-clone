@@ -49,7 +49,7 @@ from work.halo_catalog import halo_general_class_field_counts, halo_general_clas
 from work.resource_inventory import observed_resource_surface
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory
-from work.legacy_catalog import legacy_catalog_report, observed_legacy_catalogs
+from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.native_surface import native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceProviderUnavailable
@@ -780,6 +780,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(sum(item.field_count for item in catalogs), 150)
         self.assertEqual(legacy_catalog_report()["status"], "catalog-only")
         self.assertIn("NinjaGaiden3SkillRyu", catalog_report("legacy")["catalogs"][3]["types"][0]["name"])
+        self.assertEqual(legacy_field_names("Bandai", "DBXVAttributes")[1], "MaxHealth")
+        self.assertIn("Hatty_Hattington", legacy_field_names("TheBehemoth", "CastleCrashersCharacters"))
 
     def test_reports_evidence_qualified_capability_ledger(self):
         report = capability_report()
