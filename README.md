@@ -45,10 +45,11 @@ copied implementation code.
 - Removes file-table entries safely when the resulting package fits the
   existing allocation capacity.
 
-RSA signing remains behind an authorized signing-provider boundary. This
-clean-room project does not contain private Xbox/Microsoft signing keys and
-does not claim that a rewritten package is console-valid until an authorized
-provider signs it.
+RSA signing remains behind an authorized signing-provider boundary. The
+library supports detached signatures over caller-labeled development regions,
+but does not infer Xbox signed regions. This clean-room project does not
+contain private Xbox/Microsoft signing keys and does not claim that a rewritten
+package is console-valid until an authorized provider signs it.
 
 ## Usage
 
