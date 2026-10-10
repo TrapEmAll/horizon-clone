@@ -26,6 +26,8 @@ copied implementation code.
 - Exposes REA-observed shared catalog names for `ProfileLoadout` and
   `SaveEntryCategory`; enum values and package offsets remain unclaimed until
   fixture evidence establishes them.
+- Exposes the observed six-field `Horizon.ProfileData` member contract as
+  typed metadata without claiming its opaque Account-file layout.
 - Extracts printable UTF-16LE and ASCII strings with byte offsets.
 - Emits a JSON report suitable for later parser fixtures.
 - Replaces an existing STFS file with same-size bytes in place and rebuilds
