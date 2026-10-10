@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 18516)
-Total output lines: 1461
+Warning: truncated output (original token count: 18659)
+Total output lines: 1473
 
 import hashlib
 import json
@@ -34,6 +34,7 @@ from work.horizon_clone import (
     profile_data_report,
     editor_inspect_report,
     editor_edit_values,
+    verify_detached_signature,
     block_offset,
     parse_stfs_header,
     parse_stfs_security_metadata,
@@ -729,18 +730,7 @@ class ContainerInspectionTests(unittest.TestCase):
                     "--title-thumbnail-output",
                     str(title_path),
                 ],
-                check=True,
-                capture…516 tokens truncated…on", detached.algorithm, detached.signature)
-        self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
-
-    def test_sha1_verification_dispatch_is_explicit_and_fail_closed(self):
-        key = RsaPublicKey(257, 3)
-        self.assertFalse(verify_sha1_pkcs1v15(b"test vector", b"bad", key))
-        region = SignedRegion("legacy-region", b"test vector")
-        detached = DetachedSignature("legacy-region", "RSA-SHA1-PKCS1v1.5", b"bad")
-        self.assertFalse(verify_region(region, detached, key))
-
-    def test_profile_model_round_trips_observed_metadata(self):
+                chec…659 tokens truncated…le_model_round_trips_observed_metadata(self):
         profile = ProfileData(
             from_device=True,
             xuid=0x0123456789ABCDEF,
@@ -813,6 +803,17 @@ class ContainerInspectionTests(unittest.TestCase):
             values.unlink(missing_ok=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("different from the input path", result.stderr)
+
+    def test_verifies_detached_signature_through_explicit_public_key_boundary(self):
+        region = self.fixture_dir / "signed-region.bin"
+        signature = self.fixture_dir / "signed-region.sig"
+        region.write_bytes(b"development bytes")
+        signature.write_bytes(b"not-a-signature")
+        try:
+            self.assertFalse(verify_detached_signature(region, signature, "development", "RSA-SHA256-PKCS1v1.5", 257, 3))
+        finally:
+            region.unlink(missing_ok=True)
+            signature.unlink(missing_ok=True)
 
     def test_exposes_observed_skyrim_enum_names_without_guessing_values(self):
         enums = observed_skyrim_enums()
