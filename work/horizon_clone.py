@@ -20,7 +20,7 @@ from typing import BinaryIO, Iterable
 from .editor_inventory import capability_report, catalog_report
 from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
-from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_surface_report, verify_managed_resource_payloads
+from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
 from .signing import RsaPublicKey
@@ -531,21 +531,28 @@ def parse_xdbf(data: bytes) -> tuple[XdbfEntry, ...]:
 
 
 def xdbf_payload_surface(data: bytes) -> tuple[dict[str, object], ...]:
-    """Describe every XDBF payload without guessing opaque title semantics."""
+    """Describe every XDBF payload with conservative magic metadata.
+
+    REA/fixture evidence shows namespace-2 payloads carrying PNG images.  The
+    metadata is format-level only; it does not assign title-specific meaning.
+    """
 
     entries = parse_xdbf(data)
-    return tuple(
-        {
+    result = []
+    for entry in entries:
+        payload = data[entry.data_offset : entry.data_offset + entry.length]
+        metadata = resource_payload_metadata(payload)
+        result.append({
             "index": entry.index,
             "namespace": entry.namespace,
             "entry_id": entry.entry_id,
             "offset": entry.data_offset,
             "length": entry.length,
-            "sha256": hashlib.sha256(data[entry.data_offset : entry.data_offset + entry.length]).hexdigest(),
+            "sha256": hashlib.sha256(payload).hexdigest(),
             "kind": "achievement" if entry.achievement is not None else "text" if entry.text is not None else "opaque",
-        }
-        for entry in entries
-    )
+            "metadata": metadata,
+        })
+    return tuple(result)
 
 
 def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: bytes) -> bytes:
