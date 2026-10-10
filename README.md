@@ -213,6 +213,9 @@ copied implementation code.
 - Provides `--verify-embedded-signature` for caller-specified in-container
   signature and signed-region offsets; it deliberately does not infer Xbox
   package layout or claim console validity.
+- Provides `--signature-compare OTHER` to compare two STFS images, report
+  changed bytes outside stored signature regions, and identify whether the
+  stored signature bytes were preserved; this is an integrity audit only.
 - Exposes STFS hash verification and same-size replacement from the desktop
   front end with explicit unsigned-mutation status.
 - Exposes variable-size STFS repacking and fixed-width display-name/title-ID
