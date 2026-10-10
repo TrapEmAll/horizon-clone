@@ -129,6 +129,10 @@ device thumbnail properties and the `i8` `DeviceSize` property. Device
 enumeration, FATX/USB behavior, and IOCTL semantics remain provider-boundary
 items.
 
+`--device-inventory` adds a read-only inventory of host-visible Windows logical
+volumes and capacity. It does not claim Xbox FATX support or open a volume for
+mutation.
+
 `DeviceBinding` exposes the observed signed-64-bit `DeviceSize` property
 through an explicit provider boundary; it never opens or enumerates a
 physical device.
