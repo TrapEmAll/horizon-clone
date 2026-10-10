@@ -47,7 +47,7 @@ class ContainerReport:
 
     @property
     def is_container(self) -> bool:
-        return self.magic == MAGIC.decode("ascii")
+        return self.magic.encode("latin-1") in STFS_MAGICS
 
 
 @dataclass(frozen=True)
