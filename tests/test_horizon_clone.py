@@ -1030,6 +1030,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(security["signature_kind"], "console-certificate")
         self.assertEqual(len(security["licenses"]), 16)
 
+    def test_cli_compares_stfs_signature_regions(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--signature-compare", str(path)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        report = json.loads(result.stdout)
+        self.assertEqual(report["status"], "metadata-only")
+        self.assertEqual(report["changed_bytes"], 0)
+        self.assertTrue(report["stored_signature_bytes_unchanged"])
+
     def test_cli_exports_stfs_thumbnail_payloads(self):
         path = supplied_fixture()
         if path is None or not path.exists():
