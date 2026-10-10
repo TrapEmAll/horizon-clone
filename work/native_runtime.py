@@ -21,10 +21,16 @@ class NativeRuntimeProvider(Protocol):
     def check_runtime(self) -> bool:
         ...
 
+    def check_runtime64(self) -> bool:
+        ...
+
     def run_hvm(self) -> int:
         ...
 
     def get_user_string(self, arg0: int, arg1: int, arg2: int) -> int:
+        ...
+
+    def get_user_string64(self, arg0: int, arg1: int, arg2: int) -> int:
         ...
 
 
@@ -126,10 +132,20 @@ switch ($request.operation) {
     def check_runtime(self) -> bool:
         return bool(self._invoke("CheckRuntime"))
 
+    def check_runtime64(self) -> bool:
+        """Invoke the observed export contract on an explicitly supplied x64 image."""
+
+        return bool(self._invoke("CheckRuntime"))
+
     def run_hvm(self) -> int:
         return int(self._invoke("RunHVM"))
 
     def get_user_string(self, arg0: int, arg1: int, arg2: int) -> int:
+        return int(self._invoke("GetUserString", arg0, arg1, arg2))
+
+    def get_user_string64(self, arg0: int, arg1: int, arg2: int) -> int:
+        """Invoke the HVMRun64 string boundary without decoding its handle."""
+
         return int(self._invoke("GetUserString", arg0, arg1, arg2))
 
 
@@ -144,11 +160,17 @@ class NativeRuntimeBinding:
     def check_runtime(self) -> bool:
         return self._require().check_runtime()
 
+    def check_runtime64(self) -> bool:
+        return self._require().check_runtime64()
+
     def run_hvm(self) -> int:
         return self._require().run_hvm()
 
     def get_user_string(self, arg0: int, arg1: int, arg2: int) -> int:
         return self._require().get_user_string(arg0, arg1, arg2)
+
+    def get_user_string64(self, arg0: int, arg1: int, arg2: int) -> int:
+        return self._require().get_user_string64(arg0, arg1, arg2)
 
     def _require(self) -> NativeRuntimeProvider:
         if self.provider is None:
