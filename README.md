@@ -12,6 +12,8 @@ copied implementation code.
 - Parses the STFS metadata header and file table for `CON`, `LIVE`, and `PIRS`.
 - Lists entries and extracts files with path traversal protection.
 - Parses extracted XDBF/GPD indexes and common string entries.
+- Regression coverage parses all 67 GPD files in the supplied profile fixture,
+  spanning 3,610 XDBF entries across namespaces 1 through 5.
 - Provides a library API for enumerating parseable XDBF payloads embedded in STFS GPD files.
 - Provides a normalized library API for enumerating observed achievements across embedded GPDs.
 - Provides aggregate profile achievement counts, raw gamerscore totals, and
