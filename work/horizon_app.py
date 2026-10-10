@@ -7,7 +7,14 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from .horizon_clone import extract_stfs, inspect, parse_xdbf, read_stfs_entry
+from .horizon_clone import (
+    extract_stfs,
+    inspect,
+    mutate_stfs_entry_same_size,
+    parse_xdbf,
+    read_stfs_entry,
+    verify_stfs_hashes,
+)
 
 
 class HorizonApp(tk.Tk):
@@ -26,6 +33,8 @@ class HorizonApp(tk.Tk):
         toolbar.pack(fill=tk.X)
         ttk.Button(toolbar, text="Open container", command=self.open_container).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export report", command=self.export_report).pack(side=tk.LEFT, padx=(8, 0))
         self.status = ttk.Label(toolbar, text="Open an Xbox 360 CON/LIVE/PIRS container")
         self.status.pack(side=tk.RIGHT)
@@ -113,6 +122,52 @@ class HorizonApp(tk.Tk):
             self.status.configure(text=f"Extracted {entry.path}")
         except (OSError, ValueError, IsADirectoryError) as exc:
             messagebox.showerror("Extract failed", str(exc))
+
+    def verify_container(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Verify", "Open a readable STFS container first.")
+            return
+        try:
+            result = verify_stfs_hashes(self._data, header=self._report.stfs_header)
+            self._set_details(result)
+            self.status.configure(text=f"Verified {result['checked_blocks']} blocks")
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Verify failed", str(exc))
+
+    def replace_selected(self) -> None:
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Replace", "Open a readable STFS container first.")
+            return
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showinfo("Replace", "Select a file first.")
+            return
+        entry = self._entries[selected[0]]
+        if entry.is_directory:
+            messagebox.showinfo("Replace", "Directories cannot be replaced.")
+            return
+        replacement_path = filedialog.askopenfilename(title="Choose same-size replacement bytes")
+        if not replacement_path:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save mutated container",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            replacement = Path(replacement_path).read_bytes()
+            mutated = mutate_stfs_entry_same_size(
+                self._data, entry, replacement, self._report.stfs_header
+            )
+            Path(target).write_bytes(mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned mutation: {entry.path}")
+            self._set_details({"path": target, "entry": entry.path, "signature_checked": False})
+        except (OSError, ValueError, IsADirectoryError) as exc:
+            messagebox.showerror("Replace failed", str(exc))
 
     def export_report(self) -> None:
         if not self._report:
