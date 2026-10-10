@@ -738,6 +738,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn(("class3.dll", "RtsSaveDecrypt"), imports)
         self.assertIn(("Horizon.dll", "RunHVM"), imports)
         self.assertIn(("Horizon.dll", "GetUserString"), imports)
+        by_import = {(item.module, item.import_name): item for item in observed_native_imports()}
+        self.assertEqual(by_import[("class3.dll", "RtsSaveEncrypt")].return_type, "i4")
+        self.assertEqual(
+            by_import[("class3.dll", "RtsSaveEncrypt")].parameter_types,
+            ("u1[]", "u1[]", "u4", "u1[]"),
+        )
+        self.assertEqual(
+            by_import[("Horizon.dll", "GetUserString")].parameter_types,
+            ("native-int", "i4", "i4"),
+        )
         callers = {(item.caller, item.import_name) for item in observed_native_callers()}
         self.assertIn(("A.cd936781820a998f272eb4df3bd2b8c2a.Startup", "DNG_Runtime"), callers)
         self.assertIn(("A.cd9276f49d88a260398f12b2584c549ca.CheckString", "GetUserString"), callers)
