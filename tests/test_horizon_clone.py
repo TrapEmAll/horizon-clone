@@ -883,6 +883,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["managed_method_count"], 37401)
         self.assertEqual(by_name["STFS hash verification"]["status"], "implemented")
         self.assertEqual(by_name["Desktop atomic artifact writes"]["status"], "implemented")
+        self.assertEqual(by_name["Managed surface editor dispatch"]["status"], "implemented")
         self.assertEqual(by_name["ProfileData contract"]["status"], "metadata-only")
         self.assertEqual(by_name["Account serialization"]["status"], "unresolved")
         self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
