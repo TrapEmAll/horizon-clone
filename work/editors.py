@@ -14,6 +14,7 @@ from .horizon_clone import (
     XdbfEntry,
     mutate_xdbf_achievement,
     mutate_xdbf_entry_same_size,
+    mutate_xdbf_text,
     parse_xdbf,
     repack_xdbf_entries,
 )
@@ -66,6 +67,10 @@ class XdbfEditor:
     def edit_achievement(self, data: bytes, entry_index: int, **changes: object) -> bytes:
         """Edit the observed achievement fields through the editor boundary."""
         return mutate_xdbf_achievement(data, entry_index, **changes)
+
+    def edit_text(self, data: bytes, entry_index: int, text: str) -> bytes:
+        """Edit an observed namespace-5 UTF-16BE string through the editor boundary."""
+        return mutate_xdbf_text(data, entry_index, text)
 
 
 class EditorRegistry:
