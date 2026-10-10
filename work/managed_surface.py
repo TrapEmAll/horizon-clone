@@ -237,6 +237,65 @@ def managed_named_namespace_report(bundle_path: str | Path, pattern: str | None 
         raise ValueError(f"invalid managed-namespace regex: {pattern}") from exc
 
 
+def managed_guarded_methods_report_from_bundle(
+    bundle: dict[str, Any], pattern: str | None = None
+) -> dict[str, Any]:
+    """List methods whose observed body contains a throw and no return opcode."""
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    methods = [item for item in result.get("methods") or [] if isinstance(item, dict)]
+    matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
+    guarded: list[dict[str, Any]] = []
+    for item in methods:
+        name = str(item.get("name") or "")
+        declaring = str(item.get("declaring_type") or "")
+        if matcher is not None and not matcher.search(f"{declaring}.{name}"):
+            continue
+        body = item.get("body") or {}
+        counts = body.get("opcode_counts") or {}
+        if body.get("status") == "present" and counts.get("throw", 0) and not counts.get("ret", 0):
+            guarded.append({
+                "declaring_type": declaring,
+                "name": name,
+                "token": item.get("token"),
+                "signature": item.get("signature"),
+                "body": {
+                    "instruction_count": body.get("instruction_count"),
+                    "opcode_counts": counts,
+                    "il_sha256": body.get("il_sha256"),
+                    "exception_regions": body.get("exception_regions") or [],
+                },
+                "status": "throw-observed-no-return",
+            })
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "counts": {"guarded_methods": len(guarded), "total_methods": len(methods)},
+        "methods": guarded,
+        "limitations": [
+            "The report identifies a throw opcode with no observed ret opcode; it does not execute the method or prove every path throws.",
+            "A guarded method is not treated as an implementation contract or bypassed by the clone.",
+        ],
+    }
+
+
+def managed_guarded_methods_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return throw-observed managed methods from retained REA evidence."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-members bundle: {path}") from exc
+    try:
+        return managed_guarded_methods_report_from_bundle(bundle, pattern)
+    except re.error as exc:
+        raise ValueError(f"invalid guarded-method regex: {pattern}") from exc
+
+
 def managed_schema_report_from_bundle(
     bundle: dict[str, Any],
     pattern: str | None = None,
