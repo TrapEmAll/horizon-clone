@@ -27,9 +27,9 @@ copied implementation code.
 - Provides a registry/plugin boundary for title-specific package editors.
 - Provides a functional XDBF/GPD editor plugin API for inspection, entry
   replacement, bounded repacking, observed text edits, and achievement edits.
-- Exposes REA-observed Skyrim enum member names for Shouts, Perks, and Magic;
-  numeric values and save offsets remain intentionally unclaimed until fixture
-  evidence establishes them.
+- Exposes REA-observed Skyrim Shout, Perk, and Magic enum names and authenticated
+  Constant-table numeric values; save offsets and mutation behavior remain
+  unclaimed until fixture evidence establishes them.
 - Exposes the retained REA-observed Gears of War 3 `EntryID` labels; numeric
   values and save offsets remain unclaimed until fixture evidence establishes
   them.
@@ -88,6 +88,9 @@ copied implementation code.
   without claiming RSA signature validity.
 - Exposes observed XDBF achievement editing from the desktop front end,
   including gamerscore, flags, and bounded name changes.
+- Reads an exported REA managed-members evidence bundle and exposes a filtered
+  observed Horizon type/field/method surface without loading or executing the
+  inspected assembly (`--managed-surface`, with optional `--surface-pattern`).
 - Supports fixed-width display-name, title-ID, and content-type metadata
   mutation through the library and CLI.
 - Supports bounded display-description, publisher-name, title-name, and
