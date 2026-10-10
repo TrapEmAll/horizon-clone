@@ -234,6 +234,22 @@ class ContainerInspectionTests(unittest.TestCase):
             self.assertEqual(len(mutated), len(gpd))
             self.assertEqual(len(parse_xdbf(mutated)), len(xdbf_entries))
 
+    def test_rehashes_full_stfs_after_same_size_account_replacement(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        data = path.read_bytes()
+        header = parse_stfs_header(data)
+        account = next(entry for entry in list_stfs_entries(data, header) if entry.name.casefold() == "account")
+        replacement = bytes(value ^ 0xA5 for value in read_stfs_entry(data, account, header))
+        mutated = mutate_stfs_entry_same_size(data, account, replacement, header)
+        self.assertEqual(read_stfs_entry(mutated, account, header), replacement)
+        verification = verify_stfs_hashes(mutated, header=header)
+        self.assertEqual(verification["failures"], [])
+        self.assertEqual(verification["hash_table_failures"], [])
+        self.assertTrue(verification["header_hash_matches"])
+        self.assertTrue(verification["top_hash_matches"])
+
     def test_unknown_magic_is_not_reported_as_container(self):
         self.fixture_dir.mkdir(exist_ok=True)
         path = self.fixture_dir / "sample-unknown"
