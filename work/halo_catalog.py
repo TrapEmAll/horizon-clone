@@ -224,6 +224,23 @@ def halo_general_class_method_summary() -> dict[str, object]:
     return {
         "method_count": 1102,
         "unique_getter_setter_property_count": 140,
+        "getter_method_count": 175,
+        "setter_method_count": 168,
+        "properties_with_getter_and_setter": 135,
+        "getter_only_properties": [
+            "c511c78325de7a961851b2bb984e702ad",
+            "EngineVariant",
+            "Is_Currently_Custom",
+            "IsValid",
+            "RealArray",
+        ],
+        "setter_only_properties": [],
+        "overloaded_method_names": [
+            "EngineVariant", "EquipmentUsage", "Game", "GamertagVisible", "GameVariant",
+            "GameVersion", "Header", "InitialEquipment", "InitialPrimaryWeapon",
+            "InitialSecondaryWeapon", "InterfaceLayout", "InterfaceMegalo", "InterfaceStrings",
+            "Modifiers", "OptionsContainer", "RealArray", "Value", "ValueInterface",
+        ],
         "return_type_counts": {
             "void": 742,
             "u1": 65,
