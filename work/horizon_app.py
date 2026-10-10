@@ -48,6 +48,7 @@ from .horizon_clone import (
     decrypt_account_entry,
     encrypt_account_payload,
     native_runtime_operation_report,
+    native_installation_report,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -97,6 +98,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device IOCTL", command=self.device_ioctl).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Runtime export", command=self.runtime_export).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Native installation", command=self.show_native_installation).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
@@ -490,6 +492,19 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, TypeError, ValueError, RuntimeError) as exc:
             messagebox.showerror("Runtime export failed", str(exc))
+
+    def show_native_installation(self) -> None:
+        """Verify expected native images and exports without loading them."""
+
+        directory = filedialog.askdirectory(title="Choose Horizon native installation directory")
+        if not directory:
+            return
+        try:
+            report = native_installation_report(Path(directory))
+            self.status.configure(text=f"Native installation: {report['status']}")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("Native installation check failed", str(exc))
 
     def decrypt_account(self) -> None:
         """Decrypt an STFS Account entry through explicit caller providers."""
