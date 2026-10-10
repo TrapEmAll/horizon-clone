@@ -88,6 +88,11 @@ It requires an explicit caller-supplied provider, validates the observed
 integer/buffer types, and does not load `class3.dll` or claim the native
 algorithm, key format, or output semantics.
 
+`LzoBinding` models the four recovered LZO declarations and their `i4&`
+output-length argument. It requires an explicit provider and does not load
+`lzo.dll` or claim that a particular provider reproduces Horizon's codec
+configuration.
+
 REA counted 7,693 managed types overall, including 3 Skyrim types, 1 Gears of
 War 3 type, and 103 Halo general-class types. The clone exposes the retained
 names through catalog-only APIs; they do not imply editor behavior or
