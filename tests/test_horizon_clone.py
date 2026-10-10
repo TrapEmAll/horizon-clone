@@ -53,6 +53,7 @@ from work.native_surface import native_surface_report, observed_native_imports, 
 from work.device_surface import device_surface_report, observed_device_members
 from work.native_runtime import NativeRuntimeBinding, NativeRuntimeUnavailable
 from work.native_save import NativeSaveBinding, NativeSaveUnavailable, UInt32Ref
+from work.native_compression import Int32Ref, LzoBinding, LzoUnavailable
 
 
 def supplied_fixture():
@@ -760,6 +761,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Console signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
+        self.assertIn("LzoBinding", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("--resource-surface", by_name["Embedded UI/resource surface"]["entry_points"])
 
     def test_reports_observed_native_save_and_runtime_boundaries(self):
@@ -840,6 +842,36 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(length.value, 2)
         with self.assertRaises(ValueError):
             bound.encrypt(b"in", output, 0x1_0000_0000, b"key")
+
+    def test_lzo_requires_explicit_provider_and_preserves_observed_shapes(self):
+        binding = LzoBinding()
+        self.assertEqual(binding.status, "unavailable")
+        with self.assertRaises(LzoUnavailable):
+            binding.compress("lzo1x_1", b"in", 2, bytearray(8), Int32Ref(8), b"work")
+
+        class Provider:
+            def lzo1x_1_compress(self, source, source_length, destination, destination_length, work_memory):
+                destination[:source_length] = source[:source_length]
+                destination_length.value = source_length
+                return 0
+
+            def lzo2a_999_compress(self, *args):
+                return 0
+
+            def lzo1x_decompress(self, *args):
+                return 0
+
+            def lzo2a_decompress(self, *args):
+                return 0
+
+        bound = LzoBinding(Provider())
+        output = bytearray(8)
+        length = Int32Ref(8)
+        self.assertEqual(bound.compress("lzo1x_1", b"in", 2, output, length, b"work"), 0)
+        self.assertEqual(output[:2], b"in")
+        self.assertEqual(length.value, 2)
+        with self.assertRaises(ValueError):
+            bound.compress("unknown", b"in", 2, output, length, b"work")
 
     def test_reports_observed_embedded_resource_surface(self):
         surface = observed_resource_surface()
