@@ -39,6 +39,8 @@ copied implementation code.
   unsigned-mutation status.
 - Exposes capacity-bounded STFS file insertion from the desktop front end.
 - Reads and replaces bounded STFS thumbnail and title-thumbnail payloads.
+- Inspects STFS public certificate descriptors, package-signature digests, and
+  all 16 license slots without claiming cryptographic validity.
 - Exposes observed XDBF achievement editing from the desktop front end,
   including gamerscore, flags, and bounded name changes.
 - Supports fixed-width display-name, title-ID, and content-type metadata
@@ -82,9 +84,10 @@ python -m work.horizon_clone extracted\FFFE07D1.gpd --achievement 5 --gamerscore
 python -m work.horizon_app
 ```
 
-The supplied sample can be used as a read-only fixture:
+For local fixture-backed testing, set `HORIZON_PROFILE_FIXTURE` to a profile/container path you control:
 
 ```powershell
-python -m work.horizon_clone C:\Users\sjisg\Desktop\E9ECC9141E317C7B --output report.json
+$env:HORIZON_PROFILE_FIXTURE = 'C:\path\to\profile-fixture'
+python -m work.horizon_clone $env:HORIZON_PROFILE_FIXTURE --output report.json
 ```
 
