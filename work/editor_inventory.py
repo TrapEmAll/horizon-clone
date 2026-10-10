@@ -67,6 +67,7 @@ _CAPABILITIES = (
     Capability("XDBF/GPD mutation", "implemented", "bounded XDBF repacking and observed achievement edits", ("repack_xdbf_entries", "mutate_xdbf_text", "mutate_xdbf_achievement")),
     Capability("ProfileData contract", "metadata-only", "REA observed six-field Horizon.ProfileData surface; Account serialization unresolved", ("ProfileData",)),
     Capability("Account serialization", "unresolved", "supplied Account payload is opaque; REA exposed no managed Account type, serializer, field offsets, or Account-specific call edge", ("mutate_stfs_entry_same_size",)),
+    Capability("Account crypto provider bridge", "provider-boundary", "Connects opaque Account payloads to the authenticated class3 save signatures without loading DLLs or storing keys", ("AccountCodec", "NativeSaveBinding")),
     Capability("Skyrim enum catalogs", "catalog-only", "REA-managed Constant rows authenticate named enum values; save layouts and editor behavior remain unresolved", ("enum_member_values", "observed_skyrim_enum_summary")),
     Capability("Gears/Halo title editors", "catalog-only", "REA observed type and member names without authenticated field layouts or behavioral replay", ("observed_editor_inventory", "halo_general_class_types")),
     Capability("Managed editor surface export", "observed-only", "Exports filtered types, fields, and methods from a retained REA managed-members bundle without loading the assembly", ("managed_surface_report", "--managed-surface")),
