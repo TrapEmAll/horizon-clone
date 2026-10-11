@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 42894)
-Total output lines: 3245
+Warning: truncated output (original token count: 42975)
+Total output lines: 3254
 
 import hashlib
 import json
@@ -1150,10 +1150,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertNotIn("cache/ph.dat", paths)
         self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
 
-    d…12894 tokens truncated…_type, item.name) for item in observed_device_members()}
-        self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
-        self.assertIn(("A.c481e7f09def65aded5645fc775214ae5", "get_Account_Thumb"), members)
-        self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxHDD_24"), members)
+    d…12975 tokens truncated…mbers)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxMU_24"), members)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24"), members)
 
@@ -1237,6 +1234,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(bound.run_hvm(), 7)
         self.assertEqual(bound.get_user_string(1, 2, 3), 6)
         self.assertEqual(bound.get_user_string64(9, 2, 1), 6)
+        with self.assertRaises(ValueError):
+            bound.get_user_string(1, 0x80000000, 0)
+
+        class InvalidProvider(Provider):
+            def run_hvm(self):
+                return 0x1_0000_0000_0000_0000
+
+        with self.assertRaises(ValueError):
+            NativeRuntimeBinding(InvalidProvider()).run_hvm()
 
     def test_native_runtime_operation_report_preserves_raw_provider_result(self):
         class Provider:
