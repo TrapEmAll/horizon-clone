@@ -486,6 +486,8 @@ class StfsHeader:
     top_hash_table_hash: str
     thumbnail_size: int
     title_thumbnail_size: int
+    content_id: str
+    execution_version: int
 
 
 _STFS_CONTENT_TYPE_NAMES = {
@@ -531,6 +533,17 @@ def stfs_magic_filename(header: StfsHeader, filename: str | None = None) -> str:
 
     if header.content_type == 0x00010000 and header.profile_id:
         return header.profile_id.upper()
+    content_id = bytes.fromhex(header.content_id) if header.content_id else b""
+    title_byte = bytes([(header.title_id >> 24) & 0xFF])
+    if header.content_type in {0x00004000, 0x00007000} and len(content_id) >= 16:
+        return (content_id[:16] + title_byte).hex().upper()
+    if header.content_type in {0x00020000, 0x00030000} and header.magic != "CON ":
+        if len(content_id) >= 20:
+            return (content_id[:20] + title_byte).hex().upper()
+    if header.content_type in {0x00090000, 0x000A0000, 0x000C0000, 0x000D0000} and len(content_id) >= 20:
+        return (content_id[:20] + title_byte).hex().upper()
+    if header.content_type == 0x000B0000:
+        return f"tu{header.execution_version:08X}_0"
     if filename:
         return filename
     raise ValueError("a filename is required for this unclassified content type")
@@ -1011,6 +1024,8 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         top_hash_table_hash=data[0x381:0x395].hex(),
         thumbnail_size=_u32be(data, 0x1712),
         title_thumbnail_size=_u32be(data, 0x1716),
+        content_id=data[0x32C:0x340].hex(),
+        execution_version=_u32be(data, 0x358),
     )
 
 
