@@ -1242,7 +1242,12 @@ def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str,
 
 
 def extract_stfs_public_key(data: bytes) -> RsaPublicKey:
-    """Extract the public CON certificate key without checking a signature."""
+    """Extract the public CON certificate key without checking a signature.
+
+    Xbox certificate moduli use XeCrypt's reverse-qword byte order.  Convert
+    that storage representation to the conventional big-endian integer used
+    by the local RSA verifier and explicit signing provider boundary.
+    """
 
     header = parse_stfs_header(data)
     if header.magic != "CON ":
@@ -1251,10 +1256,16 @@ def extract_stfs_public_key(data: bytes) -> RsaPublicKey:
     modulus_bytes = data[0x2C:0xAC]
     if len(modulus_bytes) != 0x80 or exponent <= 1:
         raise ValueError("CON certificate does not contain a complete public key")
-    modulus = int.from_bytes(modulus_bytes, "big")
+    modulus = int.from_bytes(_reverse_xecrypt_qwords(modulus_bytes), "big")
     if modulus <= 0:
         raise ValueError("CON certificate contains an empty public modulus")
     return RsaPublicKey(modulus=modulus, exponent=exponent)
+
+
+def _reverse_xecrypt_qwords(data: bytes) -> bytes:
+    if len(data) % 8:
+        raise ValueError("XeCrypt reverse-qword data must be a multiple of 8 bytes")
+    return b"".join(data[offset : offset + 8] for offset in range(len(data) - 8, -1, -8))
 
 
 def _backing_block(block: int, shift: int) -> int:
