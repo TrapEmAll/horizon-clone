@@ -2068,7 +2068,7 @@ def parse_stfs_thumbnails(data: bytes, header: StfsHeader | None = None) -> Stfs
     header = header or parse_stfs_header(data)
     thumbnail_size = _u32be(data, 0x1712)
     title_size = _u32be(data, 0x1716)
-    capacity = 0x4000
+    capacity = 0x3D00 if header.metadata_version == 2 else 0x4000
     if thumbnail_size > capacity or title_size > capacity:
         raise ValueError("STFS thumbnail size exceeds its metadata field capacity")
     thumbnail = data[0x171A : 0x171A + thumbnail_size]
@@ -2088,7 +2088,7 @@ def mutate_stfs_thumbnails(
     """Replace thumbnail payloads within their fixed STFS metadata capacity."""
     header = header or parse_stfs_header(data)
     result = bytearray(data)
-    capacity = 0x4000
+    capacity = 0x3D00 if header.metadata_version == 2 else 0x4000
     for offset, size_offset, payload in (
         (0x171A, 0x1712, thumbnail),
         (0x571A, 0x1716, title_thumbnail),
