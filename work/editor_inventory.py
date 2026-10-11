@@ -93,7 +93,7 @@ def rea_feature_ledger() -> dict[str, object]:
 
 
 _CAPABILITIES = (
-    Capability("STFS inspection", "implemented", "STFS container parsing and file-table evidence", ("inspect", "list_stfs_entries")),
+    Capability("STFS inspection", "implemented", "STFS container parsing and file-table evidence, including preserved raw entry flags", ("inspect", "list_stfs_entries")),
     Capability("STFS extraction", "implemented", "STFS file-table and block traversal", ("extract_stfs", "read_stfs_entry")),
     Capability("STFS hash verification", "implemented", "three-level STFS hash-tree implementation", ("verify_stfs_hashes", "rehash_stfs_hashes")),
     Capability("STFS metadata and thumbnails", "implemented", "observed STFS metadata fields and bounded thumbnail regions", ("mutate_stfs_metadata", "mutate_stfs_thumbnails")),
