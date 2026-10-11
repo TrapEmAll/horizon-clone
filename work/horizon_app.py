@@ -2076,7 +2076,7 @@ class HorizonApp(tk.Tk):
     def export_title_catalog(self) -> None:
         catalog_name = simpledialog.askstring(
             "Title catalog",
-            "Catalog name (shared, skyrim, gears, halo, legacy, or global):",
+            "Catalog name (shared, skyrim, gears, halo, legacy, global, or rea):",
             parent=self,
         )
         if not catalog_name:
