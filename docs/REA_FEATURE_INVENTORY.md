@@ -78,7 +78,8 @@ The clone also exposes the complete 233-catalog `managed-constants.json`
 projection through `--catalog rea` and `rea:<namespace>:<type>` metadata
 envelopes. This preserves authenticated integer rows for obfuscated and title
 types while explicitly leaving registration, offsets, and serializers
-unresolved.
+unresolved. Duplicate namespace/name rows are addressed deterministically with
+`#1`, `#2`, and so on rather than being merged.
 
 The retained member evidence identifies the six `Horizon.ProfileData` fields
 (`FromDevice`, `XUID`, `Gamertag`, `Gamerpicture`, `ProfileId`, and `Favorite`)
