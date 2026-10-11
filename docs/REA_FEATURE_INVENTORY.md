@@ -80,6 +80,12 @@ field accesses, and call targets. This is reconstruction evidence only; it
 does not turn obfuscated managed tokens into save offsets or executable clone
 logic.
 
+`--managed-feature-surface` now classifies literal terms in authenticated type
+and method names into profile/social, achievement/score, device/storage,
+save/serialization, editor/UI, and runtime/security buckets. This is a
+prioritization map for the next clean-room increments; it does not establish
+runtime reachability, feature ownership, or file-format behavior.
+
 The retained evidence contains no managed `Account` type, Account serializer,
 Account field layout, or Account-specific call edge. The supplied 404-byte
 `Account` entry is therefore an opaque STFS payload; same-size replacement is
