@@ -78,7 +78,10 @@ payload.
 `Read`/`Write`/`Load`/`Save` methods, retaining their signatures, CIL anchors,
 field accesses, and call targets. This is reconstruction evidence only; it
 does not turn obfuscated managed tokens into save offsets or executable clone
-logic.
+logic. Each contract also reports whether the retained body is an observed
+implementation, unavailable, or a repeated throw-only stub; the shipped title
+bundle contains the latter pattern for several obfuscated `Read`/`Write`
+surfaces.
 
 `--managed-feature-surface` now classifies literal terms in authenticated type
 and method names into profile/social, achievement/score, device/storage,
