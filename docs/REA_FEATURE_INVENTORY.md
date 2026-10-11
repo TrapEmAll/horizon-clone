@@ -261,7 +261,8 @@ not deserialize or execute them.
 
 The profile workflow now recognizes the supplied `tile_64.png`, `tile_32.png`,
 `ThematicSkin`, `PEC`, `WLE.dat`, profile FIT, and `AvatarAssets` entries via
-`--profile-assets`. Tile replacements are required to remain valid 64x64 or
+`--profile-assets`. Replacements can be supplied as repeated
+`--profile-asset ENTRY SOURCE` pairs with `--write` or `--in-place`. Tile replacements are required to remain valid 64x64 or
 32x32 PNGs and are rehashed through the normal STFS mutation path; the other
 asset formats remain opaque until REA or runtime evidence establishes their
 layouts.
