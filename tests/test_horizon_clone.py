@@ -116,7 +116,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_property_contract_report, managed_reference_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -554,6 +554,31 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("achievement-and-score", features)
         self.assertIn("save-and-serialization", features)
         self.assertIn("literal-name classifications", report["limitations"][0])
+
+    def test_joins_managed_accessor_contracts_without_inventing_offsets(self):
+        bundle = self.fixture_dir / "property-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_property",
+                "normalized_result": {
+                    "types": [{"full_name": "Demo.Editor"}],
+                    "methods": [
+                        {"declaring_type": "Demo.Editor", "name": "get_Value", "token": "0x06000001", "signature": {"return_type": "i4"}, "body": {"status": "present", "opcode_counts": {"ret": 1}}},
+                        {"declaring_type": "Demo.Editor", "name": "set_Value", "token": "0x06000002", "signature": {"parameter_types": ["i4"]}, "body": {"status": "present", "opcode_counts": {"ret": 1}}},
+                    ],
+                    "call_edges": [],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_property_contract_report(bundle, "Demo\\.Editor", "Value", include_bodies=True)
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["counts"]["property_contracts"], 1)
+        self.assertEqual(report["properties"][0]["access"], "read-write")
+        self.assertEqual(report["properties"][0]["get"]["body"]["status"], "present")
+        self.assertIn("backing fields", report["limitations"][1])
 
     def test_reports_throw_observed_managed_methods(self):
         bundle = self.fixture_dir / "guarded-bundle.json"
