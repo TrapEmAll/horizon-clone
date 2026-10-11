@@ -68,7 +68,9 @@ from work.horizon_clone import (
     xdbf_achievement_image_links,
     xdbf_achievement_image_payload,
     historical_account_report,
+    historical_account_report_with_key_provider,
     mutate_historical_account,
+    mutate_historical_account_with_key_provider,
     read_stfs_entry,
     verify_stfs_hashes,
     native_runtime_operation_report,
@@ -188,6 +190,27 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["record"]["online_country_code"], 0x67)
         self.assertEqual(report["record"]["online_country_name"], "US")
         self.assertEqual(len(report["record"]["online_key_hex"]), 32)
+
+    def test_historical_account_provider_path_uses_caller_owned_key(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        key = historical_account_key(self)
+
+        class Provider:
+            def __init__(self):
+                self.operations = []
+
+            def get_account_key(self, operation, payload_sha256):
+                self.operations.append((operation, payload_sha256))
+                return key
+
+        provider = Provider()
+        report = historical_account_report_with_key_provider(path, provider)
+        self.assertEqual(report["record"]["gamertag"], "Trap Em All")
+        self.assertEqual(provider.operations[0][0], "decrypt")
+        edited = mutate_historical_account_with_key_provider(path.read_bytes(), provider, {"gamertag": "Vault User"})
+        self.assertEqual(verify_stfs_hashes(edited, header=parse_stfs_header(edited))["failures"], [])
 
     def test_historical_account_mutation_rehashes_container(self):
         path = supplied_fixture()
