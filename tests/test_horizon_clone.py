@@ -395,6 +395,40 @@ class ContainerInspectionTests(unittest.TestCase):
             ("close", 41),
         ])
 
+    def test_device_ioctl_report_explicitly_selects_read_write_handle(self):
+        class FakeProvider:
+            def __init__(self):
+                self.calls = []
+
+            def open_read_only(self, device_path):
+                self.calls.append(("read-only", device_path))
+                return 40
+
+            def open_read_write(self, device_path):
+                self.calls.append(("read-write", device_path))
+                return 42
+
+            def device_io_control(self, handle, control_code, input_data, output_capacity):
+                self.calls.append(("ioctl", handle, control_code, input_data, output_capacity))
+                return b"ok"
+
+            def close(self, handle):
+                self.calls.append(("close", handle))
+
+        provider = FakeProvider()
+        report = device_ioctl_report(
+            "\\\\.\\PhysicalDrive-test", 0x70001, b"write", 2,
+            provider=provider, write_access=True,
+        )
+        self.assertEqual(report["status"], "provider-bound-read-write-handle")
+        self.assertEqual(provider.calls, [
+            ("read-write", "\\\\.\\PhysicalDrive-test"),
+            ("ioctl", 42, 0x70001, b"write", 2),
+            ("close", 42),
+        ])
+        with self.assertRaises(TypeError):
+            device_ioctl_report("device", 1, write_access=1, provider=provider)
+
     def test_reports_selected_managed_surface_from_exported_evidence(self):
         bundle = self.fixture_dir / "managed-surface.json"
         bundle.parent.mkdir(exist_ok=True)
