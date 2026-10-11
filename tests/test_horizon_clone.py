@@ -52,6 +52,7 @@ from work.horizon_clone import (
     stfs_signature_region_report,
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
+    stfs_console_validation_report,
     verify_stfs_remote_signature,
     sign_stfs_remote_package_with_provider,
     sign_stfs_console_package,
@@ -1628,6 +1629,16 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(result["hash_table_failures"], [])
         self.assertTrue(result["header_hash_matches"])
         self.assertTrue(result["top_hash_matches"])
+
+    def test_console_validation_requires_hash_tree_and_package_signature(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        report = stfs_console_validation_report(path.read_bytes())
+        self.assertEqual(report["status"], "verified")
+        self.assertTrue(report["hash_tree_verified"])
+        self.assertTrue(report["package_signature_verified"])
+        self.assertFalse(report["console_authority_established"])
 
     def test_signing_provider_boundary_rejects_empty_signatures(self):
         class EmptyProvider:
