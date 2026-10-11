@@ -511,6 +511,20 @@ _STFS_CONTENT_TYPE_NAMES = {
     0x000C0000: "GameTrailer",
     0x000D0000: "Arcade",
     0x000E0000: "XNA",
+    0x00001000: "IPTVDVR",
+    0x00002000: "IPTVPauseBuffer",
+    0x00003000: "XNACommunity",
+    0x00006000: "SocialTitle",
+    0x00008000: "SystemUpdateStoragePack",
+    0x00050000: "StorageDownload",
+    0x000F0000: "LicenseStore",
+    0x00100000: "Movie",
+    0x00200000: "TV",
+    0x00300000: "MusicVideo",
+    0x00400000: "Promotional",
+    0x00500000: "PodcastVideo",
+    0x00600000: "ViralVideo",
+    0x02000000: "CommunityGame",
 }
 
 
