@@ -107,6 +107,54 @@ class AccountRecord:
     user_passport_password: str = ""
     owner_passport_membername: str = ""
 
+    @property
+    def recovering(self) -> bool:
+        return bool(self.reserved & 0x40000000)
+
+    @recovering.setter
+    def recovering(self, value: bool) -> None:
+        self.reserved = (self.reserved & ~0x40000000) | (0x40000000 if value else 0)
+
+    @property
+    def xbox_live_enabled(self) -> bool:
+        return bool(self.reserved & 0x20000000)
+
+    @xbox_live_enabled.setter
+    def xbox_live_enabled(self, value: bool) -> None:
+        self.reserved = (self.reserved & ~0x20000000) | (0x20000000 if value else 0)
+
+    @property
+    def password_protected(self) -> bool:
+        return bool(self.reserved & 0x10000000)
+
+    @password_protected.setter
+    def password_protected(self, value: bool) -> None:
+        self.reserved = (self.reserved & ~0x10000000) | (0x10000000 if value else 0)
+
+    @property
+    def membership_type(self) -> int:
+        return (self.cached_user_flags >> 20) & 0x1F
+
+    @membership_type.setter
+    def membership_type(self, value: int) -> None:
+        self.cached_user_flags = (self.cached_user_flags & ~(0x1F << 20)) | ((value & 0x1F) << 20)
+
+    @property
+    def online_country_code(self) -> int:
+        return (self.cached_user_flags >> 8) & 0xFF
+
+    @online_country_code.setter
+    def online_country_code(self, value: int) -> None:
+        self.cached_user_flags = (self.cached_user_flags & ~(0xFF << 8)) | ((value & 0xFF) << 8)
+
+    @property
+    def online_language_code(self) -> int:
+        return (self.cached_user_flags >> 25) & 0x1F
+
+    @online_language_code.setter
+    def online_language_code(self, value: int) -> None:
+        self.cached_user_flags = (self.cached_user_flags & ~(0x1F << 25)) | ((value & 0x1F) << 25)
+
     @classmethod
     def from_bytes(cls, data: bytes) -> "AccountRecord":
         if not isinstance(data, bytes) or len(data) != ACCOUNT_PLAIN_LENGTH:
