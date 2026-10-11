@@ -86,6 +86,11 @@ save/serialization, editor/UI, and runtime/security buckets. This is a
 prioritization map for the next clean-room increments; it does not establish
 runtime reachability, feature ownership, or file-format behavior.
 
+`--managed-property-contract` joins authenticated `get_`/`set_` pairs into
+derived read/write contracts and can retain each accessor's body hash,
+instruction summary, and call targets. The pairing is metadata evidence only;
+it does not establish a backing field, serialized offset, or runtime behavior.
+
 The retained evidence contains no managed `Account` type, Account serializer,
 Account field layout, or Account-specific call edge. The supplied 404-byte
 `Account` entry is therefore an opaque STFS payload; same-size replacement is
