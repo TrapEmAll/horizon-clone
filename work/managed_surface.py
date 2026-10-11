@@ -932,6 +932,9 @@ def managed_io_contract_report_from_bundle(
         if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
             family = ".".join(parts[:3])
             family_counts.setdefault(family, {"types": 0, "methods": 0})["methods"] += 1
+            readiness = str(contract["implementation_readiness"])
+            readiness_counts_for_family = family_counts[family].setdefault("implementation_readiness", {})
+            readiness_counts_for_family[readiness] = readiness_counts_for_family.get(readiness, 0) + 1
     return {
         "status": "observed-only",
         "authority": "shipped-artifact",
