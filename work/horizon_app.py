@@ -778,12 +778,18 @@ class HorizonApp(tk.Tk):
         )
         if capacity is None:
             return
+        write_access = messagebox.askyesno(
+            "Device access",
+            "Request GENERIC_WRITE access for this raw IOCTL?\nOnly choose Yes for a known-safe command.",
+            parent=self,
+        )
         try:
             report = device_ioctl_report(
                 device_path,
                 int(control_text, 0),
                 bytes.fromhex(input_text),
                 capacity,
+                write_access=write_access,
             )
             self.status.configure(text="Completed explicit device IOCTL")
             self._set_details(report)
