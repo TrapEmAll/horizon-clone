@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 50011)
-Total output lines: 4062
+Warning: truncated output (original token count: 50843)
+Total output lines: 4139
 
 """Clean-room Xbox 360 content-container inspector.
 
@@ -577,6 +577,76 @@ def stfs_content_type_name(content_type: int) -> str:
     if not isinstance(content_type, int) or isinstance(content_type, bool) or content_type < 0:
         raise ValueError("content type must be a non-negative integer")
     return _STFS_CONTENT_TYPE_NAMES.get(content_type, "Unknown")
+
+
+_PROFILE_ASSET_NAMES = frozenset({
+    "PEC",
+    "ThematicSkin",
+    "tile_64.png",
+    "tile_32.png",
+    "WLE.dat",
+    "FFFE07D1.fit",
+    "AvatarAssets",
+})
+
+
+def profile_asset_report(data: bytes, header: StfsHeader | None = None) -> dict[str, object]:
+    """Report authenticated profile asset entries without decoding opaque files."""
+
+    if header is None:
+        header = parse_stfs_header(data)
+    entries = [item for item in list_stfs_entries(data, header) if item.path in _PROFILE_ASSET_NAMES]
+    assets: list[dict[str, object]] = []
+    for entry in entries:
+        item: dict[str, object] = {
+            "path": entry.path,
+            "is_directory": entry.is_directory,
+            "size": entry.size,
+            "block_count": entry.block_count,
+        }
+        if not entry.is_directory:
+            payload = read_stfs_entry(data, entry, header)
+            item["sha256"] = hashlib.sha256(payload).hexdigest()
+            item["metadata"] = resource_payload_metadata(payload)
+        assets.append(item)
+    return {
+        "status": "observed-profile-assets",
+        "content_type": stfs_content_type_name(header.content_type),
+        "assets": assets,
+        "recognized_names": sorted(_PROFILE_ASSET_NAMES),
+        "limitations": [
+            "PNG tile dimensions and conservative byte metadata are inspected without image decoding.",
+            "PEC, ThematicSkin, WLE.dat, and AvatarAssets contents remain opaque unless a format contract is authenticated.",
+        ],
+    }
+
+
+def mutate_profile_assets(
+    container: bytes,
+    replacements: dict[str, bytes],
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Replace recognized profile assets and rehash the containing STFS."""
+
+    if not isinstance(replacements, dict) or not replacements:
+        raise ValueError("profile asset replacements must be a non-empty mapping")
+    if header is None:
+        header = parse_stfs_header(container)
+    entries = {item.path: item for item in list_stfs_entries(container, header)}
+    for path, payload in replacements.items():
+        if path not in _PROFILE_ASSET_NAMES:
+            raise ValueError(f"unsupported profile asset: {path}")
+        if not isinstance(payload, bytes):
+            raise TypeError(f"profile asset replacement must be bytes: {path}")
+        entry = entries.get(path)
+        if entry is None or entry.is_directory:
+            raise ValueError(f"profile asset entry is not a file: {path}")
+        if path in {"tile_64.png", "tile_32.png"}:
+            metadata = resource_payload_metadata(payload)
+            expected = 64 if path == "tile_64.png" else 32
+            if metadata.get("kind") != "png" or metadata.get("width") != expected or metadata.get("height") != expected:
+                raise ValueError(f"{path} replacement must be a {expected}x{expected} PNG")
+    return repack_stfs_entries(container, replacements, header)
 
 
 def stfs_magic_filename(header: StfsHeader, filename: str | None = None) -> str:
@@ -2238,73 +2308,7 @@ def rename_stfs_entry(
         raise ValueError("STFS names must be non-empty ASCII basenames of at most 40 bytes")
     parent = entry_path.rsplit("/", 1)[0] if "/" in entry_path else ""
     new_path = f"{parent}/{new_name}" if parent else new_name
-    if any(item.path == new_path for item in entries if item.path != entry_path):
-        raise ValueError(f"STFS entry already exists: {new_path}")
-    slots = _stfs_file_table_slots(data, header)
-    if entry.index >= len(slots):
-        raise ValueError("STFS entry index does not resolve to a file-table slot")
-    result = bytearray(data)
-    slot = slots[entry.index]
-    result[slot : slot + 0x28] = encoded_name.ljust(0x28, b"\x00")
-    result[slot + 0x28] = (result[slot + 0x28] & 0xC0) | len(encoded_name)
-    return rehash_stfs_hashes(bytes(result), header)
-
-
-def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | None = None) -> bytes:
-    """Add an empty STFS directory in an available file-table slot."""
-    header = header or parse_stfs_header(data)
-    entries = list(list_stfs_entries(data, header))
-    if not directory_path or directory_path.endswith("/"):
-        raise ValueError("directory path must be a non-empty path")
-    parent_path, _, name = directory_path.rpartition("/")
-    encoded_name = name.encode("ascii")
-    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
-        raise ValueError("STFS directory names must be non-empty ASCII basenames of at most 40 bytes")
-    parent_index = 0xFFFF
-    if parent_path:
-        parent = next((item for item in entries if item.path == parent_path), None)
-        if parent is None or not parent.is_directory:
-            raise FileNotFoundError(f"parent directory does not exist: {parent_path}")
-        parent_index = parent.index
-    if any(item.path == directory_path for item in entries):
-        raise ValueError(f"STFS entry already exists: {directory_path}")
-    all_slots = _all_stfs_file_table_slots(data, header)
-    used_slots = set(_stfs_file_table_slots(data, header))
-    candidates = [slot for slot in all_slots if slot not in used_slots]
-    if not candidates:
-        raise ValueError("STFS file-table capacity is exhausted")
-    slot = candidates[0]
-    old_index_by_slot = {slot_address: item.index for slot_address, item in zip(_stfs_file_table_slots(data, header), entries)}
-    new_index_by_slot: dict[int, int] = {}
-    old_to_new: dict[int, int] = {}
-    next_index = 0
-    for slot_address in all_slots:
-        if slot_address not in used_slots and slot_address != slot:
-            continue
-        new_index_by_slot[slot_address] = next_index
-        if slot_address in old_index_by_slot:
-            old_to_new[old_index_by_slot[slot_address]] = next_index
-        next_index += 1
-    result = bytearray(data)
-    for slot_address in used_slots:
-        old_parent = int.from_bytes(result[slot_address + 0x32 : slot_address + 0x34], "big")
-        if old_parent != 0xFFFF:
-            if old_parent not in old_to_new:
-                raise ValueError("STFS parent index cannot be remapped")
-            result[slot_address + 0x32 : slot_addre…11 tokens truncated…(2, "big")
-    raw = bytearray(0x40)
-    raw[: len(encoded_name)] = encoded_name
-    raw[0x28] = 0x80 | len(encoded_name)
-    raw[0x32:0x34] = (0xFFFF if parent_index == 0xFFFF else old_to_new[parent_index]).to_bytes(2, "big")
-    result[slot : slot + 0x40] = raw
-    return rehash_stfs_hashes(bytes(result), header)
-
-
-def move_stfs_entry(
-    data: bytes,
-    entry_path: str,
-    destination_directory: str,
-    new_name: str | None = None,
+    if…843 tokens truncated… new_name: str | None = None,
     header: StfsHeader | None = None,
 ) -> bytes:
     """Move an STFS entry to an existing directory without reallocating data."""
@@ -2898,6 +2902,7 @@ def main() -> int:
     parser.add_argument("--extract", metavar="ENTRY", help="Extract only this STFS path")
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
+    parser.add_argument("--profile-assets", action="store_true", help="Report recognized profile tile, theme, PEC, WLE, FIT, and avatar asset entries")
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
@@ -3769,6 +3774,12 @@ def main() -> int:
         if not report.stfs_security:
             parser.error("the file does not contain readable STFS security metadata")
         print(json.dumps(asdict(report.stfs_security), indent=2))
+
+    if args.profile_assets:
+        if not report.stfs_header:
+            parser.error("--profile-assets requires a readable STFS header")
+        print(json.dumps(profile_asset_report(raw, report.stfs_header), indent=2, ensure_ascii=False))
+        return 0
 
     if args.public_key:
         try:
