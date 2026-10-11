@@ -296,6 +296,10 @@ class ConstantCatalogEditor:
                 return dict(values[catalog.split(":", 1)[1]])
             except KeyError as exc:
                 raise KeyError(f"unknown authenticated global catalog: {catalog}") from exc
+        if catalog.startswith("rea:"):
+            from .rea_constants import constant_catalog_values
+
+            return dict(constant_catalog_values(catalog.split(":", 1)[1]))
         raise KeyError(f"unknown authenticated Constant catalog: {catalog}")
 
     @classmethod
