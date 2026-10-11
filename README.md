@@ -156,7 +156,8 @@ copied implementation code.
   or external signing helper is supplied.
 - The desktop front end exposes the same caller-key LIVE/PIRS verification and
   external key-vault CON signing operations through explicit toolbar actions,
-  including signing an already-written post-mutation CON artifact.
+  including signing an already-written post-mutation CON artifact and
+  provider-backed LIVE/PIRS signing.
 - The desktop front end also exposes the authenticated historical-reference
   Account inspect/edit workflow with an explicit caller-supplied 16-byte key;
   it remains labeled separately from the unresolved Horizon-native serializer.
