@@ -337,6 +337,9 @@ The supplied native `class3.dll` provides stronger, separate evidence: its
 authenticated PE import table includes `KERNEL32.dll!IsDebuggerPresent`,
 `GetCurrentProcessId`, `GetCurrentThreadId`, and exception/runtime probes. The
 CLI exposes this through `--anti-analysis-native` as an import-level report.
+That report also separates dynamic resolution (`LoadLibraryA`/`GetProcAddress`)
+and memory-protection/pointer-validation imports such as `VirtualProtect`,
+`VirtualQuery`, `IsBadReadPtr`, and `IsBadWritePtr` when present.
 This establishes declared native dependencies only; it does not establish
 call reachability or justify patching/bypassing the protection.
 
