@@ -605,8 +605,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(
             report["family_counts"],
             [
-                {"family": "Horizon.PackageEditors.Halo__General_Classes_", "types": 1, "methods": 1},
-                {"family": "Horizon.PackageEditors.Skyrim", "types": 2, "methods": 1},
+                {"family": "Horizon.PackageEditors.Halo__General_Classes_", "types": 1, "methods": 1, "implementation_readiness": {"body-unavailable": 1}},
+                {"family": "Horizon.PackageEditors.Skyrim", "types": 2, "methods": 1, "implementation_readiness": {"body-unavailable": 1}},
             ],
         )
         self.assertEqual(report["role_counts"], {"save": 1, "write": 1})
