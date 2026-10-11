@@ -1186,10 +1186,40 @@ class HorizonApp(tk.Tk):
         )
         if transfer_flags_text is None:
             return
+        series_id_text = season_id_text = season_number_text = episode_number_text = None
+        if header.metadata_version == 2:
+            series_id_text = simpledialog.askstring(
+                "Series ID", "Series ID (hex, blank to keep current):",
+                initialvalue=header.series_id, parent=self,
+            )
+            if series_id_text is None:
+                return
+            season_id_text = simpledialog.askstring(
+                "Season ID", "Season ID (hex, blank to keep current):",
+                initialvalue=header.season_id, parent=self,
+            )
+            if season_id_text is None:
+                return
+            season_number_text = simpledialog.askstring(
+                "Season number", "Season number (blank to keep current):",
+                initialvalue=str(header.season_number or 0), parent=self,
+            )
+            if season_number_text is None:
+                return
+            episode_number_text = simpledialog.askstring(
+                "Episode number", "Episode number (blank to keep current):",
+                initialvalue=str(header.episode_number or 0), parent=self,
+            )
+            if episode_number_text is None:
+                return
         try:
             title_id = header.title_id if not title_id_text.strip() else int(title_id_text, 16)
             content_type = header.content_type if not content_type_text.strip() else int(content_type_text, 16)
             transfer_flags = header.transfer_flags if not transfer_flags_text.strip() else int(transfer_flags_text, 16)
+            series_id = header.series_id if series_id_text is None or not series_id_text.strip() else series_id_text.strip()
+            season_id = header.season_id if season_id_text is None or not season_id_text.strip() else season_id_text.strip()
+            season_number = header.season_number if season_number_text is None or not season_number_text.strip() else int(season_number_text, 0)
+            episode_number = header.episode_number if episode_number_text is None or not episode_number_text.strip() else int(episode_number_text, 0)
             mutated = mutate_stfs_metadata(
                 self._data,
                 display_name=display_name,
@@ -1199,6 +1229,10 @@ class HorizonApp(tk.Tk):
                 transfer_flags=transfer_flags,
                 title_id=title_id,
                 content_type=content_type,
+                series_id=series_id if header.metadata_version == 2 else None,
+                season_id=season_id if header.metadata_version == 2 else None,
+                season_number=season_number if header.metadata_version == 2 else None,
+                episode_number=episode_number if header.metadata_version == 2 else None,
                 header=header,
             )
             target = filedialog.asksaveasfilename(
@@ -1222,6 +1256,10 @@ class HorizonApp(tk.Tk):
                     "title_id": title_id,
                     "content_type": content_type,
                     "transfer_flags": transfer_flags,
+                    "series_id": series_id if header.metadata_version == 2 else None,
+                    "season_id": season_id if header.metadata_version == 2 else None,
+                    "season_number": season_number if header.metadata_version == 2 else None,
+                    "episode_number": episode_number if header.metadata_version == 2 else None,
                     "signature_checked": False,
                 }
             )
