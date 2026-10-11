@@ -149,8 +149,11 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertFalse(record.recovering)
         self.assertFalse(record.password_protected)
         self.assertEqual(record.membership_type, 6)
+        self.assertEqual(record.membership_name, "gold")
         self.assertEqual(record.online_country_code, 0x67)
+        self.assertEqual(record.online_country_name, "US")
         self.assertEqual(record.online_language_code, 1)
+        self.assertEqual(record.online_language_name, "en")
         self.assertEqual(record.to_bytes(), plain)
         self.assertEqual(
             unobfuscate_account(
@@ -175,7 +178,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["plaintext_bytes"], 380)
         self.assertEqual(report["record"]["gamertag"], "Trap Em All")
         self.assertEqual(report["record"]["membership_type"], 6)
+        self.assertEqual(report["record"]["membership_name"], "gold")
         self.assertEqual(report["record"]["online_country_code"], 0x67)
+        self.assertEqual(report["record"]["online_country_name"], "US")
         self.assertEqual(len(report["record"]["online_key_hex"]), 32)
 
     def test_historical_account_mutation_rehashes_container(self):
