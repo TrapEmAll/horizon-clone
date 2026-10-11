@@ -107,7 +107,7 @@ from work.editor_inventory import capability_report, catalog_report, inventory_s
 from work.anti_analysis import anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
-from work.native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report, observed_native_imports, observed_native_callers
+from work.native_surface import managed_native_import_report, native_export_contract_report, native_import_table_report, native_installation_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceIoBinding, DeviceProviderUnavailable, WindowsDeviceIoProvider
 from work.device_inventory import device_inventory_report, enumerate_host_device_entries
@@ -120,7 +120,7 @@ from work.account_format import (
     unobfuscate_account,
 )
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
-from work.native_loader import compatible_pe_architecture, pe_export_names, pe_export_table
+from work.native_loader import compatible_pe_architecture, pe_export_names, pe_export_table, pe_import_table
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_property_contract_report, managed_reference_report, managed_schema_report, managed_surface_report
@@ -2350,6 +2350,28 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(contract["export_table_sha256"]), 64)
         self.assertEqual(contract["missing_exports"], [])
         self.assertEqual({row["name"] for row in contract["export_table"]}, set(exports))
+
+    def test_native_loader_reports_class3_import_table_without_loading_it(self):
+        path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\class3.dll")
+        if not path.exists():
+            self.skipTest("supplied class3.dll is not available")
+        imports = pe_import_table(path)
+        self.assertTrue(imports)
+        self.assertTrue(all(row["module"] for row in imports))
+        self.assertTrue(any(row["import_name"] == "memcpy" for row in imports))
+        report = native_import_table_report(path)
+        self.assertEqual(report["status"], "observed-only")
+        self.assertEqual(report["artifact_sha256"], "ebe7eda16e07382d2055a6ba9cc436d58010e546a93f881a2e965f123013e0d6")
+        self.assertTrue(any(str(module).casefold().startswith("msvcr") for module in report["modules"]))
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--native-imports"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        cli_report = json.loads(result.stdout)
+        self.assertEqual(cli_report["import_count"], len(imports))
+        self.assertEqual(cli_report["module_count"], len(report["modules"]))
 
     def test_native_loader_reports_observed_horizon_runtime_exports(self):
         path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
