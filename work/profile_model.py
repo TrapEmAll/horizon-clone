@@ -37,12 +37,26 @@ class ProfileData:
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "ProfileData":
+        if not isinstance(value, dict):
+            raise TypeError("ProfileData values must be an object")
+
+        def required_type(name: str, expected: type, default: Any) -> Any:
+            item = value.get(name, default)
+            if type(item) is not expected:
+                raise TypeError(f"{name} must be a {expected.__name__}")
+            return item
+
+        gamer_picture = required_type("gamer_picture", str, "")
+        try:
+            picture_bytes = bytes.fromhex(gamer_picture)
+        except ValueError as exc:
+            raise ValueError("gamer_picture must contain an even-length hexadecimal string") from exc
         return cls(
-            from_device=bool(value.get("from_device", False)),
-            xuid=int(value.get("xuid", 0)),
-            gamertag=str(value.get("gamertag", "")),
-            gamer_picture=bytes.fromhex(str(value.get("gamer_picture", ""))),
-            profile_id=int(value.get("profile_id", 0)),
-            favorite=bool(value.get("favorite", False)),
+            from_device=required_type("from_device", bool, False),
+            xuid=required_type("xuid", int, 0),
+            gamertag=required_type("gamertag", str, ""),
+            gamer_picture=picture_bytes,
+            profile_id=required_type("profile_id", int, 0),
+            favorite=required_type("favorite", bool, False),
         )
 
