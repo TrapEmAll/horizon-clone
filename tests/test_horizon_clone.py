@@ -120,7 +120,7 @@ from work.account_format import (
     unobfuscate_account,
 )
 from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, LzoUnavailable, PowerShellLzoProvider
-from work.native_loader import compatible_pe_architecture, pe_export_names
+from work.native_loader import compatible_pe_architecture, pe_export_names, pe_export_table
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
 from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_property_contract_report, managed_reference_report, managed_schema_report, managed_surface_report
@@ -2330,6 +2330,10 @@ class ContainerInspectionTests(unittest.TestCase):
         exports = pe_export_names(path)
         self.assertIn("RtsSaveDecrypt", exports)
         self.assertIn("RtsSaveEncrypt", exports)
+        table = {row["name"]: row for row in pe_export_table(path)}
+        self.assertEqual(set(table), set(exports))
+        self.assertTrue(all(isinstance(row["ordinal"], int) for row in table.values()))
+        self.assertTrue(all(isinstance(row["rva"], int) for row in table.values()))
         result = subprocess.run(
             [sys.executable, "-m", "work.horizon_clone", str(path), "--native-exports"],
             capture_output=True,
@@ -2343,6 +2347,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(contract["export_count"], 2)
         self.assertEqual(len(contract["export_table_sha256"]), 64)
         self.assertEqual(contract["missing_exports"], [])
+        self.assertEqual({row["name"] for row in contract["export_table"]}, set(exports))
 
     def test_native_loader_reports_observed_horizon_runtime_exports(self):
         path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
