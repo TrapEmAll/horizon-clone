@@ -1849,7 +1849,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(by_name["Console and remote package signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
         self.assertIn("RunHVM=0", by_name["DNG/HVM runtime adapter"]["evidence"])
-        self.assertIn("GetUserString(0,0,0)=161456824", by_name["DNG/HVM runtime adapter"]["evidence"])
+        self.assertIn("zero/nonzero behavior", by_name["DNG/HVM runtime adapter"]["evidence"])
         self.assertEqual(by_name["Managed feature-surface inventory"]["status"], "observed-only")
         self.assertIn("--managed-feature-surface", by_name["Managed feature-surface inventory"]["entry_points"])
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
