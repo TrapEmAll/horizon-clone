@@ -232,6 +232,8 @@ class NativeSaveBinding:
         _validate_span(input_length, len(input_buffer), "input_length")
         _validate_span(output_length.value, len(output_buffer), "output_length")
         result = self._require().rts_save_decrypt(input_buffer, output_length, output_buffer, input_length, key)
+        _validate_u32(output_length.value, "provider output_length")
+        _validate_span(output_length.value, len(output_buffer), "provider output_length")
         return _validate_i32_result(result)
 
     def encrypt(self, input_buffer: bytes, output_buffer: bytearray, input_length: int, key: bytes) -> int:
