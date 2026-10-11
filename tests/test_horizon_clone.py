@@ -1912,6 +1912,16 @@ class ContainerInspectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mutate_profile_assets(original, {"tile_64.png": b"not-a-png"}, header)
 
+    def test_cli_exposes_profile_asset_replacement(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", "--help"],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertIn("--profile-asset ENTRY SOURCE", result.stdout)
+
     def test_reports_observed_device_exploration_surface(self):
         surface = device_surface_report()
         self.assertEqual(surface["status"], "metadata-only")
