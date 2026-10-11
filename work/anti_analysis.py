@@ -173,6 +173,7 @@ def native_anti_analysis_report(path: str | Path) -> dict[str, Any]:
         "GetTickCount",
     }
     dynamic_resolution_apis = {"LoadLibraryA", "LoadLibraryW", "GetProcAddress"}
+    memory_protection_apis = {"VirtualProtect", "VirtualProtectEx", "VirtualQuery", "VirtualQueryEx", "IsBadReadPtr", "IsBadWritePtr"}
     return {
         "status": "observed-only",
         "path": str(source),
@@ -182,6 +183,7 @@ def native_anti_analysis_report(path: str | Path) -> dict[str, Any]:
         "debugger_api_imports": sorted(set(names) & debugger_apis),
         "process_probe_imports": sorted(set(names) & process_probe_apis),
         "dynamic_resolution_imports": sorted(set(names) & dynamic_resolution_apis),
+        "memory_protection_imports": sorted(set(names) & memory_protection_apis),
         "analysis_workaround": {
             "mode": "static-import-table-only",
             "target_execution": "not-executed",
