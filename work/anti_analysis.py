@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .native_loader import compatible_pe_architecture, pe_import_table
+
 
 def anti_analysis_report_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     records = bundle.get("records")
@@ -146,4 +148,49 @@ def anti_analysis_report(bundle_path: str | Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unable to read evidence bundle: {path}") from exc
     return anti_analysis_report_from_bundle(bundle)
+
+
+def native_anti_analysis_report(path: str | Path) -> dict[str, Any]:
+    """Report anti-analysis-related native imports without loading the image."""
+
+    source = Path(path)
+    imports = list(pe_import_table(source))
+    names = sorted({str(item["import_name"]) for item in imports if item.get("import_name")})
+    debugger_apis = {
+        "IsDebuggerPresent",
+        "CheckRemoteDebuggerPresent",
+        "NtQueryInformationProcess",
+        "OutputDebugStringA",
+        "OutputDebugStringW",
+        "_crt_debugger_hook",
+    }
+    process_probe_apis = {
+        "OpenProcess",
+        "GetCurrentProcess",
+        "GetCurrentProcessId",
+        "GetCurrentThreadId",
+        "QueryPerformanceCounter",
+        "GetTickCount",
+    }
+    dynamic_resolution_apis = {"LoadLibraryA", "LoadLibraryW", "GetProcAddress"}
+    return {
+        "status": "observed-only",
+        "path": str(source),
+        "artifact_sha256": __import__("hashlib").sha256(source.read_bytes()).hexdigest(),
+        "image_architecture": compatible_pe_architecture(source)[0],
+        "import_count": len(imports),
+        "debugger_api_imports": sorted(set(names) & debugger_apis),
+        "process_probe_imports": sorted(set(names) & process_probe_apis),
+        "dynamic_resolution_imports": sorted(set(names) & dynamic_resolution_apis),
+        "analysis_workaround": {
+            "mode": "static-import-table-only",
+            "target_execution": "not-executed",
+            "protection_patching": "not-performed",
+        },
+        "limitations": [
+            "An imported API does not prove that every call path reaches it or establish its runtime arguments.",
+            "Indirect calls, delay-load imports, and dynamically resolved symbols are not complete in this report.",
+            "This report does not disable, patch, or bypass anti-analysis behavior.",
+        ],
+    }
 
