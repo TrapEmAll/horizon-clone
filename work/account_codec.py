@@ -43,6 +43,8 @@ class CommandAccountKeyProvider:
             raise ValueError("key-vault helper path must be absolute")
         if not path.is_file():
             raise FileNotFoundError(path)
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+            raise ValueError("key-vault helper timeout must be positive")
         self.executable = path
         self.timeout = timeout
 
