@@ -118,6 +118,16 @@ def supplied_fixture():
     return Path(value) if value else None
 
 
+def historical_account_key(test_case):
+    value = os.environ.get("HORIZON_HISTORICAL_ACCOUNT_KEY_HEX")
+    if not value:
+        test_case.skipTest("historical Account key is not supplied")
+    try:
+        return bytes.fromhex(value)
+    except ValueError as exc:
+        test_case.fail(f"HORIZON_HISTORICAL_ACCOUNT_KEY_HEX is not hexadecimal: {exc}")
+
+
 class ContainerInspectionTests(unittest.TestCase):
     def test_historical_account_codec_round_trips_supplied_account(self):
         path = supplied_fixture()
@@ -127,9 +137,7 @@ class ContainerInspectionTests(unittest.TestCase):
         header = parse_stfs_header(original)
         entry = next(item for item in list_stfs_entries(original, header) if item.path == "Account")
         encrypted = read_stfs_entry(original, entry, header)
-        # Public historical reference key from unknownv2/horizon-v3; this is
-        # test evidence only and is not a key-vault or retail signing key.
-        production_key = bytes.fromhex("e1bc159c73b1eae9ab3170f3ad47ebf3")
+        production_key = historical_account_key(self)
         plain = unobfuscate_account(encrypted, production_key)
         record = AccountRecord.from_bytes(plain)
 
@@ -137,6 +145,12 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(plain), 380)
         self.assertEqual(record.reserved, 0x20000001)
         self.assertEqual(record.live_flags, 0)
+        self.assertTrue(record.xbox_live_enabled)
+        self.assertFalse(record.recovering)
+        self.assertFalse(record.password_protected)
+        self.assertEqual(record.membership_type, 6)
+        self.assertEqual(record.online_country_code, 0x67)
+        self.assertEqual(record.online_language_code, 1)
         self.assertEqual(record.to_bytes(), plain)
         self.assertEqual(
             unobfuscate_account(
@@ -155,14 +169,13 @@ class ContainerInspectionTests(unittest.TestCase):
         path = supplied_fixture()
         if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
-        report = historical_account_report(
-            path,
-            bytes.fromhex("e1bc159c73b1eae9ab3170f3ad47ebf3"),
-        )
+        report = historical_account_report(path, historical_account_key(self))
         self.assertEqual(report["operation"], "historical-account-inspect")
         self.assertEqual(report["encrypted_bytes"], 404)
         self.assertEqual(report["plaintext_bytes"], 380)
         self.assertEqual(report["record"]["gamertag"], "Trap Em All")
+        self.assertEqual(report["record"]["membership_type"], 6)
+        self.assertEqual(report["record"]["online_country_code"], 0x67)
         self.assertEqual(len(report["record"]["online_key_hex"]), 32)
 
     def test_historical_account_mutation_rehashes_container(self):
@@ -170,7 +183,7 @@ class ContainerInspectionTests(unittest.TestCase):
         if path is None or not path.exists():
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
-        key = bytes.fromhex("e1bc159c73b1eae9ab3170f3ad47ebf3")
+        key = historical_account_key(self)
         edited = mutate_historical_account(original, key, {"gamertag": "Clone Test"})
         edited_header = parse_stfs_header(edited)
         report = historical_account_report(path, key)
@@ -179,6 +192,23 @@ class ContainerInspectionTests(unittest.TestCase):
         plaintext = unobfuscate_account(read_stfs_entry(edited, entry, edited_header), key)
         self.assertEqual(AccountRecord.from_bytes(plaintext).gamertag, "Clone Test")
         self.assertEqual(report["encrypted_bytes"], entry.size)
+
+    def test_historical_account_mutates_derived_flag_fields(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        key = historical_account_key(self)
+        edited = mutate_historical_account(
+            path.read_bytes(),
+            key,
+            {"membership_type": 3, "online_country_code": 0x10, "xbox_live_enabled": False},
+        )
+        header = parse_stfs_header(edited)
+        entry = next(item for item in list_stfs_entries(edited, header) if item.path == "Account")
+        record = AccountRecord.from_bytes(unobfuscate_account(read_stfs_entry(edited, entry, header), key))
+        self.assertEqual(record.membership_type, 3)
+        self.assertEqual(record.online_country_code, 0x10)
+        self.assertFalse(record.xbox_live_enabled)
 
     fixture_dir = Path(__file__).parent / ".tmp"
 
