@@ -24,6 +24,8 @@ from work.horizon_clone import (
     move_stfs_entry,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
+    mutate_profile_assets,
+    profile_asset_report,
     mutate_stfs_thumbnails,
     mutate_xdbf_achievement,
     mutate_xdbf_achievement_flags,
@@ -1891,6 +1893,22 @@ class ContainerInspectionTests(unittest.TestCase):
         callers = {(item.caller, item.import_name) for item in observed_native_callers()}
         self.assertIn(("A.cd936781820a998f272eb4df3bd2b8c2a.Startup", "DNG_Runtime"), callers)
         self.assertIn(("A.cd9276f49d88a260398f12b2584c549ca.CheckString", "GetUserString"), callers)
+
+    def test_reports_and_validates_profile_assets(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        report = profile_asset_report(original, header)
+        assets = {item["path"]: item for item in report["assets"]}
+        self.assertEqual(assets["tile_64.png"]["metadata"]["width"], 64)
+        self.assertEqual(assets["tile_32.png"]["metadata"]["height"], 32)
+        tile = read_stfs_entry(original, next(item for item in list_stfs_entries(original, header) if item.path == "tile_64.png"), header)
+        edited = mutate_profile_assets(original, {"tile_64.png": tile}, header)
+        self.assertEqual(verify_stfs_hashes(edited, header=parse_stfs_header(edited))["failures"], [])
+        with self.assertRaises(ValueError):
+            mutate_profile_assets(original, {"tile_64.png": b"not-a-png"}, header)
 
     def test_reports_observed_device_exploration_surface(self):
         surface = device_surface_report()
