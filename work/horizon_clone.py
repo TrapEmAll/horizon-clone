@@ -488,6 +488,7 @@ class StfsHeader:
     title_thumbnail_size: int
     content_id: str
     execution_version: int
+    avatar_asset_id: str
 
 
 _STFS_CONTENT_TYPE_NAMES = {
@@ -558,6 +559,8 @@ def stfs_magic_filename(header: StfsHeader, filename: str | None = None) -> str:
         return (content_id[:20] + title_byte).hex().upper()
     if header.content_type == 0x000B0000:
         return f"tu{header.execution_version:08X}_0"
+    if header.content_type == 0x00009000 and header.avatar_asset_id:
+        return header.avatar_asset_id.upper()
     if filename:
         return filename
     raise ValueError("a filename is required for this unclassified content type")
@@ -1040,6 +1043,7 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         title_thumbnail_size=_u32be(data, 0x1716),
         content_id=data[0x32C:0x340].hex(),
         execution_version=_u32be(data, 0x358),
+        avatar_asset_id=data[0x3E1:0x3F1].hex() if _u32be(data, 0x344) == 0x00009000 else "",
     )
 
 
