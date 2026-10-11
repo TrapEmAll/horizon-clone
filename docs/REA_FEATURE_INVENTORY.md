@@ -296,6 +296,13 @@ IL-inspection-related metadata attributes and a `ZYXDNGuarder` type. These are
 recorded as observations only. The reconstruction does not execute Horizon,
 patch its protections, or implement anti-debugging bypasses.
 
+The anti-analysis report now explicitly records the analysis mode as
+static-and-controlled-runtime-only and distinguishes a debugger API observed in
+retained call edges from one that was not observed. For this artifact the latter
+is the result: no direct `IsDebuggerPresent` or
+`CheckRemoteDebuggerPresent` call edge was retained. That absence is not proof
+that an indirect or native check cannot exist.
+
 The retained member evidence for the same SHA-256-bound executable identifies
 three calls from the obfuscated `ZYXDNGuard` type to
 `System.Reflection.Assembly.GetExecutingAssembly`. It does not, in the
