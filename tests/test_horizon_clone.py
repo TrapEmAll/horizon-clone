@@ -506,6 +506,40 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["counts"]["matched_methods"], 1)
         self.assertEqual(report["methods"][0]["field_accesses"][0]["field_name"], "Value")
         self.assertEqual(report["methods"][0]["call_targets"][0]["target_name"], "Write")
+        self.assertEqual(report["family_counts"], [])
+
+    def test_groups_title_editor_io_contracts_by_family(self):
+        bundle = self.fixture_dir / "title-io-contract-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_title_io",
+                "normalized_result": {
+                    "types": [
+                        {"full_name": "Horizon.PackageEditors.Skyrim.Save"},
+                        {"full_name": "Horizon.PackageEditors.Skyrim.Inventory"},
+                        {"full_name": "Horizon.PackageEditors.Halo__General_Classes_.Variant"},
+                    ],
+                    "methods": [
+                        {"declaring_type": "Horizon.PackageEditors.Skyrim.Save", "name": "Save", "token": "0x06000001"},
+                        {"declaring_type": "Horizon.PackageEditors.Halo__General_Classes_.Variant", "name": "Write", "token": "0x06000002"},
+                    ],
+                    "field_accesses": [],
+                    "call_edges": [],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_io_contract_report(bundle, r"^Horizon\.PackageEditors\.(Skyrim|Halo__General_Classes_)")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(
+            report["family_counts"],
+            [
+                {"family": "Horizon.PackageEditors.Halo__General_Classes_", "types": 1, "methods": 1},
+                {"family": "Horizon.PackageEditors.Skyrim", "types": 2, "methods": 1},
+            ],
+        )
 
     def test_groups_managed_types_into_observed_editor_families(self):
         bundle = self.fixture_dir / "family-bundle.json"
