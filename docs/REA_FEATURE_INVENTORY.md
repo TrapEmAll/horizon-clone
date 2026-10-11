@@ -17,6 +17,9 @@ observed high-level areas include:
 The current implementation covers the shared STFS/XDBF substrate, including
 capacity-bounded mutation/repacking and complete three-level STFS hash-tree
 rehashing/verification, plus a provider-oriented mutation/signing boundary.
+STFS entry inspection preserves the raw file-table flag byte alongside its
+derived directory and consecutive-block booleans; undocumented flag meanings
+remain intentionally uninterpreted.
 STFS file management also supports explicit recursive directory deletion via
 `--remove-tree`; ordinary removal continues to reject non-empty directories.
 The desktop front end exposes the same operation as separately confirmed
