@@ -161,3 +161,193 @@ def pe_export_table(path: str | Path) -> tuple[dict[str, int | str | None], ...]
         })
     return tuple(rows)
 
+
+def pe_import_table(path: str | Path) -> tuple[dict[str, int | str | None], ...]:
+    """Return PE import descriptors and thunk names without loading the image."""
+
+    source = Path(path)
+    data = source.read_bytes()
+    if data[:2] != b"MZ" or len(data) < 0x40:
+        raise ValueError(f"{source} is not a readable PE image")
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    if pe_offset + 24 > len(data) or data[pe_offset:pe_offset + 4] != b"PE\0\0":
+        raise ValueError(f"{source} has an invalid PE signature")
+    optional_offset = pe_offset + 24
+    magic = struct.unpack_from("<H", data, optional_offset)[0]
+    if magic == 0x10B:
+        directory_offset, thunk_size, ordinal_mask = optional_offset + 96, 4, 0x80000000
+    elif magic == 0x20B:
+        directory_offset, thunk_size, ordinal_mask = optional_offset + 112, 8, 0x8000000000000000
+    else:
+        raise ValueError(f"{source} has an unsupported PE optional header")
+    if directory_offset + 16 > len(data):
+        raise ValueError(f"{source} has a truncated PE data-directory table")
+    import_rva, import_size = struct.unpack_from("<II", data, directory_offset + 8)
+    if not import_rva or not import_size:
+        return ()
+    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    section_offset = optional_offset + optional_size
+
+    def rva_to_offset(rva: int) -> int:
+        for index in range(section_count):
+            current = section_offset + index * 40
+            if current + 40 > len(data):
+                break
+            virtual_size, virtual_address, raw_size, raw_pointer = struct.unpack_from("<IIII", data, current + 8)
+            span = max(virtual_size, raw_size)
+            if virtual_address <= rva < virtual_address + span:
+                offset = raw_pointer + (rva - virtual_address)
+                if offset < len(data):
+                    return offset
+        raise ValueError(f"{source} RVA 0x{rva:x} is not mapped to file data")
+
+    def read_c_string(rva: int) -> str:
+        offset = rva_to_offset(rva)
+        end = data.find(b"\0", offset)
+        if end < 0:
+            raise ValueError(f"{source} has an unterminated PE import string")
+        return data[offset:end].decode("ascii")
+
+    descriptor_offset = rva_to_offset(import_rva)
+    rows: list[dict[str, int | str | None]] = []
+    for descriptor_index in range(import_size // 20):
+        current = descriptor_offset + descriptor_index * 20
+        if current + 20 > len(data):
+            raise ValueError(f"{source} has a truncated PE import descriptor")
+        original_thunk, _timestamp, _forwarder, name_rva, first_thunk = struct.unpack_from("<IIIII", data, current)
+        if not (original_thunk or name_rva or first_thunk):
+            break
+        module = read_c_string(name_rva)
+        thunk_rva = original_thunk or first_thunk
+        for thunk_index in range(import_size * 2):
+            thunk_offset = rva_to_offset(thunk_rva + thunk_index * thunk_size)
+            if thunk_offset + thunk_size > len(data):
+                raise ValueError(f"{source} has a truncated PE import thunk")
+            value = int.from_bytes(data[thunk_offset:thunk_offset + thunk_size], "little")
+            if value == 0:
+                break
+            row: dict[str, int | str | None] = {
+                "module": module,
+                "descriptor_index": descriptor_index,
+                "thunk_index": thunk_index,
+                "thunk_rva": thunk_rva + thunk_index * thunk_size,
+                "import_name": None,
+                "ordinal": None,
+                "hint": None,
+            }
+            if value & ordinal_mask:
+                row["ordinal"] = value & 0xFFFF
+            else:
+                name_rva_value = value & (0x7FFFFFFF if thunk_size == 4 else 0x7FFFFFFFFFFFFFFF)
+                name_offset = rva_to_offset(name_rva_value)
+                if name_offset + 2 > len(data):
+                    raise ValueError(f"{source} has a truncated PE import-by-name record")
+                row["hint"] = struct.unpack_from("<H", data, name_offset)[0]
+                end = data.find(b"\0", name_offset + 2)
+                if end < 0:
+                    raise ValueError(f"{source} has an unterminated PE import name")
+                row["import_name"] = data[name_offset + 2:end].decode("ascii")
+            rows.append(row)
+    return tuple(rows)
+
+
+def pe_import_table(path: str | Path) -> tuple[dict[str, int | str | None], ...]:
+    """Return PE import descriptors and thunk names without loading the image.
+
+    The result is an authenticated file-layout observation, not a claim about
+    which imports are reached at runtime.  Ordinal imports are retained with a
+    null name and their ordinal value.  Delay-load and bound-loader behavior
+    are outside this directory-only view.
+    """
+
+    source = Path(path)
+    data = source.read_bytes()
+    if data[:2] != b"MZ" or len(data) < 0x40:
+        raise ValueError(f"{source} is not a readable PE image")
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    if pe_offset + 24 > len(data) or data[pe_offset:pe_offset + 4] != b"PE\0\0":
+        raise ValueError(f"{source} has an invalid PE signature")
+    optional_offset = pe_offset + 24
+    magic = struct.unpack_from("<H", data, optional_offset)[0]
+    if magic == 0x10B:
+        directory_offset = optional_offset + 96
+        thunk_size = 4
+        ordinal_mask = 0x80000000
+    elif magic == 0x20B:
+        directory_offset = optional_offset + 112
+        thunk_size = 8
+        ordinal_mask = 0x8000000000000000
+    else:
+        raise ValueError(f"{source} has an unsupported PE optional header")
+    if directory_offset + 16 > len(data):
+        raise ValueError(f"{source} has a truncated PE data-directory table")
+    import_rva, import_size = struct.unpack_from("<II", data, directory_offset + 8)
+    if not import_rva or not import_size:
+        return ()
+    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    section_offset = optional_offset + optional_size
+
+    def rva_to_offset(rva: int) -> int:
+        for index in range(section_count):
+            current = section_offset + index * 40
+            if current + 40 > len(data):
+                break
+            virtual_size, virtual_address, raw_size, raw_pointer = struct.unpack_from("<IIII", data, current + 8)
+            span = max(virtual_size, raw_size)
+            if virtual_address <= rva < virtual_address + span:
+                offset = raw_pointer + (rva - virtual_address)
+                if offset < len(data):
+                    return offset
+        raise ValueError(f"{source} RVA 0x{rva:x} is not mapped to file data")
+
+    def read_c_string(rva: int) -> str:
+        offset = rva_to_offset(rva)
+        end = data.find(b"\0", offset)
+        if end < 0:
+            raise ValueError(f"{source} has an unterminated PE import string")
+        return data[offset:end].decode("ascii")
+
+    descriptor_offset = rva_to_offset(import_rva)
+    rows: list[dict[str, int | str | None]] = []
+    for descriptor_index in range(import_size // 20):
+        current = descriptor_offset + descriptor_index * 20
+        if current + 20 > len(data):
+            raise ValueError(f"{source} has a truncated PE import descriptor")
+        original_thunk, _timestamp, _forwarder, name_rva, first_thunk = struct.unpack_from("<IIIII", data, current)
+        if not (original_thunk or name_rva or first_thunk):
+            break
+        module = read_c_string(name_rva)
+        thunk_rva = original_thunk or first_thunk
+        for thunk_index in range(import_size * 2):
+            thunk_offset = rva_to_offset(thunk_rva + thunk_index * thunk_size)
+            if thunk_offset + thunk_size > len(data):
+                raise ValueError(f"{source} has a truncated PE import thunk")
+            value = int.from_bytes(data[thunk_offset:thunk_offset + thunk_size], "little")
+            if value == 0:
+                break
+            row: dict[str, int | str | None] = {
+                "module": module,
+                "descriptor_index": descriptor_index,
+                "thunk_index": thunk_index,
+                "thunk_rva": thunk_rva + thunk_index * thunk_size,
+                "import_name": None,
+                "ordinal": None,
+                "hint": None,
+            }
+            if value & ordinal_mask:
+                row["ordinal"] = value & 0xFFFF
+            else:
+                name_rva_value = value & (0x7FFFFFFF if thunk_size == 4 else 0x7FFFFFFFFFFFFFFF)
+                name_offset = rva_to_offset(name_rva_value)
+                if name_offset + 2 > len(data):
+                    raise ValueError(f"{source} has a truncated PE import-by-name record")
+                row["hint"] = struct.unpack_from("<H", data, name_offset)[0]
+                end = data.find(b"\0", name_offset + 2)
+                if end < 0:
+                    raise ValueError(f"{source} has an unterminated PE import name")
+                row["import_name"] = data[name_offset + 2:end].decode("ascii")
+            rows.append(row)
+    return tuple(rows)
+
