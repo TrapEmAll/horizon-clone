@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 42610)
-Total output lines: 3218
+Warning: truncated output (original token count: 42689)
+Total output lines: 3226
 
 import hashlib
 import json
@@ -1148,14 +1148,7 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
-        with_directory = add_stfs_directory(original…12610 tokens truncated…te_profile_assets(original, {"tile_64.png": b"not-a-png"}, header)
-
-    def test_cli_exposes_profile_asset_replacement(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "work.horizon_clone", "--help"],
-            cwd=Path(__file__).resolve().parents[1],
-            capture_output=True,
-            text=True,
+        with_directory = add_stfs_directory(original…12689 tokens truncated…         text=True,
             check=True,
         )
         self.assertIn("--profile-asset ENTRY SOURCE", result.stdout)
@@ -1570,13 +1563,21 @@ class ContainerInspectionTests(unittest.TestCase):
                 return input_length
 
         class ProviderKey:
+            def __init__(self):
+                self.calls = 0
+
             def get_account_key(self, operation, payload_sha256):
+                self.calls += 1
                 return b"dev-key"
 
+        key_provider = ProviderKey()
         codec = AccountCodec(NativeSaveBinding(Provider()))
         status, raw_encrypted = codec.encrypt_raw(b"profile", b"dev-key", 32)
         self.assertEqual(status, 7)
-        self.assertEqual(codec.encrypt_with_key_provider_raw(b"profile", ProviderKey(), 32)[0], 7)
+        self.assertEqual(codec.encrypt_with_key_provider_raw(b"profile", key_provider, 32)[0], 7)
+        with self.assertRaises(ValueError):
+            codec.encrypt_with_key_provider(b"profile", key_provider, 32, output_length=33)
+        self.assertEqual(key_provider.calls, 1)
         encrypted = codec.encrypt(b"profile", b"dev-key", 32, output_length=7)
         self.assertEqual(encrypted, raw_encrypted[:7])
         with self.assertRaises(ValueError):
