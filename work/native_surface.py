@@ -251,12 +251,27 @@ def native_installation_report(directory: str | Path) -> dict[str, object]:
             try:
                 architecture, process_architecture = compatible_pe_architecture(path)
                 exports = pe_export_names(path)
+                imports = native_import_table_report(path)
                 item.update({
                     "image_architecture": architecture,
                     "process_architecture": process_architecture,
                     "observed_exports": list(exports),
                     "missing_exports": [name for name in expected_exports if name not in exports],
                     "architecture_matches_contract": architecture == expected_architecture,
+                    "import_count": imports["import_count"],
+                    "imported_modules": imports["modules"],
+                    "debugger_api_imports": sorted({
+                        str(row["import_name"])
+                        for row in imports["imports"]
+                        if row.get("import_name") in {
+                            "IsDebuggerPresent",
+                            "CheckRemoteDebuggerPresent",
+                            "NtQueryInformationProcess",
+                            "OutputDebugStringA",
+                            "OutputDebugStringW",
+                            "_crt_debugger_hook",
+                        }
+                    }),
                 })
             except (OSError, ValueError) as exc:
                 item.update({"status": "unreadable", "error": str(exc)})
