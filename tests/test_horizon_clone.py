@@ -1933,6 +1933,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(catalogs), 233)
         self.assertEqual(constant_catalog_values("StateofDecay:StateofDecayGameMode")["Default"], 0)
         self.assertEqual(constant_catalog_values("NinjaGaiden:NinjaGaiden3SkillRyu")["FlyingSwallow"], 23)
+        self.assertNotEqual(constant_catalog_values("Weapon#1"), constant_catalog_values("Weapon#2"))
+        self.assertEqual(len({item.key for item in catalogs}), len(catalogs))
         report = rea_constant_catalog_report()
         self.assertEqual(report["status"], "metadata-only")
         self.assertEqual(report["counts"]["catalogs"], 233)
