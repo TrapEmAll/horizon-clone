@@ -3080,6 +3080,23 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertNotIn("Account", {item.path for item in entries})
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
+    def test_removes_non_empty_stfs_directory_only_in_explicit_tree_mode(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        header = parse_stfs_header(original)
+        self.assertTrue(any(item.path.startswith("cache/") for item in list_stfs_entries(original, header)))
+        with self.assertRaises(IsADirectoryError):
+            repack_stfs_entries(original, {}, remove=("cache",), header=header)
+        mutated = repack_stfs_entries(
+            original, {}, remove=("cache",), remove_descendants=True, header=header,
+        )
+        entries = list_stfs_entries(mutated, parse_stfs_header(mutated))
+        self.assertNotIn("cache", {item.path for item in entries})
+        self.assertFalse(any(item.path.startswith("cache/") for item in entries))
+        self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
