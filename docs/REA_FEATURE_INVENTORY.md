@@ -25,6 +25,10 @@ STFS file management also supports explicit recursive directory deletion via
 The desktop front end exposes the same operation as separately confirmed
 save-as and in-place actions.
 
+Native export contracts additionally preserve PE export ordinals, RVAs, and
+file offsets for the supplied DLLs. These are identity metadata only; REA did
+not establish native calling conventions from export presence.
+
 The profile layer now aggregates the authenticated achievement fields across
 all parseable embedded GPDs, exposing entry counts, raw gamerscore totals, and
 nonzero flag counts. Flag-bit meanings are deliberately not inferred.
