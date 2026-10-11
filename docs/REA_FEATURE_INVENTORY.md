@@ -17,6 +17,8 @@ observed high-level areas include:
 The current implementation covers the shared STFS/XDBF substrate, including
 capacity-bounded mutation/repacking and complete three-level STFS hash-tree
 rehashing/verification, plus a provider-oriented mutation/signing boundary.
+STFS file management also supports explicit recursive directory deletion via
+`--remove-tree`; ordinary removal continues to reject non-empty directories.
 
 The profile layer now aggregates the authenticated achievement fields across
 all parseable embedded GPDs, exposing entry counts, raw gamerscore totals, and
