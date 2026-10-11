@@ -63,7 +63,7 @@ from .horizon_clone import (
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
 from .device_inventory import enumerate_host_device_entries
-from .managed_surface import managed_feature_surface_report, managed_property_contract_report
+from .managed_surface import managed_feature_surface_report, managed_io_contract_report, managed_property_contract_report
 from .signing import RsaPublicKey
 
 
@@ -110,6 +110,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed feature surface", command=self.show_managed_feature_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed property contracts", command=self.show_managed_property_contracts).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Managed I/O contracts", command=self.show_managed_io_contracts).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device IOCTL", command=self.device_ioctl).pack(side=tk.LEFT, padx=(8, 0))
@@ -692,6 +693,38 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Managed property report failed", str(exc))
+
+    def show_managed_io_contracts(self) -> None:
+        """Display authenticated title-editor I/O roles from a retained REA bundle."""
+
+        bundle = filedialog.askopenfilename(
+            title="Choose REA managed-members bundle",
+            filetypes=(("JSON evidence", "*.json"), ("All files", "*.*")),
+        )
+        if not bundle:
+            return
+        type_pattern = simpledialog.askstring(
+            "Managed I/O contracts",
+            "Optional managed type regex (blank for all):",
+            initialvalue=r"^Horizon\.PackageEditors\.(Skyrim|Gears_of_War_3|Halo__General_Classes_)",
+            parent=self,
+        )
+        if type_pattern is None:
+            return
+        method_pattern = simpledialog.askstring(
+            "Managed I/O contracts",
+            "Method regex:",
+            initialvalue=r"^(get_|set_|Read|Write|Load|Save|Compress|Decompress)",
+            parent=self,
+        )
+        if method_pattern is None:
+            return
+        try:
+            report = managed_io_contract_report(Path(bundle), type_pattern or None, method_pattern)
+            self.status.configure(text="Displayed managed I/O contracts")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Managed I/O report failed", str(exc))
 
     def show_device_inventory(self) -> None:
         """Display read-only host-visible volume inventory."""
