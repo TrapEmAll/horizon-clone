@@ -323,6 +323,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "replace_profile_tile"))
         self.assertTrue(hasattr(HorizonApp, "show_managed_feature_surface"))
         self.assertTrue(hasattr(HorizonApp, "show_managed_property_contracts"))
+        self.assertTrue(hasattr(HorizonApp, "show_managed_io_contracts"))
         self.assertTrue(hasattr(HorizonApp, "show_device_inventory"))
         self.assertTrue(hasattr(HorizonApp, "show_device_directory"))
         self.assertTrue(hasattr(HorizonApp, "device_ioctl"))
