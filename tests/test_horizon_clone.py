@@ -30,6 +30,7 @@ from work.horizon_clone import (
     mutate_xdbf_achievement,
     mutate_xdbf_achievement_flags,
     mutate_profile_achievement_flags,
+    mutate_profile_achievement_images,
     mutate_profile_xdbf_text,
     mutate_xdbf_text,
     repack_xdbf_entries,
@@ -70,6 +71,7 @@ from work.horizon_clone import (
     xdbf_achievement_image_links,
     xdbf_achievement_image_payload,
     mutate_xdbf_achievement_image,
+    mutate_profile_achievement_images,
     historical_account_report,
     historical_account_report_with_key_provider,
     mutate_historical_account,
@@ -1376,6 +1378,24 @@ class ContainerInspectionTests(unittest.TestCase):
         for left, right in zip(before, after):
             self.assertEqual(right["achievement"]["flags"], left["achievement"]["flags"] | 0x0004)
 
+    def test_profile_achievement_images_apply_across_embedded_gpd_files(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        links = [item for item in list_embedded_achievement_image_links(original) if item["status"] == "linked"]
+        self.assertTrue(links)
+        link = next(
+            item for item in links
+            if sum(other["image_id"] == item["image_id"] for other in links) == 1
+        )
+        header = parse_stfs_header(original)
+        file_entry = next(item for item in list_stfs_entries(original, header) if item.path == link["file"])
+        payload = read_stfs_entry(original, file_entry, header)
+        image = xdbf_achievement_image_payload(payload, int(link["achievement_entry_index"]))
+        mutated = mutate_profile_achievement_images(original, {int(link["image_id"]): image}, header)
+        self.assertEqual(verify_stfs_hashes(mutated)["failures"], [])
+
     def test_profile_xdbf_text_replaces_exact_embedded_matches(self):
         path = supplied_fixture()
         if path is None or not path.exists():
@@ -1965,6 +1985,7 @@ class ContainerInspectionTests(unittest.TestCase):
         )
         self.assertIn("--profile-asset ENTRY SOURCE", result.stdout)
         self.assertIn("--achievement-image INDEX", result.stdout)
+        self.assertIn("--profile-achievement-image IMAGE_ID SOURCE", result.stdout)
 
     def test_reports_observed_device_exploration_surface(self):
         surface = device_surface_report()
