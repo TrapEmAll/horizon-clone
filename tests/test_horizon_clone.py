@@ -2605,13 +2605,16 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         mutated = bytearray(original)
-        mutated[0x411] ^= 0x01
+        mutated[0x300] ^= 0x01
         report = stfs_signature_mutation_report(original, bytes(mutated))
         self.assertEqual(report["status"], "metadata-only")
         self.assertTrue(report["same_length"])
         self.assertGreater(report["changed_outside_signature_regions"], 0)
         self.assertTrue(report["stored_signature_bytes_unchanged"])
         self.assertFalse(report["console_validity_checked"])
+        self.assertTrue(report["package_signature_checked"])
+        self.assertTrue(report["original_package_signature"]["verified"])
+        self.assertFalse(report["mutated_package_signature_verified"])
         self.assertTrue(report["hash_tree"]["verified"])
         self.assertEqual(report["hash_tree"]["failures"], [])
 
