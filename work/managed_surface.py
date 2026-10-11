@@ -917,6 +917,7 @@ def managed_io_contract_report_from_bundle(
     family_counts: dict[str, dict[str, int]] = {}
     role_counts: dict[str, int] = {}
     readiness_counts: dict[str, int] = {}
+    title_readiness_counts: dict[str, int] = {}
     for type_name in sorted(selected_names):
         parts = type_name.split(".")
         if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
@@ -935,6 +936,7 @@ def managed_io_contract_report_from_bundle(
             readiness = str(contract["implementation_readiness"])
             readiness_counts_for_family = family_counts[family].setdefault("implementation_readiness", {})
             readiness_counts_for_family[readiness] = readiness_counts_for_family.get(readiness, 0) + 1
+            title_readiness_counts[readiness] = title_readiness_counts.get(readiness, 0) + 1
     for family_data in family_counts.values():
         readiness = family_data.get("implementation_readiness", {})
         if readiness.get("observed-body", 0):
@@ -943,6 +945,12 @@ def managed_io_contract_report_from_bundle(
             family_data["serializer_status"] = "throw-only-stub-only"
         else:
             family_data["serializer_status"] = "body-unavailable"
+    if title_readiness_counts.get("observed-body", 0):
+        title_serializer_status = "observed-body-present"
+    elif title_readiness_counts.get("throw-only-stub", 0):
+        title_serializer_status = "throw-only-stub-only"
+    else:
+        title_serializer_status = "body-unavailable"
     return {
         "status": "observed-only",
         "authority": "shipped-artifact",
@@ -963,6 +971,10 @@ def managed_io_contract_report_from_bundle(
         "implementation_readiness_counts": {
             status: readiness_counts[status] for status in sorted(readiness_counts)
         },
+        "title_implementation_readiness_counts": {
+            status: title_readiness_counts[status] for status in sorted(title_readiness_counts)
+        },
+        "title_serializer_status": title_serializer_status,
         "methods": contracts,
         "limitations": [
             "CIL anchors and tokens are artifact-local evidence, not a serializer implementation.",
