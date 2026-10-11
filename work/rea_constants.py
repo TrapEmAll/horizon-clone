@@ -19,10 +19,13 @@ class ObservedConstantCatalog:
     namespace: str
     name: str
     values: tuple[tuple[str, int], ...]
+    occurrence: int = 1
+    duplicate_count: int = 1
 
     @property
     def key(self) -> str:
-        return f"{self.namespace}:{self.name}" if self.namespace else self.name
+        base = f"{self.namespace}:{self.name}" if self.namespace else self.name
+        return base if self.duplicate_count == 1 else f"{base}#{self.occurrence}"
 
 
 @lru_cache(maxsize=1)
@@ -35,7 +38,7 @@ def observed_constant_catalogs() -> tuple[ObservedConstantCatalog, ...]:
     if not isinstance(rows, list):
         raise RuntimeError("REA Constant projection must contain an array")
 
-    catalogs: list[ObservedConstantCatalog] = []
+    rows_for_catalogs: list[tuple[str, str, tuple[tuple[str, int], ...]]] = []
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("name"), str):
             continue
@@ -50,7 +53,16 @@ def observed_constant_catalogs() -> tuple[ObservedConstantCatalog, ...]:
             name, value = field.get("name"), field.get("value")
             if isinstance(name, str) and isinstance(value, int) and not isinstance(value, bool):
                 values.append((name, value))
-        catalogs.append(ObservedConstantCatalog(namespace, row["name"], tuple(values)))
+        rows_for_catalogs.append((namespace, row["name"], tuple(values)))
+    counts: dict[tuple[str, str], int] = {}
+    for namespace, name, _ in rows_for_catalogs:
+        counts[(namespace, name)] = counts.get((namespace, name), 0) + 1
+    occurrences: dict[tuple[str, str], int] = {}
+    catalogs: list[ObservedConstantCatalog] = []
+    for namespace, name, values in rows_for_catalogs:
+        identity = (namespace, name)
+        occurrences[identity] = occurrences.get(identity, 0) + 1
+        catalogs.append(ObservedConstantCatalog(namespace, name, values, occurrences[identity], counts[identity]))
     return tuple(catalogs)
 
 
@@ -79,6 +91,8 @@ def rea_constant_catalog_report() -> dict[str, object]:
                 "key": item.key,
                 "namespace": item.namespace,
                 "name": item.name,
+                "occurrence": item.occurrence,
+                "duplicate_count": item.duplicate_count,
                 "members": [name for name, _ in item.values],
                 "values": dict(item.values),
             }
