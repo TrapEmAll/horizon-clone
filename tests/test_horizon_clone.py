@@ -104,7 +104,7 @@ from work.halo_catalog import halo_general_class_field_counts, halo_general_clas
 from work.resource_inventory import classify_resource_payload, extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from work.observed_members import observed_fields, observed_profile_data_fields, observed_profile_data_methods
 from work.editor_inventory import capability_report, catalog_report, inventory_summary, observed_editor_inventory, rea_feature_ledger
-from work.anti_analysis import anti_analysis_report
+from work.anti_analysis import anti_analysis_report, native_anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
 from work.native_surface import managed_native_import_report, native_export_contract_report, native_import_table_report, native_installation_report, native_surface_report, observed_native_imports, observed_native_callers
@@ -2372,6 +2372,23 @@ class ContainerInspectionTests(unittest.TestCase):
         cli_report = json.loads(result.stdout)
         self.assertEqual(cli_report["import_count"], len(imports))
         self.assertEqual(cli_report["module_count"], len(report["modules"]))
+
+    def test_native_anti_analysis_report_records_class3_debugger_import_without_bypassing(self):
+        path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\class3.dll")
+        if not path.exists():
+            self.skipTest("supplied class3.dll is not available")
+        report = native_anti_analysis_report(path)
+        self.assertEqual(report["status"], "observed-only")
+        self.assertIn("IsDebuggerPresent", report["debugger_api_imports"])
+        self.assertIn("GetCurrentProcessId", report["process_probe_imports"])
+        self.assertEqual(report["analysis_workaround"]["protection_patching"], "not-performed")
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", str(path), "--anti-analysis-native"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertIn("IsDebuggerPresent", json.loads(result.stdout)["debugger_api_imports"])
 
     def test_native_loader_reports_observed_horizon_runtime_exports(self):
         path = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
