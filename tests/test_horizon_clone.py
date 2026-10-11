@@ -50,6 +50,7 @@ from work.horizon_clone import (
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
     verify_stfs_remote_signature,
+    sign_stfs_remote_package_with_provider,
     sign_stfs_console_package,
     sign_stfs_console_package_with_provider,
     stfs_content_type_name,
@@ -2607,6 +2608,20 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         with self.assertRaises(ValueError):
             verify_stfs_remote_signature(path.read_bytes(), 257, 3)
+
+    def test_rejects_remote_signing_for_console_packages(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+
+        class Provider:
+            def sign_sha1(self, message):
+                return b"signature"
+
+        with self.assertRaises(ValueError):
+            sign_stfs_remote_package_with_provider(
+                path.read_bytes(), Provider(), RsaPublicKey(1 << 2047, 65537)
+            )
 
     def test_package_signing_requires_matching_explicit_private_key(self):
         path = supplied_fixture()
