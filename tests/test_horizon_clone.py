@@ -388,6 +388,7 @@ class ContainerInspectionTests(unittest.TestCase):
         provider = FakeProvider()
         report = device_ioctl_report("\\\\.\\PhysicalDrive-test", 0x70000, b"\x01\x02", 16, provider=provider)
         self.assertEqual(report["output_hex"], "1020")
+        self.assertEqual(report["status"], "provider-bound-read-only-handle")
         self.assertEqual(provider.calls, [
             ("open", "\\\\.\\PhysicalDrive-test"),
             ("ioctl", 41, 0x70000, b"\x01\x02", 16),
