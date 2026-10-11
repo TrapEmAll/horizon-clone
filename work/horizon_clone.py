@@ -2861,6 +2861,7 @@ def main() -> int:
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
     parser.add_argument("--verify-stfs-remote-signature", action="store_true", help="Verify a LIVE/PIRS package signature over its header hash with a caller-supplied public key")
     parser.add_argument("--sign-stfs-package", type=Path, metavar="OUTPUT", help="Sign the observed CON package region with an explicit matching RSA private key")
+    parser.add_argument("--sign-stfs-remote-package", type=Path, metavar="OUTPUT", help="Sign a LIVE/PIRS header hash with an explicit development key/provider")
     parser.add_argument("--fatx-path", action="store_true", help="Print the canonical FATX-facing Content path")
     parser.add_argument("--fatx-filename", help="Caller filename for non-profile FATX path reporting")
     parser.add_argument("--signature-compare", type=Path, metavar="OTHER", help="Compare STFS signature bytes and changed regions with another image")
@@ -3777,6 +3778,45 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps({
             "output": str(args.sign_stfs_package),
+            "bytes": len(signed),
+            "signature_verified": verification["verified"],
+            "algorithm": verification["algorithm"],
+            "console_authority_established": False,
+        }, indent=2))
+        return 0 if verification["verified"] else 1
+
+    if args.sign_stfs_remote_package:
+        if args.path.resolve() == args.sign_stfs_remote_package.resolve():
+            parser.error("--sign-stfs-remote-package must be different from the input path")
+        if args.signature_algorithm not in {"RSA-SHA1-PKCS1v1.5", "RSA-SHA1-XeCrypt-PKCS1v1.5"}:
+            parser.error("--sign-stfs-remote-package requires an RSA-SHA1 signature algorithm")
+        if not args.public_key_json and args.public_key_modulus is None:
+            parser.error("--sign-stfs-remote-package requires --public-key-modulus or --public-key-json")
+        if not args.private_key_json and not args.package_signing_helper:
+            parser.error("--sign-stfs-remote-package requires --private-key-json or --package-signing-helper")
+        if args.private_key_json and args.package_signing_helper:
+            parser.error("choose one of --private-key-json or --package-signing-helper")
+        try:
+            if args.public_key_json:
+                modulus, exponent = read_public_key_json(args.public_key_json)
+            else:
+                modulus, exponent = args.public_key_modulus, args.public_key_exponent
+            public_key = RsaPublicKey(modulus, exponent)
+            if args.package_signing_helper:
+                from .signing import CommandSha1SigningProvider
+
+                provider = CommandSha1SigningProvider(args.package_signing_helper)
+            else:
+                from .signing import LocalRsaSha1Signer
+
+                provider = LocalRsaSha1Signer(read_private_key_json(args.private_key_json))
+            signed = sign_stfs_remote_package_with_provider(raw, provider, public_key, args.signature_algorithm)
+            _atomic_replace_bytes(args.sign_stfs_remote_package, signed)
+            verification = verify_stfs_remote_signature(signed, modulus, exponent, args.signature_algorithm)
+        except (OSError, TypeError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps({
+            "output": str(args.sign_stfs_remote_package),
             "bytes": len(signed),
             "signature_verified": verification["verified"],
             "algorithm": verification["algorithm"],
