@@ -27,7 +27,7 @@ from .lzo_codec import LzoCodec
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
-from .signing import RsaPublicKey, verify_xecrypt_sha1_pkcs1v15
+from .signing import RsaPublicKey, verify_sha1_pkcs1v15, verify_xecrypt_sha1_pkcs1v15
 from .native_loader import compatible_pe_architecture, pe_export_names
 from .anti_analysis import anti_analysis_report
 
@@ -1180,6 +1180,58 @@ def verify_stfs_console_signature(data: bytes) -> dict[str, object]:
         "limitations": [
             "This verifies the observed package-signature encoding and range only.",
             "A valid package signature does not establish every console policy or key authority.",
+        ],
+    }
+
+
+def verify_stfs_remote_signature(
+    data: bytes,
+    modulus: int,
+    exponent: int = 65537,
+    algorithm: str = "RSA-SHA1-XeCrypt-PKCS1v1.5",
+) -> dict[str, object]:
+    """Verify a LIVE/PIRS package signature with a caller-supplied public key.
+
+    Public references identify the signed value as the 20-byte header hash at
+    ``0x32C`` and the signature slot as ``0x04..0x104``.  The key is supplied
+    by the caller because retail Microsoft/devkit trust roots are not embedded
+    in this clean-room implementation.
+    """
+
+    if not isinstance(data, bytes):
+        raise TypeError("STFS package data must be bytes")
+    if not isinstance(modulus, int) or isinstance(modulus, bool) or modulus <= 0:
+        raise ValueError("public-key modulus must be a positive integer")
+    if not isinstance(exponent, int) or isinstance(exponent, bool) or exponent <= 1:
+        raise ValueError("public-key exponent must be greater than one")
+    metadata = parse_stfs_security_metadata(data)
+    if metadata.signature_kind != "remote-package-signature":
+        raise ValueError("LIVE/PIRS signature verification requires a LIVE or PIRS container")
+    signature_length = metadata.package_signature_length
+    signature_offset = metadata.package_signature_offset
+    signature = data[signature_offset:signature_offset + signature_length]
+    signed_value = data[0x32C:0x340]
+    if len(signature) != signature_length or len(signed_value) != 0x14:
+        raise ValueError("LIVE/PIRS signature region is truncated")
+    key = RsaPublicKey(modulus, exponent)
+    if algorithm == "RSA-SHA1-PKCS1v1.5":
+        verified = verify_sha1_pkcs1v15(signed_value, signature, key)
+    elif algorithm == "RSA-SHA1-XeCrypt-PKCS1v1.5":
+        verified = verify_xecrypt_sha1_pkcs1v15(signed_value, signature, key)
+    else:
+        raise ValueError(f"unsupported remote STFS signature algorithm: {algorithm}")
+    return {
+        "status": "caller-key-verification",
+        "verified": verified,
+        "algorithm": algorithm,
+        "signature_offset": signature_offset,
+        "signature_length": signature_length,
+        "signed_start": 0x32C,
+        "signed_end": 0x340,
+        "public_key": {"modulus_bits": modulus.bit_length(), "exponent": exponent},
+        "limitations": [
+            "The public key was supplied by the caller; no Microsoft/devkit trust root is embedded or inferred.",
+            "A cryptographically valid signature does not establish Xbox licensing or retail-console authority.",
         ],
     }
 
@@ -2696,6 +2748,7 @@ def main() -> int:
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
+    parser.add_argument("--verify-stfs-remote-signature", action="store_true", help="Verify a LIVE/PIRS package signature over its header hash with a caller-supplied public key")
     parser.add_argument("--sign-stfs-package", type=Path, metavar="OUTPUT", help="Sign the observed CON package region with an explicit matching RSA private key")
     parser.add_argument("--fatx-path", action="store_true", help="Print the canonical FATX-facing Content path")
     parser.add_argument("--fatx-filename", help="Caller filename for non-profile FATX path reporting")
@@ -3557,6 +3610,28 @@ def main() -> int:
         try:
             signature_report = verify_stfs_console_signature(raw)
         except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(signature_report, indent=2))
+        return 0 if signature_report["verified"] else 1
+
+    if args.verify_stfs_remote_signature:
+        if args.public_key_json:
+            try:
+                remote_modulus, remote_exponent = read_public_key_json(args.public_key_json)
+            except (OSError, ValueError) as exc:
+                parser.error(str(exc))
+        elif args.public_key_modulus is not None:
+            remote_modulus, remote_exponent = args.public_key_modulus, args.public_key_exponent
+        else:
+            parser.error("--verify-stfs-remote-signature requires --public-key-modulus or --public-key-json")
+        try:
+            signature_report = verify_stfs_remote_signature(
+                raw,
+                remote_modulus,
+                remote_exponent,
+                args.signature_algorithm,
+            )
+        except (OSError, ValueError, TypeError) as exc:
             parser.error(str(exc))
         print(json.dumps(signature_report, indent=2))
         return 0 if signature_report["verified"] else 1
