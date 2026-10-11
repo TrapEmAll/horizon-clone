@@ -41,6 +41,7 @@ from .horizon_clone import (
     read_public_key_json,
     verify_stfs_console_signature,
     verify_stfs_remote_signature,
+    sign_stfs_remote_package_with_provider,
     editor_edit_values,
     editor_inspect_report,
     extract_managed_resource_payloads,
@@ -59,6 +60,7 @@ from .horizon_clone import (
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
 from .device_inventory import enumerate_host_device_entries
+from .signing import RsaPublicKey
 
 
 def _atomic_write_bytes(path: Path, data: bytes) -> None:
@@ -117,6 +119,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Sign written CON via key vault", command=self.sign_written_package_with_key_vault).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify CON signature", command=self.verify_con_signature).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify LIVE/PIRS signature", command=self.verify_remote_signature).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Sign LIVE/PIRS via key vault", command=self.sign_remote_package_with_key_vault).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected in place", command=self.replace_selected_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
@@ -383,6 +386,60 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("LIVE/PIRS signature verification failed", str(exc))
+
+    def sign_remote_package_with_key_vault(self) -> None:
+        """Sign a LIVE/PIRS package with an explicit development key vault."""
+
+        if self._data is None or self._data[:4] not in {b"LIVE", b"PIRS"}:
+            messagebox.showinfo("LIVE/PIRS signing", "Open a LIVE or PIRS container first.")
+            return
+        helper = filedialog.askopenfilename(title="Choose key-vault signing helper")
+        if not helper:
+            return
+        key_path = filedialog.askopenfilename(
+            title="Choose LIVE/PIRS public-key JSON",
+            filetypes=(("Public-key JSON", "*.json"), ("All files", "*.*")),
+        )
+        if not key_path:
+            return
+        algorithm = simpledialog.askstring(
+            "Signature algorithm",
+            "RSA-SHA1-PKCS1v1.5 or RSA-SHA1-XeCrypt-PKCS1v1.5:",
+            initialvalue="RSA-SHA1-XeCrypt-PKCS1v1.5",
+            parent=self,
+        )
+        if not algorithm:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save signed LIVE/PIRS package",
+            filetypes=(("Xbox content", "*.live *.pirs"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            from .signing import CommandSha1SigningProvider
+
+            modulus, exponent = read_public_key_json(Path(key_path))
+            signed = sign_stfs_remote_package_with_provider(
+                self._data,
+                CommandSha1SigningProvider(Path(helper)),
+                RsaPublicKey(modulus, exponent),
+                algorithm,
+            )
+            _atomic_write_bytes(Path(target), signed)
+            verification = verify_stfs_remote_signature(signed, modulus, exponent, algorithm)
+            result = {
+                "output": target,
+                "bytes": len(signed),
+                "signature_verified": verification["verified"],
+                "algorithm": verification["algorithm"],
+                "console_authority_established": False,
+                "provider": "external-key-vault",
+            }
+            self.status.configure(text="Wrote signed LIVE/PIRS package")
+            self._set_details(result)
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("LIVE/PIRS signing failed", str(exc))
 
     def sign_con_package_with_key_vault(self) -> None:
         """Sign a CON package through a caller-owned external key vault."""
