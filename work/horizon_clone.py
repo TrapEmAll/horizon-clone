@@ -28,7 +28,7 @@ from .resource_inventory import extract_managed_resource_payloads, observed_reso
 from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_property_contract_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
 from .signing import RsaPublicKey, verify_sha1_pkcs1v15, verify_xecrypt_sha1_pkcs1v15
-from .native_loader import compatible_pe_architecture, pe_export_names
+from .native_loader import compatible_pe_architecture, pe_export_names, pe_export_table
 from .anti_analysis import anti_analysis_report
 
 
@@ -3217,9 +3217,10 @@ def main() -> int:
     if args.native_exports:
         try:
             exports = pe_export_names(args.path)
+            export_table = pe_export_table(args.path)
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
-        print(json.dumps({"path": str(args.path), "exports": list(exports), "export_count": len(exports)}, indent=2))
+        print(json.dumps({"path": str(args.path), "exports": list(exports), "export_count": len(exports), "export_table": list(export_table)}, indent=2))
         return 0
     if args.native_contract:
         try:
