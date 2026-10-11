@@ -29,7 +29,7 @@ from .managed_surface import managed_artifact_report, managed_body_fidelity_repo
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
 from .signing import RsaPublicKey, verify_sha1_pkcs1v15, verify_xecrypt_sha1_pkcs1v15
 from .native_loader import compatible_pe_architecture, pe_export_names, pe_export_table
-from .anti_analysis import anti_analysis_report
+from .anti_analysis import anti_analysis_report, native_anti_analysis_report
 
 
 def _atomic_replace_bytes(path: Path, data: bytes) -> None:
@@ -3024,6 +3024,7 @@ def main() -> int:
     parser.add_argument("--private-key-json", type=Path, help="Caller-supplied development RSA private key JSON for --sign-detached-signature")
     parser.add_argument("--package-signing-helper", type=Path, help="Absolute external RSA-SHA1 key-vault helper for CON package signing")
     parser.add_argument("--anti-analysis", type=Path, metavar="BUNDLE", help="Report REA-observed anti-analysis markers from an evidence bundle")
+    parser.add_argument("--anti-analysis-native", action="store_true", help="Report native anti-analysis-related imports without loading the image")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
     parser.add_argument("--list-xdbf", action="store_true", help="List parsed XDBF entries from embedded GPD files")
@@ -3485,6 +3486,12 @@ def main() -> int:
         try:
             print(json.dumps(anti_analysis_report(args.anti_analysis), indent=2, ensure_ascii=False))
         except ValueError as exc:
+            parser.error(str(exc))
+        return 0
+    if args.anti_analysis_native:
+        try:
+            print(json.dumps(native_anti_analysis_report(args.path), indent=2, ensure_ascii=False))
+        except (OSError, ValueError) as exc:
             parser.error(str(exc))
         return 0
     if args.signature_compare:
