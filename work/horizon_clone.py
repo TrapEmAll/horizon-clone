@@ -697,6 +697,7 @@ class StfsEntry:
     path_indicator: int
     size: int
     path: str
+    raw_flags: int
 
 
 @dataclass(frozen=True)
@@ -1834,6 +1835,7 @@ def list_stfs_entries(data: bytes, header: StfsHeader | None = None) -> tuple[St
                     path_indicator=-1 if path_indicator == 0xFFFF else path_indicator,
                     size=_u32be(raw, 0x34),
                     path="",
+                    raw_flags=raw[0x28],
                 )
             )
         block = _next_block(data, block, header)
