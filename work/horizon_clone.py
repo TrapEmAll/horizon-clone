@@ -100,6 +100,12 @@ def historical_account_report(container_path: Path, key: bytes) -> dict[str, obj
             "xuid_online": record.xuid_online,
             "cached_user_flags": record.cached_user_flags,
             "online_service_network_id": record.online_service_network_id,
+            "recovering": record.recovering,
+            "xbox_live_enabled": record.xbox_live_enabled,
+            "password_protected": record.password_protected,
+            "membership_type": record.membership_type,
+            "online_country_code": record.online_country_code,
+            "online_language_code": record.online_language_code,
             "passcode_hex": record.passcode.hex(),
             "online_domain": record.online_domain,
             "online_kerberos_realm": record.online_kerberos_realm,
@@ -126,8 +132,12 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
         raise ValueError("STFS Account entry was not found")
     encrypted = read_stfs_entry(container, entry, header)
     record = AccountRecord.from_bytes(unobfuscate_account(encrypted, key))
-    allowed = set(record.__dataclass_fields__)
-    values = {name: getattr(record, name) for name in allowed}
+    dataclass_fields = set(record.__dataclass_fields__)
+    allowed = dataclass_fields | {
+        "recovering", "xbox_live_enabled", "password_protected",
+        "membership_type", "online_country_code", "online_language_code",
+    }
+    values = {name: getattr(record, name) for name in dataclass_fields}
     for name, value in updates.items():
         if name == "passcode_hex":
             name, value = "passcode", bytes.fromhex(str(value))
@@ -135,7 +145,12 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
             name, value = "online_key", bytes.fromhex(str(value))
         if name not in allowed:
             raise ValueError(f"unsupported Account field: {name}")
-        values[name] = value
+        if name not in record.__dataclass_fields__:
+            setattr(record, name, value)
+        else:
+            values[name] = value
+    values["reserved"] = record.reserved
+    values["cached_user_flags"] = record.cached_user_flags
     edited = AccountRecord(**values).to_bytes()
     replacement = obfuscate_account(edited, key)
     if len(replacement) != entry.size:
