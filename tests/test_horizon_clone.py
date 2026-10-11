@@ -2407,6 +2407,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn(report["status"], {"partial", "verified"})
         by_name = {item["name"]: item for item in report["images"]}
         self.assertEqual(by_name["Horizon.dll"]["status"], "verified")
+        self.assertGreater(by_name["Horizon.dll"]["import_count"], 0)
+        self.assertIn("KERNEL32.dll", by_name["Horizon.dll"]["imported_modules"])
+        self.assertIn("IsDebuggerPresent", by_name["class3.dll"]["debugger_api_imports"])
         if not by_name["HVMRun64.dll"]["present"]:
             self.assertEqual(by_name["HVMRun64.dll"]["status"], "missing")
 
