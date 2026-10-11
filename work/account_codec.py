@@ -98,11 +98,12 @@ class AccountCodec:
     ) -> bytes:
         """Encrypt using a caller-owned provider selected for this plaintext."""
 
+        _validate_capacity(output_capacity)
+        if output_length is not None:
+            _validate_output_length(output_length, output_capacity)
         _status, output = self.encrypt_with_key_provider_raw(plaintext, provider, output_capacity)
         if output_length is None:
             raise ValueError("encrypted output length is unresolved; use encrypt_raw and slice with the caller-known length")
-        if not isinstance(output_length, int) or isinstance(output_length, bool) or not 0 <= output_length <= output_capacity:
-            raise ValueError("output_length must fit the supplied output capacity")
         return output[:output_length]
 
     def encrypt_with_key_provider_raw(
@@ -139,11 +140,12 @@ class AccountCodec:
         must therefore pass the serialized output length explicitly.
         """
 
+        _validate_capacity(output_capacity)
+        if output_length is not None:
+            _validate_output_length(output_length, output_capacity)
         _status, output = self.encrypt_raw(plaintext, key, output_capacity)
         if output_length is None:
             raise ValueError("encrypted output length is unresolved; use encrypt_raw and slice with the caller-known length")
-        if not isinstance(output_length, int) or isinstance(output_length, bool) or not 0 <= output_length <= output_capacity:
-            raise ValueError("output_length must fit the supplied output capacity")
         return output[:output_length]
 
     def encrypt_raw(self, plaintext: bytes, key: bytes, output_capacity: int) -> tuple[int, bytes]:
@@ -173,6 +175,11 @@ def _provider_key(provider: AccountKeyProvider, operation: str, payload: bytes) 
 
 
 def _validate_capacity(value: int) -> None:
-    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        raise ValueError("output_capacity must be a non-negative integer")
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 0xFFFFFFFF:
+        raise ValueError("output_capacity must be an unsigned 32-bit integer")
+
+
+def _validate_output_length(value: int, capacity: int) -> None:
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= capacity:
+        raise ValueError("output_length must fit the supplied output capacity")
 
