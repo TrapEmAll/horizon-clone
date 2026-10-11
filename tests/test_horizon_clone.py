@@ -340,6 +340,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "edit_historical_account"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_image"))
+        self.assertTrue(hasattr(HorizonApp, "replace_achievement_image"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_links"))
         self.assertTrue(hasattr(HorizonApp, "extract_achievement_images"))
         self.assertTrue(hasattr(HorizonApp, "show_selected"))
