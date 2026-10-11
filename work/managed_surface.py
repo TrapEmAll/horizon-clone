@@ -843,6 +843,25 @@ def managed_io_contract_report_from_bundle(
     calls = result.get("call_edges") or []
     type_matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
     method_matcher = re.compile(method_pattern, re.IGNORECASE)
+
+    def method_role(name: str) -> str:
+        lowered = name.casefold()
+        if lowered.startswith("get_") or lowered.startswith("set_"):
+            return "property"
+        if lowered.startswith("read"):
+            return "read"
+        if lowered.startswith("write"):
+            return "write"
+        if lowered.startswith("load"):
+            return "load"
+        if lowered.startswith("save"):
+            return "save"
+        if lowered.startswith("compress"):
+            return "compress"
+        if lowered.startswith("decompress"):
+            return "decompress"
+        return "other"
+
     selected_names = {
         str(item.get("full_name") or "")
         for item in types
@@ -861,6 +880,7 @@ def managed_io_contract_report_from_bundle(
         contracts.append({
             "declaring_type": item.get("declaring_type"),
             "name": item.get("name"),
+            "role": method_role(str(item.get("name") or "")),
             "token": item.get("token"),
             "signature": item.get("signature"),
             "body": {
@@ -885,12 +905,15 @@ def managed_io_contract_report_from_bundle(
             ],
         })
     family_counts: dict[str, dict[str, int]] = {}
+    role_counts: dict[str, int] = {}
     for type_name in sorted(selected_names):
         parts = type_name.split(".")
         if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
             family = ".".join(parts[:3])
             family_counts.setdefault(family, {"types": 0, "methods": 0})["types"] += 1
     for contract in contracts:
+        role = str(contract["role"])
+        role_counts[role] = role_counts.get(role, 0) + 1
         type_name = str(contract.get("declaring_type") or "")
         parts = type_name.split(".")
         if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
@@ -912,6 +935,7 @@ def managed_io_contract_report_from_bundle(
             {"family": family, **counts}
             for family, counts in sorted(family_counts.items())
         ],
+        "role_counts": {role: role_counts[role] for role in sorted(role_counts)},
         "methods": contracts,
         "limitations": [
             "CIL anchors and tokens are artifact-local evidence, not a serializer implementation.",
