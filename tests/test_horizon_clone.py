@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 42975)
-Total output lines: 3254
+Warning: truncated output (original token count: 43073)
+Total output lines: 3262
 
 import hashlib
 import json
@@ -1150,14 +1150,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertNotIn("cache/ph.dat", paths)
         self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
 
-    d…12975 tokens truncated…mbers)
-        self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxMU_24"), members)
-        self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxUSB_24"), members)
-
-    def test_device_binding_requires_provider_and_validates_observed_i8_property(self):
-        binding = DeviceBinding()
-        self.assertEqual(binding.status, "unavailable")
-        with self.assertRaises(DeviceProviderUnavailable):
+    d…13073 tokens truncated…es(DeviceProviderUnavailable):
             binding.get_device_size()
 
         class Provider:
@@ -1385,6 +1378,14 @@ class ContainerInspectionTests(unittest.TestCase):
             bound.encrypt(b"in", output, 0x1_0000_0000, b"key")
         with self.assertRaises(ValueError):
             bound.encrypt(b"in", output, 3, b"key")
+
+        class InvalidDecryptProvider(Provider):
+            def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
+                output_length.value = len(output_buffer) + 1
+                return 0
+
+        with self.assertRaises(ValueError):
+            NativeSaveBinding(InvalidDecryptProvider()).decrypt(b"in", UInt32Ref(8), bytearray(8), 2, b"key")
 
     def test_ctypes_native_save_provider_requires_explicit_absolute_dll_path(self):
         with self.assertRaises(ValueError):
