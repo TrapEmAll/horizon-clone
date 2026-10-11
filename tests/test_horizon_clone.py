@@ -49,6 +49,7 @@ from work.horizon_clone import (
     stfs_signature_region_report,
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
+    verify_stfs_remote_signature,
     sign_stfs_console_package,
     sign_stfs_console_package_with_provider,
     stfs_content_type_name,
@@ -2581,6 +2582,13 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual((result["signature_offset"], result["signature_length"]), (0x1AC, 0x80))
         self.assertEqual((result["signed_start"], result["signed_end"]), (0x22C, 0x344))
         self.assertTrue(result["verified"])
+
+    def test_rejects_remote_signature_verification_for_console_packages(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        with self.assertRaises(ValueError):
+            verify_stfs_remote_signature(path.read_bytes(), 257, 3)
 
     def test_package_signing_requires_matching_explicit_private_key(self):
         path = supplied_fixture()
