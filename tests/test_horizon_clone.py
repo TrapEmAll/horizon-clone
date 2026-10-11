@@ -99,7 +99,7 @@ from work.signing import (
 from work.profile_model import ProfileData
 from work.editors import AccountEditor, ConstantCatalogEditor, EditorContext, EditorRegistry, HaloMetadataEditor, LegacyCatalogEditor, ManagedSchemaEditor, ManagedSurfaceEditor, ProfileDataEditor, XdbfEditor, default_registry
 from work.skyrim_catalog import enum_member_names, enum_member_values, observed_skyrim_enum_summary, observed_skyrim_enums, resolve_skyrim_enum_member, validate_skyrim_enum_values
-from work.horizon_catalog import catalog_member_names, observed_catalogs
+from work.horizon_catalog import catalog_member_names, catalog_member_values, observed_catalogs
 from work.gears_catalog import gears_entry_id_summary, gears_entry_id_values, gears_of_war_3_entry_ids, resolve_gears_entry_id, validate_gears_entry_ids
 from work.halo_catalog import halo_general_class_field_counts, halo_general_class_field_types, halo_general_class_method_summary, halo_general_class_property_names, halo_general_class_types, validate_halo_metadata_values
 from work.resource_inventory import classify_resource_payload, extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
@@ -1916,9 +1916,13 @@ class ContainerInspectionTests(unittest.TestCase):
         catalogs = observed_catalogs()
         self.assertEqual(
             {item.name for item in catalogs},
-            {"ProfileLoadout", "SaveEntryCategory"},
+            {"ProfileLoadout", "SaveEntryCategory", "SignOption"},
         )
         self.assertEqual(catalog_member_names("ProfileLoadout"), ("All_Loadouts",))
+        self.assertEqual(catalog_member_values("ProfileLoadout")["All_Loadouts"], 455)
+        self.assertEqual(len(catalog_member_names("SignOption")), 25)
+        self.assertEqual(catalog_member_values("SignOption")["Ep1_68th_Annual_Deerfest"], 1)
+        self.assertEqual(catalog_member_values("SignOption")["Ep6_Junk_Pile_Sign"], 25)
         self.assertIn("Campaign_Level", catalog_member_names("SaveEntryCategory"))
         self.assertTrue(any(item.values_observed for item in catalogs))
         self.assertEqual(catalog_report("shared")["values"]["SaveEntryCategory"]["Campaign_Level"], 6)
