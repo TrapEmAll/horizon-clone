@@ -2646,6 +2646,28 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(len(header.additional_display_names), 6)
         self.assertEqual(len(header.additional_display_descriptions), 6)
 
+    def test_mutates_metadata_version_two_series_fields(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        edited = mutate_stfs_metadata(
+            original,
+            series_id="00112233445566778899aabbccddeeff",
+            season_id="ffeeddccbbaa99887766554433221100",
+            season_number=3,
+            episode_number=7,
+            additional_display_names=("Localized title",),
+            additional_display_descriptions=("Localized description",),
+        )
+        header = parse_stfs_header(edited)
+        self.assertEqual(header.series_id, "00112233445566778899aabbccddeeff")
+        self.assertEqual(header.season_id, "ffeeddccbbaa99887766554433221100")
+        self.assertEqual((header.season_number, header.episode_number), (3, 7))
+        self.assertEqual(header.additional_display_names[0], "Localized title")
+        self.assertEqual(header.additional_display_descriptions[0], "Localized description")
+        self.assertEqual(verify_stfs_hashes(edited, header=header)["failures"], [])
+
     def test_json_report_includes_content_type_name(self):
         path = supplied_fixture()
         if path is None or not path.exists():
