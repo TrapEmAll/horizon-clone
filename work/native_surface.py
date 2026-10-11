@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .native_loader import compatible_pe_architecture, pe_export_names, pe_export_table
+from .native_loader import compatible_pe_architecture, pe_export_names, pe_export_table, pe_import_table
 
 
 @dataclass(frozen=True)
@@ -200,6 +200,29 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
         "limitations": [
             "Export presence does not establish native calling semantics or codec/save algorithms.",
             "Unknown filenames have no authenticated contract in the current REA evidence.",
+        ],
+    }
+
+
+def native_import_table_report(path: str | Path) -> dict[str, object]:
+    """Return authenticated PE import metadata without loading the image."""
+
+    source = Path(path)
+    imports = list(pe_import_table(source))
+    modules = sorted({str(item["module"]) for item in imports})
+    return {
+        "status": "observed-only",
+        "path": str(source),
+        "artifact_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "image_architecture": compatible_pe_architecture(source)[0],
+        "import_count": len(imports),
+        "module_count": len(modules),
+        "modules": modules,
+        "imports": imports,
+        "limitations": [
+            "The import table authenticates declared file dependencies only; it does not establish runtime reachability or call order.",
+            "Delay-load imports and dynamically resolved GetProcAddress targets are outside the ordinary import directory.",
+            "No image was loaded or executed by this report.",
         ],
     }
 
