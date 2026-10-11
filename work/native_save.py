@@ -137,6 +137,8 @@ class PowerShellNativeSaveProvider:
         host = Path(powershell_path) if powershell_path else Path(r"C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe")
         if not host.is_file():
             raise FileNotFoundError(host)
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+            raise ValueError("native save helper timeout must be positive")
         self.path = path
         self.powershell_path = host
         self.timeout = timeout
