@@ -338,6 +338,8 @@ class LzoBinding:
         _validate_span(source_length, len(source), "source_length")
         _validate_span(destination_length.value, len(destination), "destination_length")
         result = getattr(self._require(), method)(source, source_length, destination, destination_length, work_memory)
+        _validate_i32(destination_length.value, "destination_length")
+        _validate_span(destination_length.value, len(destination), "provider destination_length")
         return _validate_i32(result, "provider result")
 
     def _require(self) -> LzoProvider:
