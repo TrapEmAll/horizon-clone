@@ -90,8 +90,8 @@ class WindowsDeviceIoProvider:
             raise ValueError("control_code must be an unsigned 32-bit integer")
         if not isinstance(input_data, bytes):
             raise TypeError("input_data must be bytes")
-        if not isinstance(output_capacity, int) or isinstance(output_capacity, bool) or output_capacity < 0:
-            raise ValueError("output_capacity must be a non-negative integer")
+        _validate_u32(len(input_data), "input_data length")
+        _validate_u32(output_capacity, "output_capacity")
         input_buffer = ctypes.create_string_buffer(input_data) if input_data else None
         output_buffer = ctypes.create_string_buffer(output_capacity) if output_capacity else None
         returned = wintypes.DWORD(0)
@@ -126,7 +126,13 @@ class DeviceIoBinding:
         return self._require().open_read_write(device_path)
 
     def device_io_control(self, handle: int, control_code: int, input_data: bytes = b"", output_capacity: int = 0) -> bytes:
-        return self._require().device_io_control(handle, control_code, input_data, output_capacity)
+        _validate_device_io_args(handle, control_code, input_data, output_capacity)
+        result = self._require().device_io_control(handle, control_code, input_data, output_capacity)
+        if not isinstance(result, bytes):
+            raise TypeError("device provider must return bytes")
+        if len(result) > output_capacity:
+            raise ValueError("device provider returned more bytes than output_capacity")
+        return result
 
     def close(self, handle: int) -> None:
         self._require().close(handle)
@@ -200,4 +206,20 @@ def _validate_i64(value: int) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or not -0x8000000000000000 <= value <= 0x7FFFFFFFFFFFFFFF:
         raise ValueError("device size must be a signed 64-bit integer")
     return value
+
+
+def _validate_u32(value: int, name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 0xFFFFFFFF:
+        raise ValueError(f"{name} must be an unsigned 32-bit integer")
+    return value
+
+
+def _validate_device_io_args(handle: int, control_code: int, input_data: bytes, output_capacity: int) -> None:
+    if not isinstance(handle, int) or isinstance(handle, bool) or handle <= 0:
+        raise ValueError("handle must be a positive native handle")
+    _validate_u32(control_code, "control_code")
+    if not isinstance(input_data, bytes):
+        raise TypeError("input_data must be bytes")
+    _validate_u32(len(input_data), "input_data length")
+    _validate_u32(output_capacity, "output_capacity")
 
