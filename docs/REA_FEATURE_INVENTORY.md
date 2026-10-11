@@ -333,3 +333,10 @@ available managed call-edge inventory, establish calls to
 API. Accordingly, the clone treats the guard as an anti-analysis observation,
 not as a recovered editor feature or a behavior to reproduce.
 
+The supplied native `class3.dll` provides stronger, separate evidence: its
+authenticated PE import table includes `KERNEL32.dll!IsDebuggerPresent`,
+`GetCurrentProcessId`, `GetCurrentThreadId`, and exception/runtime probes. The
+CLI exposes this through `--anti-analysis-native` as an import-level report.
+This establishes declared native dependencies only; it does not establish
+call reachability or justify patching/bypassing the protection.
+
