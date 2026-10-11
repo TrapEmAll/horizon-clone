@@ -2340,7 +2340,9 @@ class ContainerInspectionTests(unittest.TestCase):
             text=True,
             check=True,
         )
-        self.assertIn("RtsSaveDecrypt", json.loads(result.stdout)["exports"])
+        cli_exports = json.loads(result.stdout)
+        self.assertIn("RtsSaveDecrypt", cli_exports["exports"])
+        self.assertEqual({row["name"] for row in cli_exports["export_table"]}, set(exports))
         contract = native_export_contract_report(path)
         self.assertEqual(contract["status"], "verified")
         self.assertEqual(contract["artifact_sha256"], "ebe7eda16e07382d2055a6ba9cc436d58010e546a93f881a2e965f123013e0d6")
