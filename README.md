@@ -142,6 +142,9 @@ copied implementation code.
 - The library also provides provider-backed LIVE/PIRS signing for authorized
   development/test keys, signing only the documented header-hash value and
   verifying against the caller-supplied public key before returning bytes.
+- The CLI exposes the same operation through `--sign-stfs-remote-package`,
+  requiring an explicit public key and either `--private-key-json` or
+  `--package-signing-helper`.
 - Provides provider-backed CON signing through `--package-signing-helper` for
   `--sign-stfs-package` and `--sign-written-package`. The helper receives a
   base64-encoded RSA-SHA1 message request and returns a base64 signature; key
