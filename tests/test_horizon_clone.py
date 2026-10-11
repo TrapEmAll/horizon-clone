@@ -49,6 +49,7 @@ from work.horizon_clone import (
     stfs_signature_mutation_report,
     verify_stfs_console_signature,
     sign_stfs_console_package,
+    sign_stfs_console_package_with_provider,
     stfs_content_type_name,
     stfs_magic_filename,
     stfs_fatx_device_path,
@@ -2565,6 +2566,27 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         with self.assertRaises(ValueError):
             sign_stfs_console_package(path.read_bytes(), RsaPrivateKey(1, 1))
+
+    def test_package_signing_accepts_external_sha1_provider(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        stored = original[0x1AC:0x22C]
+
+        class Provider:
+            def __init__(self):
+                self.messages = []
+
+            def sign_sha1(self, message):
+                self.messages.append(message)
+                return stored[::-1]
+
+        provider = Provider()
+        signed = sign_stfs_console_package_with_provider(original, provider)
+        self.assertEqual(signed, original)
+        self.assertEqual(len(provider.messages), 1)
+        self.assertTrue(verify_stfs_console_signature(signed)["verified"])
 
     def test_xecrypt_signer_rejects_short_rsa_modulus(self):
         with self.assertRaises(ValueError):
