@@ -1219,6 +1219,43 @@ def sign_stfs_console_package(data: bytes, private_key) -> bytes:
     return bytes(result)
 
 
+def sign_stfs_console_package_with_provider(data: bytes, provider) -> bytes:
+    """Sign the observed CON package region through an external key provider.
+
+    The provider must expose ``sign_sha1(bytes) -> bytes`` and keep its private
+    key material outside this process or repository.  Its conventional
+    big-endian RSA signature is converted to the XeCrypt reverse-qword storage
+    form used by the package.  The result is verified against the certificate
+    key before it is returned, so a mismatched vault response fails closed.
+    """
+
+    if not isinstance(data, bytes):
+        raise TypeError("STFS package data must be bytes")
+    signer = getattr(provider, "sign_sha1", None)
+    if not callable(signer):
+        raise TypeError("provider must expose sign_sha1(message)")
+    metadata = parse_stfs_security_metadata(data)
+    if metadata.signature_kind != "console-certificate":
+        raise ValueError("CON package signing requires a CON container")
+    key = extract_stfs_public_key(data)
+    signature_offset = metadata.package_signature_offset
+    signature_length = metadata.package_signature_length
+    signed_start = signature_offset + signature_length
+    signed_end = signed_start + 0x118
+    if signed_end > len(data):
+        raise ValueError("CON package signed region exceeds the container")
+    conventional = signer(data[signed_start:signed_end])
+    if not isinstance(conventional, bytes) or len(conventional) != signature_length:
+        raise ValueError("signing provider returned an invalid RSA-SHA1 signature")
+    stored = conventional[::-1]
+    result = bytearray(data)
+    result[signature_offset:signature_offset + signature_length] = stored
+    signed = bytes(result)
+    if not verify_xecrypt_sha1_pkcs1v15(signed[signed_start:signed_end], stored, key):
+        raise ValueError("signing provider returned a signature that does not match the CON certificate")
+    return signed
+
+
 def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str, object]:
     """Compare two STFS images without claiming console-signature validity.
 
