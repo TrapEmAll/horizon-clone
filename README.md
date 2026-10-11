@@ -151,6 +151,9 @@ copied implementation code.
 - The desktop front end exposes the same caller-key LIVE/PIRS verification and
   external key-vault CON signing operations through explicit toolbar actions,
   including signing an already-written post-mutation CON artifact.
+- The desktop front end also exposes the authenticated historical-reference
+  Account inspect/edit workflow with an explicit caller-supplied 16-byte key;
+  it remains labeled separately from the unresolved Horizon-native serializer.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
