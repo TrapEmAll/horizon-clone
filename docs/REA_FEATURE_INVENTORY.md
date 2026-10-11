@@ -267,6 +267,11 @@ The profile workflow now recognizes the supplied `tile_64.png`, `tile_32.png`,
 asset formats remain opaque until REA or runtime evidence establishes their
 layouts.
 
+For authenticated XDBF payloads, linked achievement PNGs can also be replaced
+in place with `--achievement-image INDEX --achievement-image-source FILE`.
+The replacement must remain a PNG and preserve the existing allocation; the
+same operation is available for an embedded file through `--xdbf-file`.
+
 The retained Halo member evidence further counts 1,102 methods, 175 getter
 methods, 168 setter methods, and 140 unique property names across the
 general-class surface. 135 properties have both accessors; five are getter-only
