@@ -108,6 +108,7 @@ from work.editor_inventory import capability_report, catalog_report, inventory_s
 from work.anti_analysis import anti_analysis_report, native_anti_analysis_report
 from work.legacy_catalog import legacy_catalog_report, legacy_field_names, observed_legacy_catalogs
 from work.global_catalog import global_catalog_report, observed_global_types
+from work.rea_constants import constant_catalog_values, observed_constant_catalogs, rea_constant_catalog_report
 from work.native_surface import managed_native_import_report, native_export_contract_report, native_import_table_report, native_installation_report, native_surface_report, observed_native_imports, observed_native_callers
 from work.device_surface import device_surface_report, observed_device_members
 from work.device_binding import DeviceBinding, DeviceIoBinding, DeviceProviderUnavailable, WindowsDeviceIoProvider
@@ -1926,6 +1927,15 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("Campaign_Level", catalog_member_names("SaveEntryCategory"))
         self.assertTrue(any(item.values_observed for item in catalogs))
         self.assertEqual(catalog_report("shared")["values"]["SaveEntryCategory"]["Campaign_Level"], 6)
+
+    def test_exposes_full_rea_constant_projection(self):
+        catalogs = observed_constant_catalogs()
+        self.assertEqual(len(catalogs), 233)
+        self.assertEqual(constant_catalog_values("StateofDecay:StateofDecayGameMode")["Default"], 0)
+        self.assertEqual(constant_catalog_values("NinjaGaiden:NinjaGaiden3SkillRyu")["FlyingSwallow"], 23)
+        report = rea_constant_catalog_report()
+        self.assertEqual(report["status"], "metadata-only")
+        self.assertEqual(report["counts"]["catalogs"], 233)
 
     def test_exposes_observed_profile_data_field_contract(self):
         fields = observed_profile_data_fields()
