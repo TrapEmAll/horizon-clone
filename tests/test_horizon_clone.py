@@ -335,6 +335,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "replace_selected_in_place"))
         self.assertTrue(hasattr(HorizonApp, "repack_selected_in_place"))
         self.assertTrue(hasattr(HorizonApp, "remove_file_in_place"))
+        self.assertTrue(hasattr(HorizonApp, "remove_tree_in_place"))
         self.assertTrue(hasattr(HorizonApp, "rename_file_in_place"))
         self.assertTrue(hasattr(HorizonApp, "move_entry_in_place"))
         self.assertTrue(hasattr(HorizonApp, "decrypt_account"))
