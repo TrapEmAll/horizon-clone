@@ -321,6 +321,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "verify_remote_signature"))
         self.assertTrue(hasattr(HorizonApp, "sign_remote_package_with_key_vault"))
         self.assertTrue(hasattr(HorizonApp, "show_anti_analysis"))
+        self.assertTrue(hasattr(HorizonApp, "show_native_anti_analysis"))
         self.assertTrue(hasattr(HorizonApp, "show_profile_assets"))
         self.assertTrue(hasattr(HorizonApp, "replace_profile_tile"))
         self.assertTrue(hasattr(HorizonApp, "show_managed_feature_surface"))
