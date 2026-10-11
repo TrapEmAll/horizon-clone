@@ -116,7 +116,7 @@ from work.native_compression import CtypesLzoProvider, Int32Ref, LzoBinding, Lzo
 from work.native_loader import compatible_pe_architecture, pe_export_names
 from work.lzo_codec import LzoCodec
 from work.horizon_app import HorizonApp, _atomic_write_bytes, _atomic_write_text
-from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
+from work.managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 
 
 def supplied_fixture():
@@ -525,6 +525,35 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["namespaces"][0]["namespace"], "StateofDecay")
         self.assertEqual(report["namespaces"][0]["field_count"], 1)
         self.assertEqual(report["namespaces"][0]["method_count"], 1)
+
+    def test_classifies_observed_managed_feature_surface_without_claiming_behavior(self):
+        bundle = self.fixture_dir / "feature-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_feature",
+                "normalized_result": {
+                    "types": [
+                        {"full_name": "Horizon.ProfileData"},
+                        {"full_name": "Horizon.PackageEditors.Halo.AchievementEditor"},
+                    ],
+                    "methods": [
+                        {"declaring_type": "Horizon.ProfileData", "name": "get_Gamertag"},
+                        {"declaring_type": "Horizon.PackageEditors.Halo.AchievementEditor", "name": "Save"},
+                    ],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_feature_surface_report(bundle)
+        finally:
+            bundle.unlink(missing_ok=True)
+        features = {item["feature"]: item for item in report["features"]}
+        self.assertEqual(report["counts"]["selected_types"], 2)
+        self.assertIn("profile-and-social", features)
+        self.assertIn("achievement-and-score", features)
+        self.assertIn("save-and-serialization", features)
+        self.assertIn("literal-name classifications", report["limitations"][0])
 
     def test_reports_throw_observed_managed_methods(self):
         bundle = self.fixture_dir / "guarded-bundle.json"
@@ -1769,6 +1798,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
         self.assertEqual(by_name["Console and remote package signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
+        self.assertEqual(by_name["Managed feature-surface inventory"]["status"], "observed-only")
+        self.assertIn("--managed-feature-surface", by_name["Managed feature-surface inventory"]["entry_points"])
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("CtypesNativeSaveProvider", by_name["Native save/runtime boundaries"]["entry_points"])
         self.assertIn("LzoBinding", by_name["Native save/runtime boundaries"]["entry_points"])
