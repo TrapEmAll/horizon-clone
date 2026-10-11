@@ -504,6 +504,8 @@ class ContainerInspectionTests(unittest.TestCase):
         finally:
             bundle.unlink(missing_ok=True)
         self.assertEqual(report["counts"]["matched_methods"], 1)
+        self.assertEqual(report["role_counts"], {"save": 1})
+        self.assertEqual(report["methods"][0]["role"], "save")
         self.assertEqual(report["methods"][0]["field_accesses"][0]["field_name"], "Value")
         self.assertEqual(report["methods"][0]["call_targets"][0]["target_name"], "Write")
         self.assertEqual(report["family_counts"], [])
@@ -540,6 +542,7 @@ class ContainerInspectionTests(unittest.TestCase):
                 {"family": "Horizon.PackageEditors.Skyrim", "types": 2, "methods": 1},
             ],
         )
+        self.assertEqual(report["role_counts"], {"save": 1, "write": 1})
 
     def test_groups_managed_types_into_observed_editor_families(self):
         bundle = self.fixture_dir / "family-bundle.json"
