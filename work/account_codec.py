@@ -96,8 +96,20 @@ class AccountCodec:
     ) -> bytes:
         """Encrypt using a caller-owned provider selected for this plaintext."""
 
+        _status, output = self.encrypt_with_key_provider_raw(plaintext, provider, output_capacity)
+        if output_length is None:
+            raise ValueError("encrypted output length is unresolved; use encrypt_raw and slice with the caller-known length")
+        if not isinstance(output_length, int) or isinstance(output_length, bool) or not 0 <= output_length <= output_capacity:
+            raise ValueError("output_length must fit the supplied output capacity")
+        return output[:output_length]
+
+    def encrypt_with_key_provider_raw(
+        self, plaintext: bytes, provider: AccountKeyProvider, output_capacity: int
+    ) -> tuple[int, bytes]:
+        """Encrypt through a caller-owned provider while preserving native status."""
+
         key = _provider_key(provider, "encrypt", plaintext)
-        return self.encrypt(plaintext, key, output_capacity, output_length)
+        return self.encrypt_raw(plaintext, key, output_capacity)
 
     def decrypt(self, payload: bytes, key: bytes, output_capacity: int) -> bytes:
         """Return decrypted bytes while preserving the existing convenience API."""
