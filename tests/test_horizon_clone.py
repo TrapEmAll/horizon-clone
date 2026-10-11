@@ -2596,6 +2596,9 @@ class ContainerInspectionTests(unittest.TestCase):
     def test_labels_observed_and_unknown_stfs_content_types(self):
         self.assertEqual(stfs_content_type_name(0x00010000), "Profile")
         self.assertEqual(stfs_content_type_name(0x000E0000), "XNA")
+        self.assertEqual(stfs_content_type_name(0x00001000), "IPTVDVR")
+        self.assertEqual(stfs_content_type_name(0x00006000), "SocialTitle")
+        self.assertEqual(stfs_content_type_name(0x02000000), "CommunityGame")
         self.assertEqual(stfs_content_type_name(0x12345678), "Unknown")
         with self.assertRaises(ValueError):
             stfs_content_type_name(-1)
