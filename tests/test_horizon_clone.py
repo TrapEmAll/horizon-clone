@@ -2382,6 +2382,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["status"], "observed-only")
         self.assertIn("IsDebuggerPresent", report["debugger_api_imports"])
         self.assertIn("GetCurrentProcessId", report["process_probe_imports"])
+        runtime = native_anti_analysis_report(Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll"))
+        self.assertIn("VirtualProtect", runtime["memory_protection_imports"])
+        self.assertIn("GetProcAddress", runtime["dynamic_resolution_imports"])
         self.assertEqual(report["analysis_workaround"]["protection_patching"], "not-performed")
         result = subprocess.run(
             [sys.executable, "-m", "work.horizon_clone", str(path), "--anti-analysis-native"],
