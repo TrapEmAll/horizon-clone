@@ -913,6 +913,25 @@ def xdbf_achievement_image_payload(data: bytes, achievement_entry_index: int) ->
     raise LookupError(f"achievement image_id {image_id} is missing from this XDBF")
 
 
+def mutate_xdbf_achievement_image(data: bytes, achievement_entry_index: int, replacement: bytes) -> bytes:
+    """Replace a linked achievement PNG without changing its XDBF allocation."""
+
+    entries = parse_xdbf(data)
+    try:
+        achievement = next(item for item in entries if item.index == achievement_entry_index)
+    except StopIteration as exc:
+        raise IndexError(f"unknown XDBF achievement entry index: {achievement_entry_index}") from exc
+    if achievement.achievement is None:
+        raise ValueError("XDBF entry is not an observed achievement payload")
+    if resource_payload_metadata(replacement).get("kind") != "png":
+        raise ValueError("achievement image replacement must be a PNG payload")
+    image_id = achievement.achievement["image_id"]
+    image = next((item for item in entries if item.namespace == 2 and item.entry_id == image_id), None)
+    if image is None:
+        raise LookupError(f"achievement image_id {image_id} is missing from this XDBF")
+    return mutate_xdbf_entry_same_size(data, image, replacement)
+
+
 def mutate_xdbf_entry_same_size(data: bytes, entry: XdbfEntry, replacement: bytes) -> bytes:
     """Replace an XDBF payload without changing its table allocation."""
     if len(replacement) != entry.length:
@@ -3022,6 +3041,8 @@ def main() -> int:
     parser.add_argument("--xdbf-text-value", help="Replacement value for --xdbf-text")
     parser.add_argument("--xdbf-file", metavar="ENTRY", help="STFS file containing the XDBF entry to edit")
     parser.add_argument("--achievement", type=int, metavar="INDEX", help="Edit one XDBF achievement entry")
+    parser.add_argument("--achievement-image", type=int, metavar="INDEX", help="Replace the PNG linked by one XDBF achievement entry")
+    parser.add_argument("--achievement-image-source", type=Path, help="PNG source for --achievement-image; size must match the linked entry")
     parser.add_argument("--achievement-id", type=lambda value: int(value, 0))
     parser.add_argument("--image-id", type=lambda value: int(value, 0))
     parser.add_argument("--gamerscore", type=int)
@@ -3561,6 +3582,7 @@ def main() -> int:
             print(f"Wrote profile XDBF text mutation to {write_target}")
         if raw[:4] == b"XDBF":
             achievement_requested = args.achievement is not None
+            achievement_image_requested = args.achievement_image is not None
             bulk_flags_requested = args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
             if args.achievement_flags_or is not None and args.achievement_flags_and_not is not None:
                 parser.error("choose one of --achievement-flags-or or --achievement-flags-and-not")
@@ -3569,9 +3591,11 @@ def main() -> int:
                 for value in (args.xdbf_add_namespace, args.xdbf_add_id, args.xdbf_add_source)
             )
             text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
-            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or bulk_flags_requested or xdbf_add_requested or text_requested:
+            if args.xdbf_replace is not None or args.xdbf_remove or achievement_requested or achievement_image_requested or bulk_flags_requested or xdbf_add_requested or text_requested:
                 if not write_target:
                     parser.error("XDBF mutation requires --write or --in-place")
+                if achievement_image_requested and (args.achievement_image_source is None or achievement_requested or bulk_flags_requested or args.xdbf_replace is not None or args.xdbf_remove or xdbf_add_requested or text_requested):
+                    parser.error("--achievement-image requires only --achievement-image-source and a write target")
                 if args.xdbf_replace is not None and not args.xdbf_source:
                     parser.error("--xdbf-replace requires --xdbf-source")
                 replacements = {}
@@ -3606,6 +3630,8 @@ def main() -> int:
                         unlock_time_utc=args.achievement_unlock_utc,
                         name=args.achievement_name,
                     )
+                if achievement_image_requested:
+                    raw = mutate_xdbf_achievement_image(raw, args.achievement_image, args.achievement_image_source.read_bytes())
                 if bulk_flags_requested:
                     raw = mutate_xdbf_achievement_flags(
                         raw,
@@ -3635,7 +3661,7 @@ def main() -> int:
 
     if args.xdbf_file is not None:
         embedded_text_requested = args.xdbf_text is not None or args.xdbf_text_value is not None
-        embedded_achievement_requested = args.achievement is not None or args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
+        embedded_achievement_requested = args.achievement is not None or args.achievement_image is not None or args.achievement_flags_or is not None or args.achievement_flags_and_not is not None
         if args.achievement_flags_or is not None and args.achievement_flags_and_not is not None:
             parser.error("choose one of --achievement-flags-or or --achievement-flags-and-not")
         embedded_structural_requested = (
@@ -3663,7 +3689,16 @@ def main() -> int:
                 edited_payload = mutate_xdbf_text(xdbf_payload, args.xdbf_text, args.xdbf_text_value)
                 operation_name = "text"
             elif embedded_achievement_requested:
-                if args.achievement is not None:
+                if args.achievement_image is not None:
+                    if args.achievement_image_source is None or args.achievement is not None or args.achievement_flags_or is not None or args.achievement_flags_and_not is not None:
+                        parser.error("embedded --achievement-image requires only --achievement-image-source")
+                    edited_payload = mutate_xdbf_achievement_image(
+                        xdbf_payload,
+                        args.achievement_image,
+                        args.achievement_image_source.read_bytes(),
+                    )
+                    operation_name = "achievement-image"
+                elif args.achievement is not None:
                     if args.achievement_flags_or is not None or args.achievement_flags_and_not is not None:
                         parser.error("single-achievement editing cannot be combined with bulk flag editing")
                     edited_payload = mutate_xdbf_achievement(
