@@ -1490,6 +1490,37 @@ def sign_stfs_console_package_with_provider(data: bytes, provider) -> bytes:
     return signed
 
 
+def stfs_console_validation_report(data: bytes) -> dict[str, object]:
+    """Validate observed CON integrity and package-signature layers together."""
+
+    if not isinstance(data, bytes):
+        raise TypeError("STFS package data must be bytes")
+    header = parse_stfs_header(data)
+    if header.magic != "CON ":
+        raise ValueError("console validation requires a CON container")
+    hashes = verify_stfs_hashes(data, header=header)
+    signature = verify_stfs_console_signature(data)
+    hash_verified = (
+        not hashes["failures"]
+        and not hashes["hash_table_failures"]
+        and hashes["header_hash_matches"]
+        and hashes["top_hash_matches"]
+    )
+    signature_verified = bool(signature["verified"])
+    return {
+        "status": "verified" if hash_verified and signature_verified else "failed",
+        "hash_tree_verified": hash_verified,
+        "package_signature_verified": signature_verified,
+        "hash_tree": hashes,
+        "package_signature": signature,
+        "console_authority_established": False,
+        "limitations": [
+            "This validates the observed CON hash-tree and package-signature layers only.",
+            "A valid certificate/package signature does not establish retail licensing, console ownership, or every console policy.",
+        ],
+    }
+
+
 def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str, object]:
     """Compare two STFS images without claiming console-signature validity.
 
@@ -3044,6 +3075,7 @@ def main() -> int:
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
+    parser.add_argument("--console-validation", action="store_true", help="Validate a CON hash tree and package signature together")
     parser.add_argument("--verify-stfs-remote-signature", action="store_true", help="Verify a LIVE/PIRS package signature over its header hash with a caller-supplied public key")
     parser.add_argument("--sign-stfs-package", type=Path, metavar="OUTPUT", help="Sign the observed CON package region with an explicit matching RSA private key")
     parser.add_argument("--sign-stfs-remote-package", type=Path, metavar="OUTPUT", help="Sign a LIVE/PIRS header hash with an explicit development key/provider")
@@ -4008,6 +4040,14 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps(signature_report, indent=2))
         return 0 if signature_report["verified"] else 1
+
+    if args.console_validation:
+        try:
+            validation = stfs_console_validation_report(raw)
+        except (OSError, TypeError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(validation, indent=2, ensure_ascii=False))
+        return 0 if validation["status"] == "verified" else 1
 
     if args.verify_stfs_remote_signature:
         if args.public_key_json:
