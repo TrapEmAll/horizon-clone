@@ -1256,6 +1256,45 @@ def verify_stfs_remote_signature(
     }
 
 
+def sign_stfs_remote_package_with_provider(
+    data: bytes,
+    provider,
+    public_key: RsaPublicKey,
+    algorithm: str = "RSA-SHA1-XeCrypt-PKCS1v1.5",
+) -> bytes:
+    """Sign a LIVE/PIRS header hash through an authorized external provider."""
+
+    if not isinstance(data, bytes):
+        raise TypeError("STFS package data must be bytes")
+    if not isinstance(public_key, RsaPublicKey):
+        raise TypeError("public_key must be an RsaPublicKey")
+    signer = getattr(provider, "sign_sha1", None)
+    if not callable(signer):
+        raise TypeError("provider must expose sign_sha1(message)")
+    metadata = parse_stfs_security_metadata(data)
+    if metadata.signature_kind != "remote-package-signature":
+        raise ValueError("LIVE/PIRS signing requires a LIVE or PIRS container")
+    signed_value = data[0x32C:0x340]
+    if len(signed_value) != 0x14:
+        raise ValueError("LIVE/PIRS header hash is truncated")
+    conventional = signer(signed_value)
+    if not isinstance(conventional, bytes) or len(conventional) != metadata.package_signature_length:
+        raise ValueError("signing provider returned an invalid LIVE/PIRS RSA-SHA1 signature")
+    if algorithm == "RSA-SHA1-PKCS1v1.5":
+        stored = conventional
+    elif algorithm == "RSA-SHA1-XeCrypt-PKCS1v1.5":
+        stored = conventional[::-1]
+    else:
+        raise ValueError(f"unsupported remote STFS signature algorithm: {algorithm}")
+    result = bytearray(data)
+    result[metadata.package_signature_offset : metadata.package_signature_offset + metadata.package_signature_length] = stored
+    signed = bytes(result)
+    verification = verify_stfs_remote_signature(signed, public_key.modulus, public_key.exponent, algorithm)
+    if not verification["verified"]:
+        raise ValueError("signing provider returned a signature that does not match the supplied public key")
+    return signed
+
+
 def sign_stfs_console_package(data: bytes, private_key) -> bytes:
     """Sign the observed CON package region with an explicit caller key.
 
