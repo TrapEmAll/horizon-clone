@@ -57,6 +57,7 @@ from .horizon_clone import (
     native_lzo_operation_report,
     native_installation_report,
     profile_asset_report,
+    mutate_profile_assets,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -103,6 +104,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Profile assets", command=self.show_profile_assets).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Replace profile tile", command=self.replace_profile_tile).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="FATX path", command=self.show_fatx_path).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed feature surface", command=self.show_managed_feature_surface).pack(side=tk.LEFT, padx=(8, 0))
@@ -599,6 +601,46 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Profile asset report failed", str(exc))
+
+    def replace_profile_tile(self) -> None:
+        """Replace one validated profile tile and save a separate container."""
+
+        if self._report is None or self._data is None or self._report.stfs_header is None:
+            messagebox.showinfo("Profile tile", "Open an STFS profile first")
+            return
+        asset = simpledialog.askstring(
+            "Profile tile", "Tile name (tile_64.png or tile_32.png):", initialvalue="tile_64.png", parent=self
+        )
+        if asset not in {"tile_64.png", "tile_32.png"}:
+            if asset is not None:
+                messagebox.showerror("Profile tile", "Choose tile_64.png or tile_32.png")
+            return
+        source = filedialog.askopenfilename(
+            title=f"Choose replacement for {asset}",
+            filetypes=(("PNG image", "*.png"), ("All files", "*.*")),
+        )
+        if not source:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save profile tile edit",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            mutated = mutate_profile_assets(
+                self._data,
+                {asset: Path(source).read_bytes()},
+                self._report.stfs_header,
+            )
+            _atomic_write_bytes(Path(target), mutated)
+            self._data = mutated
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned {asset} replacement")
+            self._set_details({"path": target, "asset": asset, "signature_checked": False})
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("Profile tile replacement failed", str(exc))
 
     def show_managed_feature_surface(self) -> None:
         """Display literal feature buckets from retained managed REA evidence."""
