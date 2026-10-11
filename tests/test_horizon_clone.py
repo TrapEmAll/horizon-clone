@@ -1,5 +1,6 @@
 import hashlib
 import json
+import dataclasses
 import os
 import shutil
 import subprocess
@@ -2598,6 +2599,21 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(stfs_content_type_name(0x12345678), "Unknown")
         with self.assertRaises(ValueError):
             stfs_content_type_name(-1)
+
+    def test_derives_observed_non_profile_magic_filenames(self):
+        header = parse_stfs_header(supplied_fixture().read_bytes()) if supplied_fixture() else None
+        if header is None:
+            self.skipTest("supplied STFS profile fixture is not available")
+        content_id = "00112233445566778899aabbccddeeff0011223344556677"
+        replacement = dataclasses.replace(
+            header,
+            content_type=0x00007000,
+            content_id=content_id,
+            title_id=0x12345678,
+        )
+        self.assertEqual(stfs_magic_filename(replacement), "00112233445566778899AABBCCDDEEFF12")
+        installer = dataclasses.replace(replacement, content_type=0x000B0000, execution_version=0x01020304)
+        self.assertEqual(stfs_magic_filename(installer), "tu01020304_0")
 
     def test_compares_stfs_mutations_without_claiming_console_validity(self):
         path = supplied_fixture()
