@@ -2769,6 +2769,8 @@ def device_ioctl_report(
     physical device.
     """
 
+    if not isinstance(write_access, bool):
+        raise TypeError("write_access must be a bool")
     if provider is None:
         provider = WindowsDeviceIoProvider()
     binding = DeviceIoBinding(provider)
