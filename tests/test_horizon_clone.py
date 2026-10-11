@@ -2633,6 +2633,19 @@ class ContainerInspectionTests(unittest.TestCase):
             "Content\\E9ECC9141E317C7B\\FFFE07D1\\00010000\\E9ECC9141E317C7B",
         )
 
+    def test_parses_metadata_version_two_series_fields(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        header = parse_stfs_header(path.read_bytes())
+        self.assertEqual(header.metadata_version, 2)
+        self.assertEqual(header.series_id, "00" * 16)
+        self.assertEqual(header.season_id, "00" * 16)
+        self.assertEqual(header.season_number, 0)
+        self.assertEqual(header.episode_number, 0)
+        self.assertEqual(len(header.additional_display_names), 6)
+        self.assertEqual(len(header.additional_display_descriptions), 6)
+
     def test_json_report_includes_content_type_name(self):
         path = supplied_fixture()
         if path is None or not path.exists():
