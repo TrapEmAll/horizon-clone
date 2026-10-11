@@ -149,7 +149,8 @@ copied implementation code.
   signature replacement in the same output path when an authorized private key
   or external signing helper is supplied.
 - The desktop front end exposes the same caller-key LIVE/PIRS verification and
-  external key-vault CON signing operations through explicit toolbar actions.
+  external key-vault CON signing operations through explicit toolbar actions,
+  including signing an already-written post-mutation CON artifact.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
