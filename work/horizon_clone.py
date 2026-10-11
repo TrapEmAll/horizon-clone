@@ -2464,6 +2464,7 @@ def repack_stfs_entries(
     header: StfsHeader | None = None,
     remove: Iterable[str] = (),
     additions: dict[str, bytes] | None = None,
+    remove_descendants: bool = False,
 ) -> bytes:
     """Repack one or more entries within the package's existing block capacity.
 
@@ -2479,6 +2480,16 @@ def repack_stfs_entries(
     unknown = sorted((set(replacements) | removals) - set(by_path))
     if unknown:
         raise FileNotFoundError(unknown[0])
+    if not isinstance(remove_descendants, bool):
+        raise TypeError("remove_descendants must be a bool")
+    if remove_descendants:
+        removals.update(
+            item.path
+            for path in tuple(removals)
+            if by_path[path].is_directory
+            for item in entries
+            if item.path.startswith(path + "/")
+        )
     conflicts = sorted((set(additions) & set(by_path)) | (set(additions) & removals))
     if conflicts:
         raise ValueError(f"entry already exists: {conflicts[0]}")
@@ -2493,7 +2504,7 @@ def repack_stfs_entries(
             raise FileNotFoundError(f"parent directory does not exist: {parent}")
     for path in removals:
         if by_path[path].is_directory:
-            if any(item.path.startswith(path + "/") for item in entries):
+            if not remove_descendants and any(item.path.startswith(path + "/") for item in entries):
                 raise IsADirectoryError(f"directory is not empty: {path}")
             continue
     for path, payload in replacements.items():
@@ -3040,6 +3051,7 @@ def main() -> int:
     parser.add_argument("--repack", metavar="ENTRY", help="Replace one STFS file with a different size")
     parser.add_argument("--repack-source", type=Path, help="Raw replacement bytes for --repack")
     parser.add_argument("--remove", action="append", metavar="ENTRY", help="Remove an STFS file-table entry")
+    parser.add_argument("--remove-tree", action="append", metavar="DIRECTORY", help="Recursively remove an STFS directory and its descendants")
     parser.add_argument("--add", action="append", metavar="ENTRY", help="Add an STFS file-table entry")
     parser.add_argument("--add-source", action="append", type=Path, help="Raw bytes for --add (repeat in the same order)")
     parser.add_argument("--rename", metavar="ENTRY", help="Rename an STFS file or directory")
@@ -4121,13 +4133,19 @@ def main() -> int:
             parser.error(str(exc))
         print(f"Wrote unsigned repacked container to {write_target}")
 
-    if args.remove:
+    if args.remove or args.remove_tree:
         if args.replace or args.repack or args.add or not write_target:
-            parser.error("--remove requires --write or --in-place and cannot be combined with --replace, --repack, or --add")
+            parser.error("--remove/--remove-tree requires --write or --in-place and cannot be combined with --replace, --repack, or --add")
         if not report.stfs_header:
             parser.error("the file does not contain a readable STFS header")
         try:
-            raw = repack_stfs_entries(raw, {}, remove=args.remove, header=report.stfs_header)
+            raw = repack_stfs_entries(
+                raw,
+                {},
+                remove=tuple(args.remove or ()) + tuple(args.remove_tree or ()),
+                remove_descendants=bool(args.remove_tree),
+                header=report.stfs_header,
+            )
             write_mutation(raw)
             mutation_written = True
         except (OSError, ValueError, IsADirectoryError, FileNotFoundError) as exc:
@@ -4135,7 +4153,7 @@ def main() -> int:
         print(f"Wrote unsigned removal mutation to {write_target}")
 
     if args.add:
-        if args.replace or args.repack or args.remove or not write_target:
+        if args.replace or args.repack or args.remove or args.remove_tree or not write_target:
             parser.error("--add requires --write or --in-place and cannot be combined with --replace, --repack, or --remove")
         if not args.add_source or len(args.add_source) != len(args.add):
             parser.error("each --add requires one corresponding --add-source")
