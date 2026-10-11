@@ -267,6 +267,11 @@ The profile workflow now recognizes the supplied `tile_64.png`, `tile_32.png`,
 asset formats remain opaque until REA or runtime evidence establishes their
 layouts.
 
+Profile-wide linked achievement PNG replacement is available through repeated
+`--profile-achievement-image IMAGE_ID SOURCE` pairs. The operation is
+allocation-preserving and rejects mismatched copies rather than partially
+rewriting a shared image ID.
+
 For authenticated XDBF payloads, linked achievement PNGs can also be replaced
 in place with `--achievement-image INDEX --achievement-image-source FILE`.
 The replacement must remain a PNG and preserve the existing allocation; the
