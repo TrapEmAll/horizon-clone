@@ -66,6 +66,8 @@ class LocalRsaSha256Signer:
     key: RsaPrivateKey
 
     def sign_sha256(self, message: bytes) -> bytes:
+        _validate_message(message)
+        _validate_private_key(self.key)
         digest_info = SHA256_DIGEST_INFO_PREFIX + hashlib.sha256(message).digest()
         size = (self.key.modulus.bit_length() + 7) // 8
         if len(digest_info) + 11 > size:
@@ -81,6 +83,8 @@ class LocalRsaSha1Signer:
     key: RsaPrivateKey
 
     def sign_sha1(self, message: bytes) -> bytes:
+        _validate_message(message)
+        _validate_private_key(self.key)
         digest_info = SHA1_DIGEST_INFO_PREFIX + hashlib.sha1(message).digest()
         size = (self.key.modulus.bit_length() + 7) // 8
         if len(digest_info) + 11 > size:
@@ -131,23 +135,35 @@ class CommandSha1SigningProvider:
 
 def verify_sha256_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
     """Verify a detached SHA-256 RSA PKCS#1 v1.5 signature."""
+    _validate_message(message)
     return _verify_pkcs1v15(message, signature, key, hashlib.sha256, SHA256_DIGEST_INFO_PREFIX)
 
 
 def verify_sha1_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
     """Verify a detached SHA-1 RSA PKCS#1 v1.5 signature."""
+    _validate_message(message)
     return _verify_pkcs1v15(message, signature, key, hashlib.sha1, SHA1_DIGEST_INFO_PREFIX)
 
 
 def verify_xecrypt_sha1_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
     """Verify the byte-reversed SHA-1 PKCS#1 encoding used by XeCrypt."""
 
-    if not isinstance(signature, bytes):
-        raise TypeError("signature must be bytes")
+    _validate_message(message)
+    _validate_signature(signature)
     return verify_sha1_pkcs1v15(message, signature[::-1], key)
 
 
 def _verify_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey, digest_algorithm: object, digest_info_prefix: bytes) -> bool:
+    _validate_signature(signature)
+    if not isinstance(key, RsaPublicKey):
+        raise TypeError("key must be an RsaPublicKey")
+    if (
+        not isinstance(key.modulus, int)
+        or isinstance(key.modulus, bool)
+        or not isinstance(key.exponent, int)
+        or isinstance(key.exponent, bool)
+    ):
+        return False
     digest = digest_algorithm(message).digest()
     size = (key.modulus.bit_length() + 7) // 8
     minimum_size = len(digest_info_prefix) + len(digest) + 11
@@ -163,6 +179,30 @@ def _verify_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey, digest
     digest_info = digest_info_prefix + digest
     expected = b"\x00\x01" + b"\xff" * (size - len(digest_info) - 3) + b"\x00" + digest_info
     return encoded == expected
+
+
+def _validate_message(message: bytes) -> None:
+    if not isinstance(message, bytes):
+        raise TypeError("message must be bytes")
+
+
+def _validate_signature(signature: bytes) -> None:
+    if not isinstance(signature, bytes):
+        raise TypeError("signature must be bytes")
+
+
+def _validate_private_key(key: RsaPrivateKey) -> None:
+    if not isinstance(key, RsaPrivateKey):
+        raise TypeError("key must be an RsaPrivateKey")
+    if (
+        not isinstance(key.modulus, int)
+        or isinstance(key.modulus, bool)
+        or not isinstance(key.private_exponent, int)
+        or isinstance(key.private_exponent, bool)
+    ):
+        raise TypeError("RSA private key values must be integers")
+    if key.modulus <= 1 or key.private_exponent <= 0:
+        raise ValueError("RSA private key values are out of range")
 
 
 def sign_with_provider(message: bytes, provider: SigningProvider) -> bytes:
