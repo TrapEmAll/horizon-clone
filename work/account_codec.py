@@ -76,8 +76,16 @@ class AccountCodec:
     def decrypt_with_key_provider(self, payload: bytes, provider: AccountKeyProvider, output_capacity: int) -> bytes:
         """Decrypt using a caller-owned provider selected for this payload."""
 
+        _status, output = self.decrypt_with_key_provider_raw(payload, provider, output_capacity)
+        return output
+
+    def decrypt_with_key_provider_raw(
+        self, payload: bytes, provider: AccountKeyProvider, output_capacity: int
+    ) -> tuple[int, bytes]:
+        """Decrypt through a caller-owned provider while preserving native status."""
+
         key = _provider_key(provider, "decrypt", payload)
-        return self.decrypt(payload, key, output_capacity)
+        return self.decrypt_raw(payload, key, output_capacity)
 
     def encrypt_with_key_provider(
         self,
