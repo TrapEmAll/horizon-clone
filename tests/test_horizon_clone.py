@@ -2556,7 +2556,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(result["algorithm"], "RSA-SHA1-XeCrypt-PKCS1v1.5")
         self.assertEqual((result["signature_offset"], result["signature_length"]), (0x1AC, 0x80))
         self.assertEqual((result["signed_start"], result["signed_end"]), (0x22C, 0x344))
-        self.assertFalse(result["verified"])
+        self.assertTrue(result["verified"])
 
     def test_package_signing_requires_matching_explicit_private_key(self):
         path = supplied_fixture()
