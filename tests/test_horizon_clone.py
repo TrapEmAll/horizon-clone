@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from work.horizon_clone import (
@@ -1419,6 +1420,22 @@ class ContainerInspectionTests(unittest.TestCase):
     def test_external_sha1_signing_provider_requires_absolute_helper(self):
         with self.assertRaises(ValueError):
             CommandSha1SigningProvider("relative-helper")
+
+    def test_external_sha1_signing_provider_uses_bounded_json_protocol(self):
+        helper = self.fixture_dir / "signing-helper.exe"
+        helper.write_bytes(b"placeholder")
+        try:
+            provider = CommandSha1SigningProvider(helper)
+            completed = mock.Mock(returncode=0, stdout=json.dumps({"signature_base64": "c2lnbmF0dXJl"}), stderr="")
+            with mock.patch("work.signing.subprocess.run", return_value=completed) as run:
+                self.assertEqual(provider.sign_sha1(b"message"), b"signature")
+            request = json.loads(run.call_args.kwargs["input"])
+            self.assertEqual(request["algorithm"], "RSA-SHA1-PKCS1v1.5")
+            self.assertEqual(request["message_base64"], "bWVzc2FnZQ==")
+            self.assertEqual(run.call_args.kwargs["timeout"], 30.0)
+            self.assertFalse(run.call_args.kwargs["check"])
+        finally:
+            helper.unlink(missing_ok=True)
 
     def test_reads_explicit_development_private_key_json(self):
         path = self.fixture_dir / "development-private-key.json"
