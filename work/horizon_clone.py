@@ -489,6 +489,12 @@ class StfsHeader:
     content_id: str
     execution_version: int
     avatar_asset_id: str
+    series_id: str = ""
+    season_id: str = ""
+    season_number: int | None = None
+    episode_number: int | None = None
+    additional_display_names: tuple[str, ...] = ()
+    additional_display_descriptions: tuple[str, ...] = ()
 
 
 _STFS_CONTENT_TYPE_NAMES = {
@@ -1019,11 +1025,13 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
     magic = data[:4]
     if magic not in STFS_MAGICS:
         raise ValueError(f"unsupported STFS magic: {magic!r}")
+    metadata_version = _u32be(data, 0x348)
+    version_two = metadata_version == 2
     return StfsHeader(
         magic=magic.decode("ascii"),
         header_size=_u32be(data, 0x340),
         content_type=_u32be(data, 0x344),
-        metadata_version=_u32be(data, 0x348),
+        metadata_version=metadata_version,
         content_size=_u64be(data, 0x34C),
         title_id=_u32be(data, 0x360),
         platform=data[0x364],
@@ -1044,6 +1052,18 @@ def parse_stfs_header(data: bytes) -> StfsHeader:
         content_id=data[0x32C:0x340].hex(),
         execution_version=_u32be(data, 0x358),
         avatar_asset_id=data[0x3E1:0x3F1].hex() if _u32be(data, 0x344) == 0x00009000 else "",
+        series_id=data[0x3B1:0x3C1].hex() if version_two else "",
+        season_id=data[0x3C1:0x3D1].hex() if version_two else "",
+        season_number=_u16be(data, 0x3D1) if version_two else None,
+        episode_number=_u16be(data, 0x3D3) if version_two else None,
+        additional_display_names=tuple(
+            _fixed_text(data, 0x541A + index * 0x80, 0x80, "utf-16-be")
+            for index in range(6)
+        ) if version_two else (),
+        additional_display_descriptions=tuple(
+            _fixed_text(data, 0x941A + index * 0x80, 0x80, "utf-16-be")
+            for index in range(6)
+        ) if version_two else (),
     )
 
 
