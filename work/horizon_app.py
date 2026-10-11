@@ -110,6 +110,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Sign CON package", command=self.sign_con_package).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign CON via key vault", command=self.sign_con_package_with_key_vault).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign written CON", command=self.sign_written_package).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Sign written CON via key vault", command=self.sign_written_package_with_key_vault).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify CON signature", command=self.verify_con_signature).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify LIVE/PIRS signature", command=self.verify_remote_signature).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
@@ -458,6 +459,51 @@ class HorizonApp(tk.Tk):
             self._set_details(result)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("Written CON signing failed", str(exc))
+
+    def sign_written_package_with_key_vault(self) -> None:
+        """Sign an already-written CON artifact through an external key vault."""
+
+        source = filedialog.askopenfilename(
+            title="Choose written CON package",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not source:
+            return
+        helper = filedialog.askopenfilename(title="Choose key-vault signing helper")
+        if not helper:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save key-vault-signed CON package",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            from .signing import CommandSha1SigningProvider
+
+            source_path = Path(source)
+            target_path = Path(target)
+            if source_path.resolve() == target_path.resolve():
+                raise ValueError("signed output must be different from the written input")
+            signed = sign_stfs_console_package_with_provider(
+                source_path.read_bytes(), CommandSha1SigningProvider(Path(helper))
+            )
+            _atomic_write_bytes(target_path, signed)
+            verification = verify_stfs_console_signature(signed)
+            result = {
+                "input": source,
+                "output": target,
+                "bytes": len(signed),
+                "signature_verified": verification["verified"],
+                "algorithm": verification["algorithm"],
+                "console_authority_established": False,
+                "provider": "external-key-vault",
+            }
+            self.status.configure(text="Signed written CON via key vault")
+            self._set_details(result)
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("Written key-vault signing failed", str(exc))
 
     def show_anti_analysis(self) -> None:
         """Display retained REA anti-analysis observations without execution."""
