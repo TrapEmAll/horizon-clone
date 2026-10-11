@@ -69,6 +69,7 @@ from work.horizon_clone import (
     xdbf_payload_surface,
     xdbf_achievement_image_links,
     xdbf_achievement_image_payload,
+    mutate_xdbf_achievement_image,
     historical_account_report,
     historical_account_report_with_key_provider,
     mutate_historical_account,
@@ -856,6 +857,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(links[0]["image_id"], 99)
         self.assertEqual(links[0]["image_metadata"]["kind"], "png")
         self.assertEqual(xdbf_achievement_image_payload(data, 0), image)
+        self.assertEqual(mutate_xdbf_achievement_image(data, 0, image), data)
+        with self.assertRaises(ValueError):
+            mutate_xdbf_achievement_image(data, 0, b"not-a-png")
         with self.assertRaises(ValueError):
             xdbf_achievement_image_payload(data, 1)
 
@@ -1958,6 +1962,7 @@ class ContainerInspectionTests(unittest.TestCase):
             check=True,
         )
         self.assertIn("--profile-asset ENTRY SOURCE", result.stdout)
+        self.assertIn("--achievement-image INDEX", result.stdout)
 
     def test_reports_observed_device_exploration_surface(self):
         surface = device_surface_report()
