@@ -2551,6 +2551,19 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(parsed.thumbnail, b"thumbnail-test")
         self.assertEqual(verify_stfs_hashes(mutated, header=parse_stfs_header(mutated))["failures"], [])
 
+    def test_metadata_version_two_uses_reduced_thumbnail_capacity(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        original = path.read_bytes()
+        payload = b"T" * 0x3D00
+        edited = mutate_stfs_thumbnails(original, thumbnail=payload, title_thumbnail=payload)
+        thumbnails = parse_stfs_thumbnails(edited, parse_stfs_header(edited))
+        self.assertEqual(thumbnails.thumbnail, payload)
+        self.assertEqual(thumbnails.title_thumbnail, payload)
+        with self.assertRaises(ValueError):
+            mutate_stfs_thumbnails(original, thumbnail=b"T" * 0x3D01)
+
     def test_inspects_stfs_security_metadata_without_claiming_signature_validity(self):
         path = supplied_fixture()
         if path is None or not path.exists():
