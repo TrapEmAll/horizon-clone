@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 42689)
-Total output lines: 3226
+Warning: truncated output (original token count: 42808)
+Total output lines: 3237
 
 import hashlib
 import json
@@ -1148,17 +1148,7 @@ class ContainerInspectionTests(unittest.TestCase):
             self.skipTest("supplied STFS profile fixture is not available")
         original = path.read_bytes()
         header = parse_stfs_header(original)
-        with_directory = add_stfs_directory(original…12689 tokens truncated…         text=True,
-            check=True,
-        )
-        self.assertIn("--profile-asset ENTRY SOURCE", result.stdout)
-        self.assertIn("--achievement-image INDEX", result.stdout)
-        self.assertIn("--profile-achievement-image IMAGE_ID SOURCE", result.stdout)
-
-    def test_reports_observed_device_exploration_surface(self):
-        surface = device_surface_report()
-        self.assertEqual(surface["status"], "metadata-only")
-        members = {(item.declaring_type, item.name) for item in observed_device_members()}
+        with_directory = add_stfs_directory(original…12808 tokens truncated…_type, item.name) for item in observed_device_members()}
         self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
         self.assertIn(("A.c481e7f09def65aded5645fc775214ae5", "get_Account_Thumb"), members)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxHDD_24"), members)
@@ -1298,6 +1288,17 @@ class ContainerInspectionTests(unittest.TestCase):
             native_lzo_operation_report(Path("C:/explicit/lzo.dll"), "version-string", provider=Provider())["result"],
             "test-lzo",
         )
+
+    def test_lzo_binding_rejects_provider_output_beyond_destination(self):
+        class Provider:
+            def lzo1x_1_compress(self, source, source_length, destination, destination_length, work_memory):
+                destination_length.value = len(destination) + 1
+                return 0
+
+        with self.assertRaises(ValueError):
+            LzoBinding(Provider()).compress(
+                "lzo1x_1", b"abc", 3, bytearray(4), Int32Ref(4), b"work"
+            )
 
     def test_native_runtime_operation_preflights_supplied_image_without_execution(self):
         dll = Path(r"C:\Program Files (x86)\Daring Development\Horizon\Horizon.dll")
