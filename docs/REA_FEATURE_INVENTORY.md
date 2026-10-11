@@ -87,6 +87,9 @@ dominated by throw-only stubs rather than usable serializers.
 Each title family also carries a derived `serializer_status`; for the shipped
 bundle, the title families with retained I/O methods are not classified as
 having an observed serializer body.
+The report also separates title-only readiness from helper/static-constructor
+methods elsewhere in the assembly, preventing those unrelated bodies from
+inflating the title serializer result.
 
 `--managed-feature-surface` now classifies literal terms in authenticated type
 and method names into profile/social, achievement/score, device/storage,
