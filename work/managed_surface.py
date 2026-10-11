@@ -443,6 +443,112 @@ def managed_feature_surface_report(bundle_path: str | Path, pattern: str | None 
     return managed_feature_surface_report_from_bundle(bundle, pattern)
 
 
+def managed_property_contract_report_from_bundle(
+    bundle: dict[str, Any],
+    type_pattern: str | None = None,
+    property_pattern: str | None = None,
+    include_bodies: bool = False,
+) -> dict[str, Any]:
+    """Join authenticated managed getter/setter names into property contracts.
+
+    The accessor convention is a derived naming relationship.  It is useful
+    for reconstructing metadata editors, but it is not evidence of a backing
+    field, offset, or serialized representation.
+    """
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    types = [item for item in result.get("types") or [] if isinstance(item, dict)]
+    methods = [item for item in result.get("methods") or [] if isinstance(item, dict)]
+    calls = [item for item in result.get("call_edges") or [] if isinstance(item, dict)]
+    try:
+        type_matcher = re.compile(type_pattern, re.IGNORECASE) if type_pattern else None
+        property_matcher = re.compile(property_pattern, re.IGNORECASE) if property_pattern else None
+    except re.error as exc:
+        raise ValueError(f"invalid managed-property regex: {exc}") from exc
+    selected_types = {
+        str(item.get("full_name") or "")
+        for item in types
+        if type_matcher is None or type_matcher.search(str(item.get("full_name") or ""))
+    }
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    for item in methods:
+        declaring = str(item.get("declaring_type") or "")
+        name = str(item.get("name") or "")
+        if declaring not in selected_types or not (name.startswith("get_") or name.startswith("set_")):
+            continue
+        property_name = name[4:]
+        if property_matcher is not None and not property_matcher.search(property_name):
+            continue
+        key = (declaring, property_name)
+        contract = grouped.setdefault(key, {"declaring_type": declaring, "property": property_name, "get": None, "set": None})
+        accessor = "get" if name.startswith("get_") else "set"
+        body = item.get("body") or {}
+        value: dict[str, Any] = {
+            "name": name,
+            "token": item.get("token"),
+            "signature": item.get("signature"),
+        }
+        if include_bodies:
+            value["body"] = {
+                "status": body.get("status"),
+                "rva": body.get("rva"),
+                "file_offset": body.get("file_offset"),
+                "instruction_count": body.get("instruction_count"),
+                "il_sha256": body.get("il_sha256"),
+                "opcode_counts": body.get("opcode_counts") or {},
+            }
+        value["call_targets"] = [
+            {"opcode": edge.get("opcode"), "target_kind": edge.get("target_kind"), "target_name": edge.get("target_name"), "target_token": edge.get("target_token")}
+            for edge in calls
+            if str(edge.get("caller_token")) == str(item.get("token"))
+        ]
+        contract[accessor] = value
+    contracts = []
+    for contract in sorted(grouped.values(), key=lambda item: (item["declaring_type"].casefold(), item["property"].casefold())):
+        getter = contract["get"] is not None
+        setter = contract["set"] is not None
+        contract["access"] = "read-write" if getter and setter else "read-only" if getter else "write-only"
+        contracts.append(contract)
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "type_pattern": type_pattern,
+        "property_pattern": property_pattern,
+        "include_bodies": include_bodies,
+        "counts": {
+            "matched_types": len(selected_types),
+            "property_contracts": len(contracts),
+            "read_write": sum(item["access"] == "read-write" for item in contracts),
+            "read_only": sum(item["access"] == "read-only" for item in contracts),
+            "write_only": sum(item["access"] == "write-only" for item in contracts),
+        },
+        "properties": contracts,
+        "limitations": [
+            "Getter/setter pairing is derived from managed naming conventions.",
+            "The report does not establish backing fields, offsets, serialization order, validation, or runtime reachability.",
+            "The report does not load, execute, patch, or bypass the target assembly.",
+        ],
+    }
+
+
+def managed_property_contract_report(
+    bundle_path: str | Path,
+    type_pattern: str | None = None,
+    property_pattern: str | None = None,
+    include_bodies: bool = False,
+) -> dict[str, Any]:
+    """Return derived getter/setter contracts from a retained REA bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-property bundle: {path}") from exc
+    return managed_property_contract_report_from_bundle(bundle, type_pattern, property_pattern, include_bodies)
+
+
 def managed_guarded_methods_report_from_bundle(
     bundle: dict[str, Any], pattern: str | None = None
 ) -> dict[str, Any]:
