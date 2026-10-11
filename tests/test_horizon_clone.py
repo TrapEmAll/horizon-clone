@@ -1066,6 +1066,17 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(result["top_hash_matches"])
         self.assertFalse(result["signature_checked"])
 
+    def test_preserves_raw_stfs_entry_flags_in_file_table_model(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        entries = list_stfs_entries(path.read_bytes(), parse_stfs_header(path.read_bytes()))
+        account = next(item for item in entries if item.path == "Account")
+        cache = next(item for item in entries if item.path == "cache")
+        self.assertEqual(account.raw_flags & 0xC0, 0x40 if account.consecutive else 0)
+        self.assertEqual(bool(cache.raw_flags & 0x80), cache.is_directory)
+        self.assertEqual(bool(cache.raw_flags & 0x40), cache.consecutive)
+
     def test_renames_stfs_entry_and_rehashes(self):
         path = supplied_fixture()
         if path is None or not path.exists():
