@@ -153,6 +153,13 @@ def native_surface_report() -> dict[str, object]:
         "imports": [asdict(item) for item in _IMPORTS],
         "managed_callers": [asdict(item) for item in _CALLERS],
         "modules": groups,
+        "controlled_runtime_probes": [
+            {"image": "Horizon.dll", "operation": "CheckRuntime", "arguments": [], "result": True, "result_kind": "bool", "status": "observed-on-supplied-installation"},
+            {"image": "Horizon.dll", "operation": "RunHVM", "arguments": [], "result": 0, "result_kind": "native-int", "status": "observed-on-supplied-installation"},
+            {"image": "Horizon.dll", "operation": "GetUserString", "arguments": [0, 1, 0], "result_class": "nonzero-native-int", "status": "observed-on-supplied-installation"},
+            {"image": "Horizon.dll", "operation": "GetUserString", "arguments": [0, 0, 1], "result_class": "nonzero-native-int", "status": "observed-on-supplied-installation"},
+            {"image": "Horizon.dll", "operation": "GetUserString", "arguments": [1, 0, 0], "result_class": "zero-native-int", "status": "observed-on-supplied-installation"},
+        ],
         "unresolved": [
             "native calling signatures",
             "class3.dll save-encryption semantics",
