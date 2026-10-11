@@ -259,6 +259,13 @@ Extracted payloads also receive conservative magic classifications for common
 image, archive, audio, PE, and .NET-resource signatures; classification does
 not deserialize or execute them.
 
+The profile workflow now recognizes the supplied `tile_64.png`, `tile_32.png`,
+`ThematicSkin`, `PEC`, `WLE.dat`, profile FIT, and `AvatarAssets` entries via
+`--profile-assets`. Tile replacements are required to remain valid 64x64 or
+32x32 PNGs and are rehashed through the normal STFS mutation path; the other
+asset formats remain opaque until REA or runtime evidence establishes their
+layouts.
+
 The retained Halo member evidence further counts 1,102 methods, 175 getter
 methods, 168 setter methods, and 140 unique property names across the
 general-class surface. 135 properties have both accessors; five are getter-only
