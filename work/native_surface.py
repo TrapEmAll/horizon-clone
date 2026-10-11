@@ -10,6 +10,7 @@ the default report remains declaration-only until that provider is available.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -182,9 +183,14 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
     expected = expected_by_name.get(source.name.lower(), ())
     exports = pe_export_names(source)
     missing = [name for name in expected if name not in exports]
+    export_table_sha256 = hashlib.sha256("\n".join(exports).encode("utf-8")).hexdigest()
+    artifact_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
     return {
         "path": str(source),
+        "artifact_sha256": artifact_sha256,
         "image_architecture": compatible_pe_architecture(source)[0],
+        "export_count": len(exports),
+        "export_table_sha256": export_table_sha256,
         "expected_exports": list(expected),
         "observed_exports": list(exports),
         "missing_exports": missing,
