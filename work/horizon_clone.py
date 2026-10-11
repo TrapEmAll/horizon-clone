@@ -1218,6 +1218,14 @@ def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str,
         changed_total += abs(len(original) - len(mutated))
         changed_outside_signature += abs(len(original) - len(mutated))
     hash_report = verify_stfs_hashes(mutated)
+    try:
+        original_signature = verify_stfs_console_signature(original)
+    except (ValueError, OSError) as exc:
+        original_signature = {"verified": False, "status": "unavailable", "error": str(exc)}
+    try:
+        mutated_signature = verify_stfs_console_signature(mutated)
+    except (ValueError, OSError) as exc:
+        mutated_signature = {"verified": False, "status": "unavailable", "error": str(exc)}
     return {
         "status": "metadata-only",
         "same_length": len(original) == len(mutated),
@@ -1232,10 +1240,14 @@ def stfs_signature_mutation_report(original: bytes, mutated: bytes) -> dict[str,
         },
         "original_regions": original_regions,
         "mutated_regions": mutated_regions,
+        "package_signature_checked": original_signature.get("status") != "unavailable" and mutated_signature.get("status") != "unavailable",
+        "original_package_signature": original_signature,
+        "mutated_package_signature": mutated_signature,
+        "mutated_package_signature_verified": bool(mutated_signature.get("verified")),
         "console_validity_checked": False,
         "limitations": [
-            "The signed-region digest input and signature encoding remain unresolved.",
-            "Unchanged stored signature bytes do not prove that a mutation is console-valid.",
+            "Package-signature verification covers the observed XeCrypt encoding and signed range only.",
+            "A verified package signature does not establish every retail-console policy.",
             "Console-valid signing requires an authorized compatible signing provider.",
         ],
     }
