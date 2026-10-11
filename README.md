@@ -135,6 +135,11 @@ copied implementation code.
   stored certificate key after XeCrypt reverse-qword modulus conversion. A
   successful result verifies the package signature encoding and range; it does
   not establish every retail-console policy.
+- Provides provider-backed CON signing through `--package-signing-helper` for
+  `--sign-stfs-package` and `--sign-written-package`. The helper receives a
+  base64-encoded RSA-SHA1 message request and returns a base64 signature; key
+  material remains in the caller-owned key vault, and the result is verified
+  against the embedded certificate before it is written.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
