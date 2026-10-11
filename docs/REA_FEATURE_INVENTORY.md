@@ -108,6 +108,12 @@ REA evidence still does not establish the key format or Account serializer.
 for authorized development or key-vault services; it uses no shell and does
 not write key material locally.
 
+Historical-reference Account inspection and mutation now accept that same
+caller-owned helper through `--historical-account-key-helper`; the helper is
+queried with the encrypted Account payload digest and the returned key remains
+in process memory only. This still does not establish that Horizon used this
+historical codec for every Account variant.
+
 The same evidence identifies two zero-argument `Horizon.ProfileData` resource
 getters, `get_GoWJ_Thumb_New` and `get_GrayDot`, both returning unresolved
 managed type `class:957`. They are exposed as declaration metadata only; no
