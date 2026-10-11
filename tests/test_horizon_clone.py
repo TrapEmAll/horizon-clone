@@ -2617,6 +2617,12 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(stfs_magic_filename(replacement), "00112233445566778899AABBCCDDEEFF12")
         installer = dataclasses.replace(replacement, content_type=0x000B0000, execution_version=0x01020304)
         self.assertEqual(stfs_magic_filename(installer), "tu01020304_0")
+        avatar = dataclasses.replace(
+            replacement,
+            content_type=0x00009000,
+            avatar_asset_id="8899aabbccddeeff0011223344556677",
+        )
+        self.assertEqual(stfs_magic_filename(avatar), "8899AABBCCDDEEFF0011223344556677")
 
     def test_compares_stfs_mutations_without_claiming_console_validity(self):
         path = supplied_fixture()
