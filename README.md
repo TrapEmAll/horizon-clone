@@ -135,6 +135,10 @@ copied implementation code.
   stored certificate key after XeCrypt reverse-qword modulus conversion. A
   successful result verifies the package signature encoding and range; it does
   not establish every retail-console policy.
+- Provides `--verify-stfs-remote-signature` for LIVE/PIRS packages using a
+  caller-supplied public key. It verifies the 0x100-byte signature at `0x04`
+  over the 20-byte header hash at `0x32C`, with explicit RSA-SHA1 or
+  XeCrypt-RSA-SHA1 encoding selection.
 - Provides provider-backed CON signing through `--package-signing-helper` for
   `--sign-stfs-package` and `--sign-written-package`. The helper receives a
   base64-encoded RSA-SHA1 message request and returns a base64 signature; key
