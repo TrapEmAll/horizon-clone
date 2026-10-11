@@ -1848,6 +1848,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertIn("no managed Account type", by_name["Account serialization"]["evidence"])
         self.assertEqual(by_name["Console and remote package signing"]["status"], "provider-boundary")
         self.assertEqual(by_name["Native save/runtime boundaries"]["status"], "provider-boundary")
+        self.assertIn("returned true", by_name["DNG/HVM runtime adapter"]["evidence"])
         self.assertEqual(by_name["Managed feature-surface inventory"]["status"], "observed-only")
         self.assertIn("--managed-feature-surface", by_name["Managed feature-surface inventory"]["entry_points"])
         self.assertIn("NativeSaveBinding", by_name["Native save/runtime boundaries"]["entry_points"])
