@@ -2472,6 +2472,13 @@ class ContainerInspectionTests(unittest.TestCase):
             CommandAccountKeyProvider("key-vault-helper.exe")
         with self.assertRaises(FileNotFoundError):
             CommandAccountKeyProvider("C:\\does-not-exist\\key-vault-helper.exe")
+        helper = self.fixture_dir / "key-vault-helper.exe"
+        helper.write_bytes(b"placeholder")
+        try:
+            with self.assertRaises(ValueError):
+                CommandAccountKeyProvider(helper, timeout=0)
+        finally:
+            helper.unlink(missing_ok=True)
 
         class Provider:
             def rts_save_decrypt(self, input_buffer, output_length, output_buffer, input_length, key):
