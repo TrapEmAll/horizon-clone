@@ -20,6 +20,7 @@ class DeviceProviderUnavailable(RuntimeError):
 
 class DeviceIoProvider(Protocol):
     def open_read_only(self, device_path: str) -> int: ...
+    def open_read_write(self, device_path: str) -> int: ...
     def device_io_control(self, handle: int, control_code: int, input_data: bytes, output_capacity: int) -> bytes: ...
     def close(self, handle: int) -> None: ...
 
@@ -37,6 +38,7 @@ class WindowsDeviceIoProvider:
     FILE_SHARE_WRITE = 0x00000002
     OPEN_EXISTING = 3
     FILE_ATTRIBUTE_NORMAL = 0x00000080
+    GENERIC_WRITE = 0x40000000
     INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
     def __init__(self) -> None:
@@ -60,11 +62,17 @@ class WindowsDeviceIoProvider:
         self._close_handle.restype = wintypes.BOOL
 
     def open_read_only(self, device_path: str) -> int:
+        return self._open(device_path, self.GENERIC_READ)
+
+    def open_read_write(self, device_path: str) -> int:
+        return self._open(device_path, self.GENERIC_READ | self.GENERIC_WRITE)
+
+    def _open(self, device_path: str, access: int) -> int:
         if not isinstance(device_path, str) or not device_path:
             raise ValueError("device_path must be a non-empty string")
         handle = self._create_file(
             device_path,
-            self.GENERIC_READ,
+            access,
             self.FILE_SHARE_READ | self.FILE_SHARE_WRITE,
             None,
             self.OPEN_EXISTING,
@@ -114,14 +122,17 @@ class DeviceIoBinding:
     def open_read_only(self, device_path: str) -> int:
         return self._require().open_read_only(device_path)
 
+    def open_read_write(self, device_path: str) -> int:
+        return self._require().open_read_write(device_path)
+
     def device_io_control(self, handle: int, control_code: int, input_data: bytes = b"", output_capacity: int = 0) -> bytes:
         return self._require().device_io_control(handle, control_code, input_data, output_capacity)
 
     def close(self, handle: int) -> None:
         self._require().close(handle)
 
-    def open_session(self, device_path: str) -> "DeviceIoSession":
-        return DeviceIoSession(self, device_path)
+    def open_session(self, device_path: str, *, write_access: bool = False) -> "DeviceIoSession":
+        return DeviceIoSession(self, device_path, write_access=write_access)
 
     def _require(self) -> DeviceIoProvider:
         if self.provider is None:
@@ -132,15 +143,20 @@ class DeviceIoBinding:
 class DeviceIoSession:
     """Context-managed native device handle owned by a ``DeviceIoBinding``."""
 
-    def __init__(self, binding: DeviceIoBinding, device_path: str) -> None:
+    def __init__(self, binding: DeviceIoBinding, device_path: str, *, write_access: bool = False) -> None:
         self.binding = binding
         self.device_path = device_path
+        self.write_access = write_access
         self.handle: int | None = None
 
     def __enter__(self) -> "DeviceIoSession":
         if self.handle is not None:
             raise RuntimeError("device IO session is already open")
-        self.handle = self.binding.open_read_only(self.device_path)
+        self.handle = (
+            self.binding.open_read_write(self.device_path)
+            if self.write_access
+            else self.binding.open_read_only(self.device_path)
+        )
         return self
 
     def io_control(self, control_code: int, input_data: bytes = b"", output_capacity: int = 0) -> bytes:
