@@ -140,6 +140,10 @@ copied implementation code.
   base64-encoded RSA-SHA1 message request and returns a base64 signature; key
   material remains in the caller-owned key vault, and the result is verified
   against the embedded certificate before it is written.
+- Supports an explicit atomic sign-back mode through
+  `--sign-written-package-in-place`, completing a mutation and verified package
+  signature replacement in the same output path when an authorized private key
+  or external signing helper is supplied.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
