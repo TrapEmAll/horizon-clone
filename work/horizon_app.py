@@ -56,6 +56,7 @@ from .horizon_clone import (
     native_runtime_operation_report,
     native_lzo_operation_report,
     native_installation_report,
+    profile_asset_report,
 )
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
@@ -101,6 +102,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Extract selected", command=self.extract_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify hashes", command=self.verify_container).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Profile assets", command=self.show_profile_assets).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="FATX path", command=self.show_fatx_path).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed feature surface", command=self.show_managed_feature_surface).pack(side=tk.LEFT, padx=(8, 0))
@@ -584,6 +586,19 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Anti-analysis report failed", str(exc))
+
+    def show_profile_assets(self) -> None:
+        """Display recognized profile asset entries from the loaded STFS."""
+
+        if self._report is None or self._data is None or self._report.stfs_header is None:
+            messagebox.showinfo("Profile assets", "Open an STFS profile first")
+            return
+        try:
+            report = profile_asset_report(self._data, self._report.stfs_header)
+            self.status.configure(text=f"Displayed {len(report['assets'])} profile assets")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Profile asset report failed", str(exc))
 
     def show_managed_feature_surface(self) -> None:
         """Display literal feature buckets from retained managed REA evidence."""
