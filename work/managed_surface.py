@@ -884,6 +884,18 @@ def managed_io_contract_report_from_bundle(
                 if isinstance(edge, dict) and str(edge.get("caller_token")) == token
             ],
         })
+    family_counts: dict[str, dict[str, int]] = {}
+    for type_name in sorted(selected_names):
+        parts = type_name.split(".")
+        if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
+            family = ".".join(parts[:3])
+            family_counts.setdefault(family, {"types": 0, "methods": 0})["types"] += 1
+    for contract in contracts:
+        type_name = str(contract.get("declaring_type") or "")
+        parts = type_name.split(".")
+        if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
+            family = ".".join(parts[:3])
+            family_counts.setdefault(family, {"types": 0, "methods": 0})["methods"] += 1
     return {
         "status": "observed-only",
         "authority": "shipped-artifact",
@@ -896,6 +908,10 @@ def managed_io_contract_report_from_bundle(
             "methods_with_field_accesses": sum(bool(item["field_accesses"]) for item in contracts),
             "methods_with_call_targets": sum(bool(item["call_targets"]) for item in contracts),
         },
+        "family_counts": [
+            {"family": family, **counts}
+            for family, counts in sorted(family_counts.items())
+        ],
         "methods": contracts,
         "limitations": [
             "CIL anchors and tokens are artifact-local evidence, not a serializer implementation.",
