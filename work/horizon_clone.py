@@ -2758,6 +2758,7 @@ def device_ioctl_report(
     output_capacity: int = 0,
     *,
     provider=None,
+    write_access: bool = False,
 ) -> dict[str, object]:
     """Forward one caller-selected IOCTL through an explicit device provider.
 
@@ -2771,7 +2772,7 @@ def device_ioctl_report(
     if provider is None:
         provider = WindowsDeviceIoProvider()
     binding = DeviceIoBinding(provider)
-    with binding.open_session(device_path) as session:
+    with binding.open_session(device_path, write_access=write_access) as session:
         output = session.io_control(control_code, input_data, output_capacity)
     return {
         "device_path": device_path,
@@ -2780,10 +2781,10 @@ def device_ioctl_report(
         "output_capacity": output_capacity,
         "output_length": len(output),
         "output_hex": output.hex(),
-        "status": "provider-bound-read-only-handle",
+        "status": "provider-bound-read-write-handle" if write_access else "provider-bound-read-only-handle",
         "limitations": [
             "The IOCTL is caller-selected; FATX command semantics are not inferred.",
-            "The default Windows adapter requests GENERIC_READ only, but IOCTL safety remains caller responsibility.",
+            "Write access is opt-in; IOCTL safety and device mutation semantics remain caller responsibility.",
         ],
     }
 
@@ -2951,6 +2952,7 @@ def main() -> int:
     parser.add_argument("--device-ioctl", type=lambda value: int(value, 0), metavar="CODE", help="Forward one explicit IOCTL to the positional device path")
     parser.add_argument("--device-ioctl-input-hex", default="", metavar="HEX", help="Hex input bytes for --device-ioctl")
     parser.add_argument("--device-ioctl-output-capacity", type=int, default=0, metavar="BYTES", help="Output capacity for --device-ioctl")
+    parser.add_argument("--device-ioctl-write-access", action="store_true", help="Opt into a GENERIC_READ|GENERIC_WRITE device handle for --device-ioctl")
     parser.add_argument("--resource-surface", action="store_true", help="Print the REA-observed managed-resource surface")
     parser.add_argument("--resource-bundle", type=Path, help="Read an exported REA managed-resource inventory bundle")
     parser.add_argument("--resource-pattern", help="Case-insensitive regex for --resource-bundle resource names")
@@ -3258,6 +3260,7 @@ def main() -> int:
                 args.device_ioctl,
                 input_data,
                 args.device_ioctl_output_capacity,
+                write_access=args.device_ioctl_write_access,
             )
         except (OSError, TypeError, ValueError, RuntimeError) as exc:
             parser.error(str(exc))
