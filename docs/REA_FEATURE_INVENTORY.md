@@ -59,7 +59,8 @@ invented metadata values but do not claim binary save serialization or console
 validity.
 
 The shared managed-member evidence also exposes `ProfileLoadout` with its
-`All_Loadouts` member and `SaveEntryCategory` with observed audio, graphics,
+`All_Loadouts = 455` Constant and `SignOption` with 25 authenticated values
+from 1 through 25. It exposes `SaveEntryCategory` with observed audio, graphics,
 controls, game, campaign, campaign-level, and unknown-category labels. The
 authenticated Constant table recovers values 0 through 10 for
 `SaveEntryCategory`; package offsets and mutation behavior remain unresolved.
