@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import BinaryIO, Iterable
 
 from .editor_inventory import capability_report, catalog_report, rea_feature_ledger
-from .native_surface import managed_native_import_report, native_export_contract_report, native_installation_report, native_surface_report
+from .native_surface import managed_native_import_report, native_export_contract_report, native_import_table_report, native_installation_report, native_surface_report
 from .device_surface import device_surface_report
 from .device_binding import DeviceIoBinding, WindowsDeviceIoProvider
 from .native_runtime import NativeRuntimeBinding, PowerShellNativeRuntimeProvider
@@ -2946,6 +2946,7 @@ def main() -> int:
     parser.add_argument("--native-surface", action="store_true", help="Print the REA-observed native import boundary")
     parser.add_argument("--native-architecture", action="store_true", help="Inspect a PE native image's architecture without loading it")
     parser.add_argument("--native-exports", action="store_true", help="Inspect named PE exports without loading the image")
+    parser.add_argument("--native-imports", action="store_true", help="Inspect the PE import table without loading the image")
     parser.add_argument("--native-contract", action="store_true", help="Compare a supplied DLL with its REA-observed export contract")
     parser.add_argument("--native-runtime-operation", choices=("check-runtime", "check-runtime64", "run-hvm", "get-user-string", "get-user-string64"), help="Invoke one explicit Horizon/HVM runtime export on the positional DLL")
     parser.add_argument("--native-runtime-args", nargs=3, type=lambda value: int(value, 0), metavar=("ARG0", "ARG1", "ARG2"), help="Three raw integer arguments for a GetUserString operation")
@@ -3221,6 +3222,12 @@ def main() -> int:
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         print(json.dumps({"path": str(args.path), "exports": list(exports), "export_count": len(exports), "export_table": list(export_table)}, indent=2))
+        return 0
+    if args.native_imports:
+        try:
+            print(json.dumps(native_import_table_report(args.path), indent=2, ensure_ascii=False))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
         return 0
     if args.native_contract:
         try:
