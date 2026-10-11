@@ -19,6 +19,8 @@ capacity-bounded mutation/repacking and complete three-level STFS hash-tree
 rehashing/verification, plus a provider-oriented mutation/signing boundary.
 STFS file management also supports explicit recursive directory deletion via
 `--remove-tree`; ordinary removal continues to reject non-empty directories.
+The desktop front end exposes the same operation as a separately confirmed
+in-place action.
 
 The profile layer now aggregates the authenticated achievement fields across
 all parseable embedded GPDs, exposing entry counts, raw gamerscore totals, and
