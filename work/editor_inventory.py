@@ -210,5 +210,9 @@ def catalog_report(name: str) -> dict[str, object]:
         from .global_catalog import global_catalog_report
 
         return global_catalog_report()
+    if name == "rea":
+        from .rea_constants import rea_constant_catalog_report
+
+        return rea_constant_catalog_report()
     raise KeyError(f"unknown catalog: {name}")
 
