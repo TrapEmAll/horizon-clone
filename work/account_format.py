@@ -179,6 +179,15 @@ class AccountRecord:
     def membership_name(self) -> str:
         return ACCOUNT_MEMBERSHIP_TYPES.get(self.membership_type, "unknown")
 
+    @membership_name.setter
+    def membership_name(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("Account membership name must be a string")
+        matches = [code for code, name in ACCOUNT_MEMBERSHIP_TYPES.items() if name.casefold() == value.casefold()]
+        if not matches:
+            raise ValueError(f"unknown Account membership name: {value}")
+        self.membership_type = matches[0]
+
     @membership_type.setter
     def membership_type(self, value: int) -> None:
         self.cached_user_flags = (self.cached_user_flags & ~(0x1F << 20)) | ((value & 0x1F) << 20)
@@ -191,6 +200,15 @@ class AccountRecord:
     def online_country_name(self) -> str:
         return ACCOUNT_COUNTRY_CODES.get(self.online_country_code, "")
 
+    @online_country_name.setter
+    def online_country_name(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("Account country name must be a string")
+        matches = [code for code, name in ACCOUNT_COUNTRY_CODES.items() if name.casefold() == value.casefold()]
+        if not matches:
+            raise ValueError(f"unknown Account country name: {value}")
+        self.online_country_code = matches[0]
+
     @online_country_code.setter
     def online_country_code(self, value: int) -> None:
         self.cached_user_flags = (self.cached_user_flags & ~(0xFF << 8)) | ((value & 0xFF) << 8)
@@ -202,6 +220,15 @@ class AccountRecord:
     @property
     def online_language_name(self) -> str:
         return ACCOUNT_LANGUAGE_CODES.get(self.online_language_code, "")
+
+    @online_language_name.setter
+    def online_language_name(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("Account language name must be a string")
+        matches = [code for code, name in ACCOUNT_LANGUAGE_CODES.items() if name.casefold() == value.casefold()]
+        if not matches:
+            raise ValueError(f"unknown Account language name: {value}")
+        self.online_language_code = matches[0]
 
     @online_language_code.setter
     def online_language_code(self, value: int) -> None:
