@@ -1975,6 +1975,12 @@ def mutate_stfs_metadata(
     publisher_name: str | None = None,
     title_name: str | None = None,
     transfer_flags: int | None = None,
+    series_id: str | None = None,
+    season_id: str | None = None,
+    season_number: int | None = None,
+    episode_number: int | None = None,
+    additional_display_names: tuple[str, ...] | None = None,
+    additional_display_descriptions: tuple[str, ...] | None = None,
     header: StfsHeader | None = None,
 ) -> bytes:
     """Mutate fixed-width STFS metadata fields and rebuild the metadata hash."""
@@ -2008,6 +2014,52 @@ def mutate_stfs_metadata(
         if not 0 <= transfer_flags <= 0xFF:
             raise ValueError("transfer flags must fit in one byte")
         result[0x1711] = transfer_flags
+    version_two_values = (
+        series_id,
+        season_id,
+        season_number,
+        episode_number,
+        additional_display_names,
+        additional_display_descriptions,
+    )
+    if any(value is not None for value in version_two_values):
+        if header.metadata_version != 2:
+            raise ValueError("version-two metadata fields require an STFS metadata version of 2")
+        for value, offset in ((series_id, 0x3B1), (season_id, 0x3C1)):
+            if value is None:
+                continue
+            try:
+                encoded = bytes.fromhex(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("series and season IDs must be hexadecimal") from exc
+            if len(encoded) != 0x10:
+                raise ValueError("series and season IDs must be exactly 16 bytes")
+            result[offset : offset + 0x10] = encoded
+        for value, offset, label in (
+            (season_number, 0x3D1, "season number"),
+            (episode_number, 0x3D3, "episode number"),
+        ):
+            if value is None:
+                continue
+            if not 0 <= value <= 0xFFFF:
+                raise ValueError(f"{label} must fit in an unsigned 16-bit field")
+            result[offset : offset + 2] = value.to_bytes(2, "big")
+        for values, offset, label in (
+            (additional_display_names, 0x541A, "additional display name"),
+            (additional_display_descriptions, 0x941A, "additional display description"),
+        ):
+            if values is None:
+                continue
+            if len(values) > 6:
+                raise ValueError(f"{label} values support at most six locales")
+            for index, value in enumerate(values):
+                if not isinstance(value, str):
+                    raise TypeError(f"{label} values must be strings")
+                encoded = value.encode("utf-16-be") + b"\x00\x00"
+                if len(encoded) > 0x80:
+                    raise ValueError(f"{label} exceeds the STFS 0x80-byte locale field")
+                start = offset + index * 0x80
+                result[start : start + 0x80] = encoded.ljust(0x80, b"\x00")
     return rehash_stfs_hashes(bytes(result), header)
 
 
@@ -2799,6 +2851,12 @@ def main() -> int:
     parser.add_argument("--transfer-flags", type=lambda value: int(value, 0), help="Replace STFS transfer flags")
     parser.add_argument("--title-id", type=lambda value: int(value, 0), help="Replace the STFS title ID")
     parser.add_argument("--content-type", type=lambda value: int(value, 0), help="Replace the STFS content type")
+    parser.add_argument("--series-id", help="Replace the metadata-version-2 16-byte series ID as hexadecimal")
+    parser.add_argument("--season-id", help="Replace the metadata-version-2 16-byte season ID as hexadecimal")
+    parser.add_argument("--season-number", type=int, help="Replace the metadata-version-2 season number")
+    parser.add_argument("--episode-number", type=int, help="Replace the metadata-version-2 episode number")
+    parser.add_argument("--additional-display-name", action="append", help="Replace one metadata-version-2 localized display name (repeat in locale order)")
+    parser.add_argument("--additional-display-description", action="append", help="Replace one metadata-version-2 localized display description (repeat in locale order)")
     parser.add_argument("--thumbnail-source", type=Path, help="Replace the STFS thumbnail payload")
     parser.add_argument("--title-thumbnail-source", type=Path, help="Replace the STFS title-thumbnail payload")
     parser.add_argument("--thumbnail-output", type=Path, help="Write the STFS thumbnail payload")
@@ -3775,6 +3833,12 @@ def main() -> int:
             args.transfer_flags,
             args.title_id,
             args.content_type,
+            args.series_id,
+            args.season_id,
+            args.season_number,
+            args.episode_number,
+            args.additional_display_name,
+            args.additional_display_description,
         )
     )
     if metadata_requested:
@@ -3792,6 +3856,12 @@ def main() -> int:
                 transfer_flags=args.transfer_flags,
                 title_id=args.title_id,
                 content_type=args.content_type,
+                series_id=args.series_id,
+                season_id=args.season_id,
+                season_number=args.season_number,
+                episode_number=args.episode_number,
+                additional_display_names=tuple(args.additional_display_name) if args.additional_display_name is not None else None,
+                additional_display_descriptions=tuple(args.additional_display_description) if args.additional_display_description is not None else None,
                 header=report.stfs_header,
             )
             write_mutation(raw)
