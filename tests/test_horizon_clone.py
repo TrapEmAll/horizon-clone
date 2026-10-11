@@ -547,9 +547,35 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["counts"]["matched_methods"], 1)
         self.assertEqual(report["role_counts"], {"save": 1})
         self.assertEqual(report["methods"][0]["role"], "save")
+        self.assertEqual(report["methods"][0]["implementation_readiness"], "observed-body")
+        self.assertEqual(report["implementation_readiness_counts"], {"observed-body": 1})
         self.assertEqual(report["methods"][0]["field_accesses"][0]["field_name"], "Value")
         self.assertEqual(report["methods"][0]["call_targets"][0]["target_name"], "Write")
         self.assertEqual(report["family_counts"], [])
+
+    def test_classifies_retained_throw_only_io_stubs(self):
+        bundle = self.fixture_dir / "io-stub-contract-bundle.json"
+        bundle.write_text(json.dumps({
+            "records": [{
+                "operation": "inspect_managed_members",
+                "evidence_id": "ev_io_stub",
+                "normalized_result": {
+                    "types": [{"full_name": "Horizon.PackageEditors.Skyrim.Save"}],
+                    "methods": [{
+                        "declaring_type": "Horizon.PackageEditors.Skyrim.Save",
+                        "name": "Write",
+                        "token": "0x06000001",
+                        "body": {"status": "present", "opcode_counts": {"ldstr": 1, "newobj": 1, "throw": 1}},
+                    }],
+                },
+            }]
+        }), encoding="utf-8")
+        try:
+            report = managed_io_contract_report(bundle, "Skyrim", "^Write$")
+        finally:
+            bundle.unlink(missing_ok=True)
+        self.assertEqual(report["methods"][0]["implementation_readiness"], "throw-only-stub")
+        self.assertEqual(report["implementation_readiness_counts"], {"throw-only-stub": 1})
 
     def test_groups_title_editor_io_contracts_by_family(self):
         bundle = self.fixture_dir / "title-io-contract-bundle.json"
