@@ -1303,6 +1303,7 @@ class HorizonApp(tk.Tk):
         if transfer_flags_text is None:
             return
         series_id_text = season_id_text = season_number_text = episode_number_text = None
+        additional_display_names = additional_display_descriptions = None
         if header.metadata_version == 2:
             series_id_text = simpledialog.askstring(
                 "Series ID", "Series ID (hex, blank to keep current):",
@@ -1328,6 +1329,28 @@ class HorizonApp(tk.Tk):
             )
             if episode_number_text is None:
                 return
+            additional_display_names = []
+            for index, current in enumerate(header.additional_display_names):
+                value = simpledialog.askstring(
+                    f"Additional display name {index}",
+                    f"Localized display name {index}:",
+                    initialvalue=current,
+                    parent=self,
+                )
+                if value is None:
+                    return
+                additional_display_names.append(value)
+            additional_display_descriptions = []
+            for index, current in enumerate(header.additional_display_descriptions):
+                value = simpledialog.askstring(
+                    f"Additional description {index}",
+                    f"Localized display description {index}:",
+                    initialvalue=current,
+                    parent=self,
+                )
+                if value is None:
+                    return
+                additional_display_descriptions.append(value)
         try:
             title_id = header.title_id if not title_id_text.strip() else int(title_id_text, 16)
             content_type = header.content_type if not content_type_text.strip() else int(content_type_text, 16)
@@ -1349,6 +1372,8 @@ class HorizonApp(tk.Tk):
                 season_id=season_id if header.metadata_version == 2 else None,
                 season_number=season_number if header.metadata_version == 2 else None,
                 episode_number=episode_number if header.metadata_version == 2 else None,
+                additional_display_names=tuple(additional_display_names) if additional_display_names is not None else None,
+                additional_display_descriptions=tuple(additional_display_descriptions) if additional_display_descriptions is not None else None,
                 header=header,
             )
             target = filedialog.asksaveasfilename(
@@ -1376,6 +1401,8 @@ class HorizonApp(tk.Tk):
                     "season_id": season_id if header.metadata_version == 2 else None,
                     "season_number": season_number if header.metadata_version == 2 else None,
                     "episode_number": episode_number if header.metadata_version == 2 else None,
+                    "additional_display_names": additional_display_names,
+                    "additional_display_descriptions": additional_display_descriptions,
                     "signature_checked": False,
                 }
             )
