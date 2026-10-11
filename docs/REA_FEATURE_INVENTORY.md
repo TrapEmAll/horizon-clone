@@ -103,12 +103,13 @@ managed type `class:957`. They are exposed as declaration metadata only; no
 bitmap format or Account-file relationship is inferred.
 
 
-The shared STFS report also exposes public certificate descriptors, signature
-byte digests, and all 16 license slots. A public-key probe against the supplied
-fixture did not produce a valid PKCS#1 verification block from the apparent
-modulus/signature fields, and REA did not authenticate the signed-region
-protocol. The clone therefore deliberately does not guess a package-signature
-layout, verify, or forge console signatures.
+The shared STFS report exposes public certificate descriptors, signature byte
+digests, and all 16 license slots. The supplied CON fixture now has an
+evidence-qualified package-signature verifier over `0x22C..0x344` using the
+stored certificate modulus after XeCrypt conversion. LIVE/PIRS verification
+uses a caller-supplied public key over the documented `0x32C..0x340` header
+hash, and provider-backed development signing is available for both layouts.
+These paths do not embed retail trust roots or claim console authority.
 
 The CLI also supports `--sign-detached-signature` with a caller-owned private
 key JSON file (`modulus_hex` and `private_exponent_hex`) for authorized
