@@ -135,6 +135,8 @@ class ContainerInspectionTests(unittest.TestCase):
 
         self.assertEqual(len(encrypted), 404)
         self.assertEqual(len(plain), 380)
+        self.assertEqual(record.reserved, 0x20000001)
+        self.assertEqual(record.live_flags, 0)
         self.assertEqual(record.to_bytes(), plain)
         self.assertEqual(
             unobfuscate_account(
