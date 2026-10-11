@@ -139,6 +139,7 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
     allowed = dataclass_fields | {
         "recovering", "xbox_live_enabled", "password_protected",
         "membership_type", "online_country_code", "online_language_code",
+        "membership_name", "online_country_name", "online_language_name",
     }
     values = {name: getattr(record, name) for name in dataclass_fields}
     for name, value in updates.items():
