@@ -2460,6 +2460,7 @@ class ContainerInspectionTests(unittest.TestCase):
         provider = KeyProvider()
         codec = AccountCodec(NativeSaveBinding(SaveProvider()))
         self.assertEqual(codec.decrypt_with_key_provider(b"opaque", provider, 32), b"opaque")
+        self.assertEqual(codec.decrypt_with_key_provider_raw(b"opaque", provider, 32), (0, b"opaque"))
         self.assertEqual(codec.decrypt_raw(b"opaque", b"dev-key", 32), (0, b"opaque"))
         self.assertEqual(provider.request[0], "decrypt")
         self.assertEqual(len(provider.request[1]), 64)
