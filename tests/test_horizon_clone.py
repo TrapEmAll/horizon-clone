@@ -304,6 +304,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "move_entry_in_place"))
         self.assertTrue(hasattr(HorizonApp, "decrypt_account"))
         self.assertTrue(hasattr(HorizonApp, "encrypt_account"))
+        self.assertTrue(hasattr(HorizonApp, "inspect_historical_account"))
+        self.assertTrue(hasattr(HorizonApp, "edit_historical_account"))
         self.assertTrue(hasattr(HorizonApp, "export_xdbf_surface"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_image"))
         self.assertTrue(hasattr(HorizonApp, "export_achievement_links"))
