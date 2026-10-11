@@ -1982,6 +1982,42 @@ def mutate_profile_achievement_flags(
     return result
 
 
+def mutate_profile_achievement_images(
+    data: bytes,
+    replacements: dict[int, bytes],
+    header: StfsHeader | None = None,
+) -> bytes:
+    """Replace linked achievement PNGs across embedded GPDs by image ID."""
+
+    if not replacements:
+        raise ValueError("at least one achievement image replacement is required")
+    header = header or parse_stfs_header(data)
+    for image_id, payload in replacements.items():
+        if not 0 <= image_id <= 0xFFFFFFFFFFFFFFFF:
+            raise ValueError("achievement image ID must fit in an unsigned 64-bit field")
+        if resource_payload_metadata(payload).get("kind") != "png":
+            raise ValueError(f"achievement image replacement 0x{image_id:X} must be a PNG payload")
+    result = data
+    changed = False
+    for file_entry, _xdbf_entries in list_embedded_xdbf(result, header):
+        if Path(file_entry.path).suffix.lower() != ".gpd":
+            continue
+        payload = read_stfs_entry(result, file_entry, header)
+        entries = parse_xdbf(payload)
+        xdbf_changed = False
+        for image in entries:
+            if image.namespace != 2 or image.entry_id not in replacements:
+                continue
+            payload = mutate_xdbf_entry_same_size(payload, image, replacements[image.entry_id])
+            xdbf_changed = True
+        if xdbf_changed:
+            result = mutate_stfs_entry_same_size(result, file_entry, payload, header)
+            changed = True
+    if not changed:
+        raise LookupError("no supplied achievement image IDs were found in embedded GPDs")
+    return result
+
+
 def mutate_profile_xdbf_text(
     data: bytes,
     old_text: str,
@@ -3051,6 +3087,7 @@ def main() -> int:
     parser.add_argument("--achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask on every observed achievement in one XDBF payload")
     parser.add_argument("--profile-achievement-flags-or", type=lambda value: int(value, 0), help="Set a raw 16-bit flags mask across every observed achievement in embedded GPDs")
     parser.add_argument("--profile-achievement-flags-and-not", type=lambda value: int(value, 0), help="Clear a raw 16-bit flags mask across every observed achievement in embedded GPDs")
+    parser.add_argument("--profile-achievement-image", action="append", nargs=2, metavar=("IMAGE_ID", "SOURCE"), help="Replace one linked achievement PNG across embedded GPDs; repeat with --write or --in-place")
     parser.add_argument("--profile-xdbf-text", metavar="TEXT", help="Replace an exact namespace-5 XDBF string across embedded GPD/FIT files")
     parser.add_argument("--profile-xdbf-text-value", help="Replacement value for --profile-xdbf-text")
     parser.add_argument("--achievement-unlock-filetime", type=lambda value: int(value, 0), help="Replace the observed 64-bit big-endian achievement unlock FILETIME")
@@ -3554,6 +3591,24 @@ def main() -> int:
             print(f"Wrote unsigned historical Account mutation to {write_target}")
             return 0
         profile_flags_requested = args.profile_achievement_flags_or is not None or args.profile_achievement_flags_and_not is not None
+        if args.profile_achievement_image:
+            if not write_target:
+                parser.error("--profile-achievement-image requires --write or --in-place")
+            if not report.stfs_header:
+                parser.error("--profile-achievement-image requires a readable STFS header")
+            replacements: dict[int, bytes] = {}
+            try:
+                for image_id_text, source_name in args.profile_achievement_image:
+                    image_id = int(image_id_text, 0)
+                    if image_id in replacements:
+                        parser.error(f"duplicate --profile-achievement-image ID: {image_id_text}")
+                    replacements[image_id] = Path(source_name).read_bytes()
+                raw = mutate_profile_achievement_images(raw, replacements, report.stfs_header)
+                write_mutation(raw)
+            except (OSError, LookupError, TypeError, ValueError) as exc:
+                parser.error(str(exc))
+            mutation_written = True
+            print(f"Wrote profile achievement image mutation to {write_target}")
         if args.profile_achievement_flags_or is not None and args.profile_achievement_flags_and_not is not None:
             parser.error("choose one of --profile-achievement-flags-or or --profile-achievement-flags-and-not")
         if profile_flags_requested:
