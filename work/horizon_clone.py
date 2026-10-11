@@ -25,7 +25,7 @@ from .native_runtime import NativeRuntimeBinding, PowerShellNativeRuntimeProvide
 from .native_compression import LzoBinding, PowerShellLzoProvider
 from .lzo_codec import LzoCodec
 from .resource_inventory import extract_managed_resource_payloads, observed_resource_surface, parse_dotnet_resources, resource_payload_metadata, resource_surface_report, verify_managed_resource_payloads
-from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
+from .managed_surface import managed_artifact_report, managed_body_fidelity_report, managed_editor_family_report, managed_feature_surface_report, managed_guarded_methods_report, managed_io_contract_report, managed_named_namespace_report, managed_reference_report, managed_schema_report, managed_surface_report
 from .device_inventory import device_inventory_report, enumerate_host_device_entries
 from .signing import RsaPublicKey, verify_sha1_pkcs1v15, verify_xecrypt_sha1_pkcs1v15
 from .native_loader import compatible_pe_architecture, pe_export_names
@@ -2808,6 +2808,8 @@ def main() -> int:
     parser.add_argument("--family-pattern", help="Case-insensitive regex for --managed-editor-families type names")
     parser.add_argument("--managed-named-namespaces", type=Path, help="Summarize stable named namespaces from an exported REA managed-members bundle")
     parser.add_argument("--namespace-pattern", help="Case-insensitive regex for --managed-named-namespaces type names")
+    parser.add_argument("--managed-feature-surface", type=Path, help="Classify literal feature terms in an exported REA managed-members bundle")
+    parser.add_argument("--feature-pattern", help="Case-insensitive regex for --managed-feature-surface type and method scope")
     parser.add_argument("--managed-guarded-methods", type=Path, help="Report REA-observed methods with throw and no return opcode")
     parser.add_argument("--guarded-method-pattern", help="Case-insensitive regex for --managed-guarded-methods declaring type or method")
     parser.add_argument("--managed-body-fidelity", type=Path, help="Measure distinctness of retained REA managed method bodies")
@@ -3152,6 +3154,13 @@ def main() -> int:
     if args.managed_named_namespaces:
         try:
             report = managed_named_namespace_report(args.managed_named_namespaces, args.namespace_pattern)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    if args.managed_feature_surface:
+        try:
+            report = managed_feature_surface_report(args.managed_feature_surface, args.feature_pattern)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(report, indent=2, ensure_ascii=False))
