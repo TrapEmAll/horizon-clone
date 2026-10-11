@@ -9,7 +9,11 @@ vectors and for integrating a separately managed development signing service.
 from __future__ import annotations
 
 import hashlib
+import base64
+import json
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 
@@ -83,6 +87,44 @@ class LocalRsaSha1Signer:
             raise ValueError("RSA modulus is too short for SHA-1 PKCS#1 v1.5")
         encoded = b"\x00\x01" + b"\xff" * (size - len(digest_info) - 3) + b"\x00" + digest_info
         return pow(int.from_bytes(encoded, "big"), self.key.private_exponent, self.key.modulus).to_bytes(size, "big")
+
+
+class CommandSha1SigningProvider:
+    """Call an authorized external signing/key-vault helper without persisting keys."""
+
+    def __init__(self, executable: str | Path, timeout: float = 30.0) -> None:
+        path = Path(executable)
+        if not path.is_absolute():
+            raise ValueError("signing helper path must be absolute")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        self.executable = path
+        self.timeout = timeout
+
+    def sign_sha1(self, message: bytes) -> bytes:
+        if not isinstance(message, bytes):
+            raise TypeError("signing message must be bytes")
+        completed = subprocess.run(
+            [str(self.executable)],
+            input=json.dumps({
+                "algorithm": "RSA-SHA1-PKCS1v1.5",
+                "message_base64": base64.b64encode(message).decode("ascii"),
+            }),
+            capture_output=True,
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        if completed.returncode:
+            raise OSError("signing helper failed")
+        try:
+            result = json.loads(completed.stdout)
+            signature = base64.b64decode(result["signature_base64"], validate=True)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError, base64.binascii.Error) as exc:
+            raise ValueError("signing helper returned malformed signature JSON") from exc
+        if not signature:
+            raise ValueError("signing helper returned an empty signature")
+        return signature
 
 
 def verify_sha256_pkcs1v15(message: bytes, signature: bytes, key: RsaPublicKey) -> bool:
