@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 42808)
-Total output lines: 3237
+Warning: truncated output (original token count: 42894)
+Total output lines: 3245
 
 import hashlib
 import json
@@ -438,6 +438,14 @@ class ContainerInspectionTests(unittest.TestCase):
         ])
         with self.assertRaises(TypeError):
             device_ioctl_report("device", 1, write_access=1, provider=provider)
+
+    def test_device_io_binding_rejects_provider_output_beyond_capacity(self):
+        class Provider:
+            def device_io_control(self, handle, control_code, input_data, output_capacity):
+                return b"too-long"
+
+        with self.assertRaises(ValueError):
+            DeviceIoBinding(Provider()).device_io_control(1, 1, b"", 2)
 
     def test_reports_selected_managed_surface_from_exported_evidence(self):
         bundle = self.fixture_dir / "managed-surface.json"
@@ -1142,13 +1150,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertNotIn("cache/ph.dat", paths)
         self.assertEqual(verify_stfs_hashes(mutated, header=mutated_header)["failures"], [])
 
-    def test_removes_empty_stfs_directory_and_rehashes(self):
-        path = supplied_fixture()
-        if path is None or not path.exists():
-            self.skipTest("supplied STFS profile fixture is not available")
-        original = path.read_bytes()
-        header = parse_stfs_header(original)
-        with_directory = add_stfs_directory(original…12808 tokens truncated…_type, item.name) for item in observed_device_members()}
+    d…12894 tokens truncated…_type, item.name) for item in observed_device_members()}
         self.assertIn(("A.c0353b6b5ff8fecef988e28ba8b350fd5", "get_DeviceSize"), members)
         self.assertIn(("A.c481e7f09def65aded5645fc775214ae5", "get_Account_Thumb"), members)
         self.assertIn(("A.c19f8a9b6dbfc214ef50f596f4e56345d", "get_FatxHDD_24"), members)
