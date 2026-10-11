@@ -144,6 +144,12 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
     claim Horizon's native save crypto, package signing, or console validity.
     """
 
+    return _mutate_historical_account_with_keys(container, key, key, updates)
+
+
+def _mutate_historical_account_with_keys(
+    container: bytes, decrypt_key: bytes, encrypt_key: bytes, updates: dict[str, object]
+) -> bytes:
     from .account_format import AccountRecord, obfuscate_account, unobfuscate_account
 
     header = parse_stfs_header(container)
@@ -151,7 +157,7 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
     if entry is None or entry.is_directory:
         raise ValueError("STFS Account entry was not found")
     encrypted = read_stfs_entry(container, entry, header)
-    record = AccountRecord.from_bytes(unobfuscate_account(encrypted, key))
+    record = AccountRecord.from_bytes(unobfuscate_account(encrypted, decrypt_key))
     dataclass_fields = set(record.__dataclass_fields__)
     allowed = dataclass_fields | {
         "recovering", "xbox_live_enabled", "password_protected",
@@ -173,7 +179,7 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
     values["reserved"] = record.reserved
     values["cached_user_flags"] = record.cached_user_flags
     edited = AccountRecord(**values).to_bytes()
-    replacement = obfuscate_account(edited, key)
+    replacement = obfuscate_account(edited, encrypt_key)
     if len(replacement) != entry.size:
         raise ValueError("historical Account codec changed the entry size")
     return repack_stfs_entries(container, {entry.path: replacement}, header)
@@ -191,8 +197,9 @@ def mutate_historical_account_with_key_provider(
     if entry is None or entry.is_directory:
         raise ValueError("STFS Account entry was not found")
     encrypted = read_stfs_entry(container, entry, header)
-    key = _provider_key(provider, "decrypt", encrypted)
-    return mutate_historical_account(container, key, updates)
+    decrypt_key = _provider_key(provider, "decrypt", encrypted)
+    encrypt_key = _provider_key(provider, "encrypt", encrypted)
+    return _mutate_historical_account_with_keys(container, decrypt_key, encrypt_key, updates)
 
 
 def decrypt_account_entry(
