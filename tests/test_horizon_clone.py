@@ -291,6 +291,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertTrue(hasattr(HorizonApp, "sign_written_package_with_key_vault"))
         self.assertTrue(hasattr(HorizonApp, "verify_con_signature"))
         self.assertTrue(hasattr(HorizonApp, "verify_remote_signature"))
+        self.assertTrue(hasattr(HorizonApp, "sign_remote_package_with_key_vault"))
         self.assertTrue(hasattr(HorizonApp, "show_anti_analysis"))
         self.assertTrue(hasattr(HorizonApp, "show_device_inventory"))
         self.assertTrue(hasattr(HorizonApp, "show_device_directory"))
