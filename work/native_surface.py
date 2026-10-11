@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .native_loader import compatible_pe_architecture, pe_export_names
+from .native_loader import compatible_pe_architecture, pe_export_names, pe_export_table
 
 
 @dataclass(frozen=True)
@@ -182,6 +182,7 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
     }
     expected = expected_by_name.get(source.name.lower(), ())
     exports = pe_export_names(source)
+    export_table = pe_export_table(source)
     missing = [name for name in expected if name not in exports]
     export_table_sha256 = hashlib.sha256("\n".join(exports).encode("utf-8")).hexdigest()
     artifact_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -193,6 +194,7 @@ def native_export_contract_report(path: str | Path) -> dict[str, object]:
         "export_table_sha256": export_table_sha256,
         "expected_exports": list(expected),
         "observed_exports": list(exports),
+        "export_table": list(export_table),
         "missing_exports": missing,
         "status": "verified" if expected and not missing else "unresolved",
         "limitations": [
