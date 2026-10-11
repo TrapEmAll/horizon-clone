@@ -72,6 +72,7 @@ from work.horizon_clone import (
     native_lzo_operation_report,
 )
 from work.signing import (
+    CommandSha1SigningProvider,
     DetachedSignature,
     RsaPrivateKey,
     LocalRsaSha1Signer,
@@ -1414,6 +1415,10 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(provider.message, region.data)
         detached = DetachedSignature("other-region", detached.algorithm, detached.signature)
         self.assertFalse(verify_region(region, detached, RsaPublicKey(257, 3)))
+
+    def test_external_sha1_signing_provider_requires_absolute_helper(self):
+        with self.assertRaises(ValueError):
+            CommandSha1SigningProvider("relative-helper")
 
     def test_reads_explicit_development_private_key_json(self):
         path = self.fixture_dir / "development-private-key.json"
