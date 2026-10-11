@@ -259,10 +259,13 @@ def encrypt_account_payload(
     from .native_save import NativeSaveBinding, PowerShellNativeSaveProvider
 
     plaintext = plaintext_path.read_bytes()
+    if not isinstance(output_length, int) or isinstance(output_length, bool) or not 0 <= output_length <= output_capacity:
+        raise ValueError("output_length must fit the supplied output capacity")
     provider = PowerShellNativeSaveProvider(class3_path)
     codec = AccountCodec(NativeSaveBinding(provider))
     key_provider = CommandAccountKeyProvider(key_helper_path)
-    encrypted = codec.encrypt_with_key_provider(plaintext, key_provider, output_capacity, output_length)
+    native_status, raw_encrypted = codec.encrypt_with_key_provider_raw(plaintext, key_provider, output_capacity)
+    encrypted = raw_encrypted[:output_length]
     _atomic_replace_bytes(output_path, encrypted)
     return {
         "operation": "account-encrypt",
@@ -270,6 +273,7 @@ def encrypt_account_payload(
         "input_bytes": len(plaintext),
         "output": str(output_path),
         "output_bytes": len(encrypted),
+        "native_status": native_status,
         "plaintext_sha256": hashlib.sha256(plaintext).hexdigest(),
     }
 
