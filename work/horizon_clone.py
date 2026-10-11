@@ -2676,6 +2676,7 @@ def main() -> int:
     parser.add_argument("--public-key-exponent", type=lambda value: int(value, 0), default=65537)
     parser.add_argument("--public-key-json", type=Path, help="JSON key emitted by --public-key for detached verification")
     parser.add_argument("--private-key-json", type=Path, help="Caller-supplied development RSA private key JSON for --sign-detached-signature")
+    parser.add_argument("--package-signing-helper", type=Path, help="Absolute external RSA-SHA1 key-vault helper for CON package signing")
     parser.add_argument("--anti-analysis", type=Path, metavar="BUNDLE", help="Report REA-observed anti-analysis markers from an evidence bundle")
     parser.add_argument("--output", type=Path, help="Write the JSON report to this path")
     parser.add_argument("--list", action="store_true", help="List STFS file-table entries")
@@ -3127,8 +3128,10 @@ def main() -> int:
     if args.sign_written_package:
         if not write_target:
             parser.error("--sign-written-package requires --write or --in-place")
-        if not args.private_key_json:
-            parser.error("--sign-written-package requires --private-key-json")
+        if not args.private_key_json and not args.package_signing_helper:
+            parser.error("--sign-written-package requires --private-key-json or --package-signing-helper")
+        if args.private_key_json and args.package_signing_helper:
+            parser.error("choose one of --private-key-json or --package-signing-helper")
         if args.sign_written_package.resolve() == write_target.resolve():
             parser.error("--sign-written-package must be different from the written container")
     mutation_written = False
@@ -3146,10 +3149,18 @@ def main() -> int:
             result = sign_detached_signature(write_target, args.sign_written_output, args.signature_label, args.private_key_json)
             print(json.dumps({"written_signature": result}, indent=2))
         if args.sign_written_package:
-            signed = sign_stfs_console_package(
-                write_target.read_bytes(),
-                read_private_key_json(args.private_key_json),
-            )
+            if args.package_signing_helper:
+                from .signing import CommandSha1SigningProvider
+
+                signed = sign_stfs_console_package_with_provider(
+                    write_target.read_bytes(),
+                    CommandSha1SigningProvider(args.package_signing_helper),
+                )
+            else:
+                signed = sign_stfs_console_package(
+                    write_target.read_bytes(),
+                    read_private_key_json(args.private_key_json),
+                )
             _atomic_replace_bytes(args.sign_written_package, signed)
             verification = verify_stfs_console_signature(signed)
             print(json.dumps({
@@ -3540,13 +3551,23 @@ def main() -> int:
         return 0 if signature_report["verified"] else 1
 
     if args.sign_stfs_package:
-        if not args.private_key_json:
-            parser.error("--sign-stfs-package requires --private-key-json")
+        if not args.private_key_json and not args.package_signing_helper:
+            parser.error("--sign-stfs-package requires --private-key-json or --package-signing-helper")
+        if args.private_key_json and args.package_signing_helper:
+            parser.error("choose one of --private-key-json or --package-signing-helper")
         if args.sign_stfs_package.resolve() == args.path.resolve():
             parser.error("--sign-stfs-package must be different from the input path")
         try:
-            private_key = read_private_key_json(args.private_key_json)
-            signed = sign_stfs_console_package(raw, private_key)
+            if args.package_signing_helper:
+                from .signing import CommandSha1SigningProvider
+
+                signed = sign_stfs_console_package_with_provider(
+                    raw,
+                    CommandSha1SigningProvider(args.package_signing_helper),
+                )
+            else:
+                private_key = read_private_key_json(args.private_key_json)
+                signed = sign_stfs_console_package(raw, private_key)
             _atomic_replace_bytes(args.sign_stfs_package, signed)
             verification = verify_stfs_console_signature(signed)
         except (OSError, ValueError, TypeError) as exc:
