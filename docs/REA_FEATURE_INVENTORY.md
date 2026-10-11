@@ -185,6 +185,11 @@ the observed runtime exports through a matching Windows PowerShell host. It
 preserves the raw boolean/native-integer return values, performs no DLL search,
 and does not infer the meaning of the native handle or string arguments.
 
+The supplied x86 `Horizon.dll` was exercised through that bridge for the
+REA-observed `CheckRuntime`/`DNG_Runtime` boundary and returned `true`. This is
+provider-specific controlled runtime evidence for that call only; it does not
+establish the meanings of `RunHVM`, `GetUserString`, or any native handles.
+
 `NativeSaveBinding` now models the recovered `RtsSaveDecrypt` and
 `RtsSaveEncrypt` buffer shapes, including the `u4&` output-length argument.
 It requires an explicit caller-supplied provider, validates the observed
