@@ -18,6 +18,46 @@ import secrets
 ACCOUNT_PLAIN_LENGTH = 380
 ACCOUNT_ENCRYPTED_LENGTH = 404
 
+ACCOUNT_MEMBERSHIP_TYPES = {
+    0: "invalid",
+    3: "silver",
+    6: "gold",
+    9: "family-gold",
+}
+ACCOUNT_LANGUAGE_CODES = {
+    0: "",
+    1: "en",
+    2: "ja",
+    3: "de",
+    4: "fr",
+    5: "es",
+    6: "it",
+    7: "ko",
+    8: "zh",
+    9: "pt",
+    10: "zh",
+    11: "pl",
+    12: "ru",
+    13: "da",
+    14: "fi",
+    15: "nb",
+    16: "nl",
+    17: "sv",
+    18: "cs",
+    19: "el",
+    20: "hu",
+}
+ACCOUNT_COUNTRY_CODES = {
+    0x05: "AT", 0x06: "AU", 0x08: "BE", 0x0D: "BR", 0x10: "CA",
+    0x12: "CH", 0x13: "CL", 0x14: "CN", 0x15: "CO", 0x17: "CZ",
+    0x18: "DE", 0x19: "DK", 0x1F: "ES", 0x20: "FI", 0x22: "FR",
+    0x23: "GB", 0x25: "GR", 0x27: "HK", 0x2A: "HU", 0x2C: "IE",
+    0x2E: "IN", 0x32: "IT", 0x35: "JP", 0x38: "KR", 0x47: "MX",
+    0x4A: "NL", 0x4B: "NO", 0x4C: "NZ", 0x52: "PL", 0x54: "PR",
+    0x58: "RU", 0x5A: "SE", 0x5B: "SG", 0x65: "TW", 0x67: "US",
+    0x6D: "ZA",
+}
+
 
 def _rc4(data: bytes, key: bytes) -> bytes:
     if not key:
@@ -135,6 +175,10 @@ class AccountRecord:
     def membership_type(self) -> int:
         return (self.cached_user_flags >> 20) & 0x1F
 
+    @property
+    def membership_name(self) -> str:
+        return ACCOUNT_MEMBERSHIP_TYPES.get(self.membership_type, "unknown")
+
     @membership_type.setter
     def membership_type(self, value: int) -> None:
         self.cached_user_flags = (self.cached_user_flags & ~(0x1F << 20)) | ((value & 0x1F) << 20)
@@ -143,6 +187,10 @@ class AccountRecord:
     def online_country_code(self) -> int:
         return (self.cached_user_flags >> 8) & 0xFF
 
+    @property
+    def online_country_name(self) -> str:
+        return ACCOUNT_COUNTRY_CODES.get(self.online_country_code, "")
+
     @online_country_code.setter
     def online_country_code(self, value: int) -> None:
         self.cached_user_flags = (self.cached_user_flags & ~(0xFF << 8)) | ((value & 0xFF) << 8)
@@ -150,6 +198,10 @@ class AccountRecord:
     @property
     def online_language_code(self) -> int:
         return (self.cached_user_flags >> 25) & 0x1F
+
+    @property
+    def online_language_name(self) -> str:
+        return ACCOUNT_LANGUAGE_CODES.get(self.online_language_code, "")
 
     @online_language_code.setter
     def online_language_code(self, value: int) -> None:
