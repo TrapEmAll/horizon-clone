@@ -84,6 +84,9 @@ bundle contains the latter pattern for several obfuscated `Read`/`Write`
 surfaces. Family summaries include the same readiness breakdown, which makes
 the current evidence gap explicit: the retained title I/O projection is
 dominated by throw-only stubs rather than usable serializers.
+Each title family also carries a derived `serializer_status`; for the shipped
+bundle, the title families with retained I/O methods are not classified as
+having an observed serializer body.
 
 `--managed-feature-surface` now classifies literal terms in authenticated type
 and method names into profile/social, achievement/score, device/storage,
