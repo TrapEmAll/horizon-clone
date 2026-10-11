@@ -150,13 +150,25 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
 def _mutate_historical_account_with_keys(
     container: bytes, decrypt_key: bytes, encrypt_key: bytes, updates: dict[str, object]
 ) -> bytes:
-    from .account_format import AccountRecord, obfuscate_account, unobfuscate_account
-
     header = parse_stfs_header(container)
     entry = next((item for item in list_stfs_entries(container, header) if item.path == "Account"), None)
     if entry is None or entry.is_directory:
         raise ValueError("STFS Account entry was not found")
     encrypted = read_stfs_entry(container, entry, header)
+    edited = _prepare_historical_account_edit(encrypted, decrypt_key, updates)
+    from .account_format import obfuscate_account
+
+    replacement = obfuscate_account(edited, encrypt_key)
+    if len(replacement) != entry.size:
+        raise ValueError("historical Account codec changed the entry size")
+    return repack_stfs_entries(container, {entry.path: replacement}, header)
+
+
+def _prepare_historical_account_edit(
+    encrypted: bytes, decrypt_key: bytes, updates: dict[str, object]
+) -> bytes:
+    from .account_format import AccountRecord, unobfuscate_account
+
     record = AccountRecord.from_bytes(unobfuscate_account(encrypted, decrypt_key))
     dataclass_fields = set(record.__dataclass_fields__)
     allowed = dataclass_fields | {
@@ -179,10 +191,7 @@ def _mutate_historical_account_with_keys(
     values["reserved"] = record.reserved
     values["cached_user_flags"] = record.cached_user_flags
     edited = AccountRecord(**values).to_bytes()
-    replacement = obfuscate_account(edited, encrypt_key)
-    if len(replacement) != entry.size:
-        raise ValueError("historical Account codec changed the entry size")
-    return repack_stfs_entries(container, {entry.path: replacement}, header)
+    return edited
 
 
 def mutate_historical_account_with_key_provider(
@@ -198,7 +207,8 @@ def mutate_historical_account_with_key_provider(
         raise ValueError("STFS Account entry was not found")
     encrypted = read_stfs_entry(container, entry, header)
     decrypt_key = _provider_key(provider, "decrypt", encrypted)
-    encrypt_key = _provider_key(provider, "encrypt", encrypted)
+    edited = _prepare_historical_account_edit(encrypted, decrypt_key, updates)
+    encrypt_key = _provider_key(provider, "encrypt", edited)
     return _mutate_historical_account_with_keys(container, decrypt_key, encrypt_key, updates)
 
 
