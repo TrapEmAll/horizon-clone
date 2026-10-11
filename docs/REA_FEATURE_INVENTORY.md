@@ -190,6 +190,11 @@ REA-observed `CheckRuntime`/`DNG_Runtime` boundary and returned `true`. This is
 provider-specific controlled runtime evidence for that call only; it does not
 establish the meanings of `RunHVM`, `GetUserString`, or any native handles.
 
+The same controlled probe returned raw `RunHVM()` value `0` and raw
+`GetUserString(0,0,0)` value `161456824`. These values are retained as
+provider observations only; the clone does not label them as a decoded string,
+handle, or success status.
+
 `NativeSaveBinding` now models the recovered `RtsSaveDecrypt` and
 `RtsSaveEncrypt` buffer shapes, including the `u4&` output-length argument.
 It requires an explicit caller-supplied provider, validates the observed
