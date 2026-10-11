@@ -20,6 +20,7 @@ from .horizon_clone import (
     summarize_profile_achievements,
     xdbf_achievement_image_payload,
     mutate_xdbf_achievement_image,
+    mutate_profile_achievement_images,
     xdbf_payload_surface,
     mutate_stfs_entry_same_size,
     mutate_stfs_metadata,
@@ -154,6 +155,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Export XDBF surface", command=self.export_xdbf_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export achievement image", command=self.export_achievement_image).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace achievement image", command=self.replace_achievement_image).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Replace profile achievement image", command=self.replace_profile_achievement_image).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Export GPD summary", command=self.export_gpd_summary).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Edit achievement", command=self.edit_selected_achievement).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Add XDBF entry", command=self.add_xdbf_entry).pack(side=tk.LEFT, padx=(8, 0))
@@ -2202,6 +2204,42 @@ class HorizonApp(tk.Tk):
                 self._set_details({"path": target, "source": source, "xdbf_index": index, "signature_checked": False})
         except (OSError, ValueError, LookupError, IsADirectoryError) as exc:
             messagebox.showerror("Achievement image replacement failed", str(exc))
+
+    def replace_profile_achievement_image(self) -> None:
+        """Replace one linked achievement PNG across a loaded STFS profile."""
+
+        if not self._data or not self._report or not self._report.stfs_header:
+            messagebox.showinfo("Profile achievement image", "Open a readable STFS profile first.")
+            return
+        image_id = simpledialog.askinteger("Profile achievement image", "Image ID (integer or hex):", minvalue=0, parent=self)
+        if image_id is None:
+            return
+        source = filedialog.askopenfilename(
+            title="Choose replacement profile achievement PNG",
+            filetypes=(("PNG image", "*.png"), ("All files", "*.*")),
+        )
+        if not source:
+            return
+        try:
+            edited = mutate_profile_achievement_images(
+                self._data,
+                {image_id: Path(source).read_bytes()},
+                self._report.stfs_header,
+            )
+            target = filedialog.asksaveasfilename(
+                title="Save profile achievement image edit",
+                defaultextension=".con",
+                filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+            )
+            if not target:
+                return
+            _atomic_write_bytes(Path(target), edited)
+            self._data = edited
+            self._report = inspect(Path(target))
+            self.status.configure(text=f"Wrote unsigned profile achievement image edit: 0x{image_id:X}")
+            self._set_details({"path": target, "image_id": image_id, "signature_checked": False})
+        except (OSError, LookupError, ValueError, TypeError, IsADirectoryError) as exc:
+            messagebox.showerror("Profile achievement image replacement failed", str(exc))
 
     def add_xdbf_entry(self) -> None:
         if self._standalone_xdbf:
