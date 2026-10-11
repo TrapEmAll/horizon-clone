@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 50843)
-Total output lines: 4139
-
 """Clean-room Xbox 360 content-container inspector.
 
 This module intentionally limits itself to evidence-backed reconstruction.  It
@@ -2308,7 +2305,73 @@ def rename_stfs_entry(
         raise ValueError("STFS names must be non-empty ASCII basenames of at most 40 bytes")
     parent = entry_path.rsplit("/", 1)[0] if "/" in entry_path else ""
     new_path = f"{parent}/{new_name}" if parent else new_name
-    if…843 tokens truncated… new_name: str | None = None,
+    if any(item.path == new_path for item in entries if item.path != entry_path):
+        raise ValueError(f"STFS entry already exists: {new_path}")
+    slots = _stfs_file_table_slots(data, header)
+    if entry.index >= len(slots):
+        raise ValueError("STFS entry index does not resolve to a file-table slot")
+    result = bytearray(data)
+    slot = slots[entry.index]
+    result[slot : slot + 0x28] = encoded_name.ljust(0x28, b"\x00")
+    result[slot + 0x28] = (result[slot + 0x28] & 0xC0) | len(encoded_name)
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | None = None) -> bytes:
+    """Add an empty STFS directory in an available file-table slot."""
+    header = header or parse_stfs_header(data)
+    entries = list(list_stfs_entries(data, header))
+    if not directory_path or directory_path.endswith("/"):
+        raise ValueError("directory path must be a non-empty path")
+    parent_path, _, name = directory_path.rpartition("/")
+    encoded_name = name.encode("ascii")
+    if not encoded_name or len(encoded_name) > 0x28 or b"/" in encoded_name or b"\\" in encoded_name:
+        raise ValueError("STFS directory names must be non-empty ASCII basenames of at most 40 bytes")
+    parent_index = 0xFFFF
+    if parent_path:
+        parent = next((item for item in entries if item.path == parent_path), None)
+        if parent is None or not parent.is_directory:
+            raise FileNotFoundError(f"parent directory does not exist: {parent_path}")
+        parent_index = parent.index
+    if any(item.path == directory_path for item in entries):
+        raise ValueError(f"STFS entry already exists: {directory_path}")
+    all_slots = _all_stfs_file_table_slots(data, header)
+    used_slots = set(_stfs_file_table_slots(data, header))
+    candidates = [slot for slot in all_slots if slot not in used_slots]
+    if not candidates:
+        raise ValueError("STFS file-table capacity is exhausted")
+    slot = candidates[0]
+    old_index_by_slot = {slot_address: item.index for slot_address, item in zip(_stfs_file_table_slots(data, header), entries)}
+    new_index_by_slot: dict[int, int] = {}
+    old_to_new: dict[int, int] = {}
+    next_index = 0
+    for slot_address in all_slots:
+        if slot_address not in used_slots and slot_address != slot:
+            continue
+        new_index_by_slot[slot_address] = next_index
+        if slot_address in old_index_by_slot:
+            old_to_new[old_index_by_slot[slot_address]] = next_index
+        next_index += 1
+    result = bytearray(data)
+    for slot_address in used_slots:
+        old_parent = int.from_bytes(result[slot_address + 0x32 : slot_address + 0x34], "big")
+        if old_parent != 0xFFFF:
+            if old_parent not in old_to_new:
+                raise ValueError("STFS parent index cannot be remapped")
+            result[slot_address + 0x32 : slot_address + 0x34] = old_to_new[old_parent].to_bytes(2, "big")
+    raw = bytearray(0x40)
+    raw[: len(encoded_name)] = encoded_name
+    raw[0x28] = 0x80 | len(encoded_name)
+    raw[0x32:0x34] = (0xFFFF if parent_index == 0xFFFF else old_to_new[parent_index]).to_bytes(2, "big")
+    result[slot : slot + 0x40] = raw
+    return rehash_stfs_hashes(bytes(result), header)
+
+
+def move_stfs_entry(
+    data: bytes,
+    entry_path: str,
+    destination_directory: str,
+    new_name: str | None = None,
     header: StfsHeader | None = None,
 ) -> bytes:
     """Move an STFS entry to an existing directory without reallocating data."""
@@ -2903,6 +2966,7 @@ def main() -> int:
     parser.add_argument("--verify-hashes", action="store_true", help="Verify STFS block and metadata hashes")
     parser.add_argument("--security", action="store_true", help="Show STFS public security and license metadata")
     parser.add_argument("--profile-assets", action="store_true", help="Report recognized profile tile, theme, PEC, WLE, FIT, and avatar asset entries")
+    parser.add_argument("--profile-asset", action="append", nargs=2, metavar=("ENTRY", "SOURCE"), help="Replace one recognized profile asset from a file; repeat with --write or --in-place")
     parser.add_argument("--public-key", action="store_true", help="Show the public RSA key from a CON certificate")
     parser.add_argument("--signature-regions", action="store_true", help="Report stored STFS signature ranges and hashes")
     parser.add_argument("--verify-stfs-signature", action="store_true", help="Verify the observed CON package signature using its stored public key")
@@ -3429,6 +3493,23 @@ def main() -> int:
 
     try:
         raw = args.path.read_bytes()
+        if args.profile_asset:
+            if not write_target:
+                parser.error("--profile-asset requires --write or --in-place")
+            if not report.stfs_header:
+                parser.error("--profile-asset requires a readable STFS header")
+            replacements: dict[str, bytes] = {}
+            try:
+                for entry_name, source_name in args.profile_asset:
+                    if entry_name in replacements:
+                        parser.error(f"duplicate --profile-asset entry: {entry_name}")
+                    replacements[entry_name] = Path(source_name).read_bytes()
+                raw = mutate_profile_assets(raw, replacements, report.stfs_header)
+                write_mutation(raw)
+            except (OSError, TypeError, ValueError) as exc:
+                parser.error(str(exc))
+            print(f"Wrote unsigned profile asset mutation to {write_target}")
+            return 0
         if args.historical_account_edit:
             if bool(args.historical_account_key_hex) == bool(args.historical_account_key_helper):
                 parser.error("--historical-account-edit requires exactly one of --historical-account-key-hex or --historical-account-key-helper")
