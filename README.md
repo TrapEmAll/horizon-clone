@@ -132,8 +132,9 @@ copied implementation code.
   offsets or claim console validity.
 - Provides `--verify-stfs-signature` for the observed CON package layout,
   reporting the actual verification result over bytes `0x22C..0x344` with the
-  stored certificate key; a failed result is preserved as evidence rather than
-  treated as an implementation success.
+  stored certificate key after XeCrypt reverse-qword modulus conversion. A
+  successful result verifies the package signature encoding and range; it does
+  not establish every retail-console policy.
 - Exposes the two REA-observed `Horizon.ProfileData` resource getters with
   unresolved `class:957` return-type identities; it does not infer image data
   or Account-file offsets from those declarations.
@@ -310,10 +311,10 @@ copied implementation code.
 - Reads and replaces bounded STFS thumbnail and title-thumbnail payloads.
 - Inspects STFS public certificate descriptors, package-signature digests, and
   all 16 license slots, and reports the stored metadata-header SHA-1 match
-  without claiming RSA signature validity.
+  alongside the observed package-signature verification result.
 - Extracts the public RSA modulus/exponent from CON certificates through the
-  library and `--public-key` CLI option; signed-region verification remains
-  intentionally unclaimed.
+  library and `--public-key` CLI option, converting the stored XeCrypt
+  reverse-qword modulus representation to conventional RSA form.
 - Exposes observed XDBF achievement editing from the desktop front end,
   including gamerscore, flags, and bounded name changes.
 - Reads an exported REA managed-members evidence bundle and exposes a filtered
@@ -428,8 +429,9 @@ python -m work.horizon_clone C:\path\to\profile.con --achievements-output achiev
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted
 python -m work.horizon_clone C:\path\to\container --extract-dir extracted --extract Account
 python -m work.horizon_clone C:\path\to\container --verify-hashes
-python -m work.horizon_clone C:\path\to\profile.con --historical-account-inspect --historical-account-key-hex e1bc159c73b1eae9ab3170f3ad47ebf3
-python -m work.horizon_clone C:\path\to\profile.con --historical-account-edit account-edit.json --historical-account-key-hex e1bc159c73b1eae9ab3170f3ad47ebf3 --write edited-profile.con
+$accountKey = $env:HORIZON_HISTORICAL_ACCOUNT_KEY_HEX
+python -m work.horizon_clone C:\path\to\profile.con --historical-account-inspect --historical-account-key-hex $accountKey
+python -m work.horizon_clone C:\path\to\profile.con --historical-account-edit account-edit.json --historical-account-key-hex $accountKey --write edited-profile.con
 python -m work.horizon_clone C:\path\to\container --security
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --write mutated.con
 python -m work.horizon_clone C:\path\to\container --replace Account --replacement account.bin --in-place
