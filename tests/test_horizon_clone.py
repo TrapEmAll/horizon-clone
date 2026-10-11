@@ -549,6 +549,8 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(report["methods"][0]["role"], "save")
         self.assertEqual(report["methods"][0]["implementation_readiness"], "observed-body")
         self.assertEqual(report["implementation_readiness_counts"], {"observed-body": 1})
+        self.assertEqual(report["title_implementation_readiness_counts"], {})
+        self.assertEqual(report["title_serializer_status"], "body-unavailable")
         self.assertEqual(report["methods"][0]["field_accesses"][0]["field_name"], "Value")
         self.assertEqual(report["methods"][0]["call_targets"][0]["target_name"], "Write")
         self.assertEqual(report["family_counts"], [])
@@ -576,6 +578,8 @@ class ContainerInspectionTests(unittest.TestCase):
             bundle.unlink(missing_ok=True)
         self.assertEqual(report["methods"][0]["implementation_readiness"], "throw-only-stub")
         self.assertEqual(report["implementation_readiness_counts"], {"throw-only-stub": 1})
+        self.assertEqual(report["title_implementation_readiness_counts"], {"throw-only-stub": 1})
+        self.assertEqual(report["title_serializer_status"], "throw-only-stub-only")
 
     def test_groups_title_editor_io_contracts_by_family(self):
         bundle = self.fixture_dir / "title-io-contract-bundle.json"
