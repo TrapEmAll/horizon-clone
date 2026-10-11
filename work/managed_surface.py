@@ -877,6 +877,15 @@ def managed_io_contract_report_from_bundle(
     for item in selected_methods:
         token = str(item.get("token"))
         body = item.get("body") or {}
+        opcode_counts = body.get("opcode_counts") or {}
+        structural_stub_opcodes = {"ldstr", "newobj", "throw"}
+        observed_opcodes = {str(opcode) for opcode, count in opcode_counts.items() if count}
+        if body.get("status") in {None, "unavailable", "unknown"}:
+            implementation_readiness = "body-unavailable"
+        elif observed_opcodes and observed_opcodes <= structural_stub_opcodes and opcode_counts.get("throw", 0):
+            implementation_readiness = "throw-only-stub"
+        else:
+            implementation_readiness = "observed-body"
         contracts.append({
             "declaring_type": item.get("declaring_type"),
             "name": item.get("name"),
@@ -893,6 +902,7 @@ def managed_io_contract_report_from_bundle(
                 "anchors": body.get("anchors") or [],
                 "exception_regions": body.get("exception_regions") or [],
             },
+            "implementation_readiness": implementation_readiness,
             "field_accesses": [
                 {"field_name": access.get("field_name"), "field_token": access.get("field_token"), "opcode": access.get("opcode")}
                 for access in fields
@@ -906,6 +916,7 @@ def managed_io_contract_report_from_bundle(
         })
     family_counts: dict[str, dict[str, int]] = {}
     role_counts: dict[str, int] = {}
+    readiness_counts: dict[str, int] = {}
     for type_name in sorted(selected_names):
         parts = type_name.split(".")
         if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
@@ -914,6 +925,8 @@ def managed_io_contract_report_from_bundle(
     for contract in contracts:
         role = str(contract["role"])
         role_counts[role] = role_counts.get(role, 0) + 1
+        readiness = str(contract["implementation_readiness"])
+        readiness_counts[readiness] = readiness_counts.get(readiness, 0) + 1
         type_name = str(contract.get("declaring_type") or "")
         parts = type_name.split(".")
         if len(parts) >= 3 and parts[:2] == ["Horizon", "PackageEditors"]:
@@ -936,9 +949,13 @@ def managed_io_contract_report_from_bundle(
             for family, counts in sorted(family_counts.items())
         ],
         "role_counts": {role: role_counts[role] for role in sorted(role_counts)},
+        "implementation_readiness_counts": {
+            status: readiness_counts[status] for status in sorted(readiness_counts)
+        },
         "methods": contracts,
         "limitations": [
             "CIL anchors and tokens are artifact-local evidence, not a serializer implementation.",
+            "throw-only-stub is a structural classification of retained body opcodes, not a claim about runtime intent.",
             "The report does not infer field offsets, endianness, validation, or native protocol semantics.",
         ],
     }
