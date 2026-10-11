@@ -2623,6 +2623,15 @@ class ContainerInspectionTests(unittest.TestCase):
                 path.read_bytes(), Provider(), RsaPublicKey(1 << 2047, 65537)
             )
 
+    def test_cli_exposes_remote_package_signing(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "work.horizon_clone", "--help"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertIn("--sign-stfs-remote-package", result.stdout)
+
     def test_package_signing_requires_matching_explicit_private_key(self):
         path = supplied_fixture()
         if path is None or not path.exists():
