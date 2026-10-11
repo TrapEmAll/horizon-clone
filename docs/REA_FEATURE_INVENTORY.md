@@ -86,6 +86,11 @@ The retained member evidence identifies the six `Horizon.ProfileData` fields
 and their managed types. The clone exposes that contract as metadata while
 leaving the opaque Account-file serialization unresolved.
 
+Controlled Windows UI replay of the supplied `Horizon.exe` reached its startup
+dialog but could not enter the application: the host reports that `.NET
+Framework v2.0.50727` is required. The installer was not invoked, so runtime UI
+feature reachability remains unverified on this host.
+
 Field-access coverage is intentionally conservative: the retained static
 member inventory observes only a `Favorite` field read for this type and does
 not expose an Account serializer or field offsets. The clone therefore enforces
