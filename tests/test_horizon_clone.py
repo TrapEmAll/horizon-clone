@@ -2483,9 +2483,14 @@ class ContainerInspectionTests(unittest.TestCase):
                 output_buffer[:input_length] = bytes(value ^ key[0] for value in input_buffer[:input_length])
                 return input_length
 
+        class ProviderKey:
+            def get_account_key(self, operation, payload_sha256):
+                return b"dev-key"
+
         codec = AccountCodec(NativeSaveBinding(Provider()))
         status, raw_encrypted = codec.encrypt_raw(b"profile", b"dev-key", 32)
         self.assertEqual(status, 7)
+        self.assertEqual(codec.encrypt_with_key_provider_raw(b"profile", ProviderKey(), 32)[0], 7)
         encrypted = codec.encrypt(b"profile", b"dev-key", 32, output_length=7)
         self.assertEqual(encrypted, raw_encrypted[:7])
         with self.assertRaises(ValueError):
