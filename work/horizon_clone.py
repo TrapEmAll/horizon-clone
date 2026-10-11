@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 50011)
+Total output lines: 4062
+
 """Clean-room Xbox 360 content-container inspector.
 
 This module intentionally limits itself to evidence-backed reconstruction.  It
@@ -120,6 +123,23 @@ def historical_account_report(container_path: Path, key: bytes) -> dict[str, obj
     }
 
 
+def historical_account_report_with_key_provider(
+    container_path: Path, provider: object
+) -> dict[str, object]:
+    """Inspect Account through a caller-owned key-vault provider."""
+
+    from .account_codec import _provider_key
+
+    data = container_path.read_bytes()
+    header = parse_stfs_header(data)
+    entry = next((item for item in list_stfs_entries(data, header) if item.path == "Account"), None)
+    if entry is None or entry.is_directory:
+        raise ValueError("STFS Account entry was not found")
+    encrypted = read_stfs_entry(data, entry, header)
+    key = _provider_key(provider, "decrypt", encrypted)
+    return historical_account_report(container_path, key)
+
+
 def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, object]) -> bytes:
     """Apply explicit Account body field updates and rebuild STFS hashes.
 
@@ -160,6 +180,22 @@ def mutate_historical_account(container: bytes, key: bytes, updates: dict[str, o
     if len(replacement) != entry.size:
         raise ValueError("historical Account codec changed the entry size")
     return repack_stfs_entries(container, {entry.path: replacement}, header)
+
+
+def mutate_historical_account_with_key_provider(
+    container: bytes, provider: object, updates: dict[str, object]
+) -> bytes:
+    """Mutate Account through a caller-owned key-vault provider."""
+
+    from .account_codec import _provider_key
+
+    header = parse_stfs_header(container)
+    entry = next((item for item in list_stfs_entries(container, header) if item.path == "Account"), None)
+    if entry is None or entry.is_directory:
+        raise ValueError("STFS Account entry was not found")
+    encrypted = read_stfs_entry(container, entry, header)
+    key = _provider_key(provider, "decrypt", encrypted)
+    return mutate_historical_account(container, key, updates)
 
 
 def decrypt_account_entry(
@@ -2255,7 +2291,7 @@ def add_stfs_directory(data: bytes, directory_path: str, header: StfsHeader | No
         if old_parent != 0xFFFF:
             if old_parent not in old_to_new:
                 raise ValueError("STFS parent index cannot be remapped")
-            result[slot_address + 0x32 : slot_address + 0x34] = old_to_new[old_parent].to_bytes(2, "big")
+            result[slot_address + 0x32 : slot_addre…11 tokens truncated…(2, "big")
     raw = bytearray(0x40)
     raw[: len(encoded_name)] = encoded_name
     raw[0x28] = 0x80 | len(encoded_name)
@@ -2941,6 +2977,7 @@ def main() -> int:
     parser.add_argument("--account-encrypt-length", type=int, help="Caller-known encrypted Account output length")
     parser.add_argument("--historical-account-inspect", action="store_true", help="Inspect the authenticated Account body with a caller-supplied historical-reference key")
     parser.add_argument("--historical-account-key-hex", help="Exactly 16-byte key for --historical-account-inspect; never persisted")
+    parser.add_argument("--historical-account-key-helper", type=Path, help="Absolute caller-owned key-vault helper for historical Account inspect/edit")
     parser.add_argument("--historical-account-edit", type=Path, metavar="JSON", help="Apply explicit historical Account field updates from JSON")
     args = parser.parse_args()
     if args.rea_feature_ledger:
@@ -2992,11 +3029,15 @@ def main() -> int:
             parser.error(str(exc))
         return 0
     if args.historical_account_inspect:
-        if not args.historical_account_key_hex:
-            parser.error("--historical-account-inspect requires --historical-account-key-hex")
+        if bool(args.historical_account_key_hex) == bool(args.historical_account_key_helper):
+            parser.error("--historical-account-inspect requires exactly one of --historical-account-key-hex or --historical-account-key-helper")
         try:
-            key = bytes.fromhex(args.historical_account_key_hex)
-            print(json.dumps(historical_account_report(args.path, key), indent=2, ensure_ascii=False))
+            if args.historical_account_key_helper:
+                from .account_codec import CommandAccountKeyProvider
+                report = historical_account_report_with_key_provider(args.path, CommandAccountKeyProvider(args.historical_account_key_helper))
+            else:
+                report = historical_account_report(args.path, bytes.fromhex(args.historical_account_key_hex))
+            print(json.dumps(report, indent=2, ensure_ascii=False))
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
         return 0
@@ -3384,8 +3425,8 @@ def main() -> int:
     try:
         raw = args.path.read_bytes()
         if args.historical_account_edit:
-            if not args.historical_account_key_hex:
-                parser.error("--historical-account-edit requires --historical-account-key-hex")
+            if bool(args.historical_account_key_hex) == bool(args.historical_account_key_helper):
+                parser.error("--historical-account-edit requires exactly one of --historical-account-key-hex or --historical-account-key-helper")
             if not write_target:
                 parser.error("--historical-account-edit requires --write or --in-place")
             try:
@@ -3395,11 +3436,11 @@ def main() -> int:
             if not isinstance(updates, dict):
                 parser.error("historical Account edit JSON must contain an object")
             try:
-                raw = mutate_historical_account(
-                    raw,
-                    bytes.fromhex(args.historical_account_key_hex),
-                    updates,
-                )
+                if args.historical_account_key_helper:
+                    from .account_codec import CommandAccountKeyProvider
+                    raw = mutate_historical_account_with_key_provider(raw, CommandAccountKeyProvider(args.historical_account_key_helper), updates)
+                else:
+                    raw = mutate_historical_account(raw, bytes.fromhex(args.historical_account_key_hex), updates)
                 write_mutation(raw)
             except (OSError, ValueError) as exc:
                 parser.error(str(exc))
