@@ -36,8 +36,11 @@ from .horizon_clone import (
     stfs_content_type_name,
     stfs_fatx_device_path,
     sign_stfs_console_package,
+    sign_stfs_console_package_with_provider,
     read_private_key_json,
+    read_public_key_json,
     verify_stfs_console_signature,
+    verify_stfs_remote_signature,
     editor_edit_values,
     editor_inspect_report,
     extract_managed_resource_payloads,
@@ -105,8 +108,10 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign CON package", command=self.sign_con_package).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Sign CON via key vault", command=self.sign_con_package_with_key_vault).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign written CON", command=self.sign_written_package).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Verify CON signature", command=self.verify_con_signature).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Verify LIVE/PIRS signature", command=self.verify_remote_signature).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected", command=self.replace_selected).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Replace selected in place", command=self.replace_selected_in_place).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Repack selected", command=self.repack_selected).pack(side=tk.LEFT, padx=(8, 0))
@@ -345,6 +350,71 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, TypeError, ValueError) as exc:
             messagebox.showerror("CON signature verification failed", str(exc))
+
+    def verify_remote_signature(self) -> None:
+        """Verify a LIVE/PIRS signature with a caller-supplied public key."""
+
+        if self._data is None or self._data[:4] not in {b"LIVE", b"PIRS"}:
+            messagebox.showinfo("LIVE/PIRS signature", "Open a LIVE or PIRS container first.")
+            return
+        key_path = filedialog.askopenfilename(
+            title="Choose LIVE/PIRS public-key JSON",
+            filetypes=(("Public-key JSON", "*.json"), ("All files", "*.*")),
+        )
+        if not key_path:
+            return
+        algorithm = simpledialog.askstring(
+            "Signature algorithm",
+            "RSA-SHA1-PKCS1v1.5 or RSA-SHA1-XeCrypt-PKCS1v1.5:",
+            initialvalue="RSA-SHA1-XeCrypt-PKCS1v1.5",
+            parent=self,
+        )
+        if not algorithm:
+            return
+        try:
+            modulus, exponent = read_public_key_json(Path(key_path))
+            report = verify_stfs_remote_signature(self._data, modulus, exponent, algorithm)
+            self.status.configure(text="Verified LIVE/PIRS signature")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("LIVE/PIRS signature verification failed", str(exc))
+
+    def sign_con_package_with_key_vault(self) -> None:
+        """Sign a CON package through a caller-owned external key vault."""
+
+        if self._data is None or self._data[:4] != b"CON ":
+            messagebox.showinfo("CON signing", "Open a CON container first.")
+            return
+        helper = filedialog.askopenfilename(title="Choose key-vault signing helper")
+        if not helper:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save key-vault-signed CON package",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            from .signing import CommandSha1SigningProvider
+
+            signed = sign_stfs_console_package_with_provider(
+                self._data, CommandSha1SigningProvider(Path(helper))
+            )
+            _atomic_write_bytes(Path(target), signed)
+            verification = verify_stfs_console_signature(signed)
+            result = {
+                "output": target,
+                "bytes": len(signed),
+                "signature_verified": verification["verified"],
+                "algorithm": verification["algorithm"],
+                "console_authority_established": False,
+                "provider": "external-key-vault",
+            }
+            self.status.configure(text="Wrote key-vault-signed CON package")
+            self._set_details(result)
+        except (OSError, TypeError, ValueError, RuntimeError) as exc:
+            messagebox.showerror("Key-vault CON signing failed", str(exc))
 
     def sign_written_package(self) -> None:
         """Sign an already-written CON artifact and verify its exact bytes."""
