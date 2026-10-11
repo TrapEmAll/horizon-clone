@@ -81,7 +81,9 @@ does not turn obfuscated managed tokens into save offsets or executable clone
 logic. Each contract also reports whether the retained body is an observed
 implementation, unavailable, or a repeated throw-only stub; the shipped title
 bundle contains the latter pattern for several obfuscated `Read`/`Write`
-surfaces.
+surfaces. Family summaries include the same readiness breakdown, which makes
+the current evidence gap explicit: the retained title I/O projection is
+dominated by throw-only stubs rather than usable serializers.
 
 `--managed-feature-surface` now classifies literal terms in authenticated type
 and method names into profile/social, achievement/score, device/storage,
