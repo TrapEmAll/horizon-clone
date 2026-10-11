@@ -60,6 +60,7 @@ from .horizon_clone import (
 from .editor_inventory import catalog_report
 from .editors import AccountEditor, EditorContext
 from .device_inventory import enumerate_host_device_entries
+from .managed_surface import managed_feature_surface_report, managed_property_contract_report
 from .signing import RsaPublicKey
 
 
@@ -102,6 +103,8 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Security info", command=self.show_security).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="FATX path", command=self.show_fatx_path).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Managed feature surface", command=self.show_managed_feature_surface).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Managed property contracts", command=self.show_managed_property_contracts).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device inventory", command=self.show_device_inventory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="List device directory", command=self.show_device_directory).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Device IOCTL", command=self.device_ioctl).pack(side=tk.LEFT, padx=(8, 0))
@@ -581,6 +584,55 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Anti-analysis report failed", str(exc))
+
+    def show_managed_feature_surface(self) -> None:
+        """Display literal feature buckets from retained managed REA evidence."""
+
+        bundle = filedialog.askopenfilename(
+            title="Choose REA managed-members bundle",
+            filetypes=(("JSON evidence", "*.json"), ("All files", "*.*")),
+        )
+        if not bundle:
+            return
+        pattern = simpledialog.askstring(
+            "Managed feature scope",
+            "Optional type-name regex (blank for all observed types):",
+            parent=self,
+        )
+        try:
+            report = managed_feature_surface_report(Path(bundle), pattern or None)
+            self.status.configure(text="Displayed managed feature surface")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Managed feature report failed", str(exc))
+
+    def show_managed_property_contracts(self) -> None:
+        """Display derived managed getter/setter contracts from REA evidence."""
+
+        bundle = filedialog.askopenfilename(
+            title="Choose REA managed-members bundle",
+            filetypes=(("JSON evidence", "*.json"), ("All files", "*.*")),
+        )
+        if not bundle:
+            return
+        type_pattern = simpledialog.askstring(
+            "Managed property scope",
+            "Optional type-name regex (blank for all observed types):",
+            parent=self,
+        )
+        property_pattern = simpledialog.askstring(
+            "Managed property filter",
+            "Optional property-name regex (blank for all accessors):",
+            parent=self,
+        )
+        try:
+            report = managed_property_contract_report(
+                Path(bundle), type_pattern or None, property_pattern or None
+            )
+            self.status.configure(text="Displayed managed property contracts")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Managed property report failed", str(exc))
 
     def show_device_inventory(self) -> None:
         """Display read-only host-visible volume inventory."""
