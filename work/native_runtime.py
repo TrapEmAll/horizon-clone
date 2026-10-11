@@ -82,9 +82,7 @@ class PowerShellNativeRuntimeProvider:
     def _invoke(self, operation: str, arg0: int = 0, arg1: int = 0, arg2: int = 0) -> int | bool:
         if operation not in {"CheckRuntime", "RunHVM", "GetUserString"}:
             raise ValueError(f"unknown runtime operation: {operation}")
-        for name, value in (("arg0", arg0), ("arg1", arg1), ("arg2", arg2)):
-            if not isinstance(value, int) or isinstance(value, bool):
-                raise TypeError(f"{name} must be an integer")
+        _validate_runtime_args(arg0, arg1, arg2)
         path_literal = str(self.path).replace('"', '""')
         code = f'''using System; using System.Runtime.InteropServices; public static class HorizonRuntimeHost {{
  [DllImport(@"{path_literal}", CallingConvention=CallingConvention.StdCall, EntryPoint="DNG_Runtime")] public static extern bool CheckRuntime();
@@ -169,19 +167,21 @@ class NativeRuntimeBinding:
         return "provider-bound" if self.provider is not None else "unavailable"
 
     def check_runtime(self) -> bool:
-        return self._require().check_runtime()
+        return _validate_bool_result(self._require().check_runtime(), "check_runtime")
 
     def check_runtime64(self) -> bool:
-        return self._require().check_runtime64()
+        return _validate_bool_result(self._require().check_runtime64(), "check_runtime64")
 
     def run_hvm(self) -> int:
-        return self._require().run_hvm()
+        return _validate_native_int_result(self._require().run_hvm(), "run_hvm")
 
     def get_user_string(self, arg0: int, arg1: int, arg2: int) -> int:
-        return self._require().get_user_string(arg0, arg1, arg2)
+        _validate_runtime_args(arg0, arg1, arg2)
+        return _validate_native_int_result(self._require().get_user_string(arg0, arg1, arg2), "get_user_string")
 
     def get_user_string64(self, arg0: int, arg1: int, arg2: int) -> int:
-        return self._require().get_user_string64(arg0, arg1, arg2)
+        _validate_runtime_args(arg0, arg1, arg2)
+        return _validate_native_int_result(self._require().get_user_string64(arg0, arg1, arg2), "get_user_string64")
 
     def _require(self) -> NativeRuntimeProvider:
         if self.provider is None:
@@ -189,5 +189,25 @@ class NativeRuntimeBinding:
                 "DNG/HVM runtime requires an explicit compatible provider"
             )
         return self.provider
+
+
+def _validate_runtime_args(arg0: int, arg1: int, arg2: int) -> None:
+    if not isinstance(arg0, int) or isinstance(arg0, bool) or not -0x8000000000000000 <= arg0 <= 0x7FFFFFFFFFFFFFFF:
+        raise ValueError("arg0 must be a signed 64-bit native integer")
+    for name, value in (("arg1", arg1), ("arg2", arg2)):
+        if not isinstance(value, int) or isinstance(value, bool) or not -0x80000000 <= value <= 0x7FFFFFFF:
+            raise ValueError(f"{name} must be a signed 32-bit integer")
+
+
+def _validate_native_int_result(value: int, name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not -0x8000000000000000 <= value <= 0x7FFFFFFFFFFFFFFF:
+        raise ValueError(f"{name} must return a signed 64-bit native integer")
+    return value
+
+
+def _validate_bool_result(value: bool, name: str) -> bool:
+    if type(value) is not bool:
+        raise TypeError(f"{name} must return bool")
+    return value
 
 
