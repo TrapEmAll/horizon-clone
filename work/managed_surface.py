@@ -347,6 +347,102 @@ def managed_named_namespace_report(bundle_path: str | Path, pattern: str | None 
         raise ValueError(f"invalid managed-namespace regex: {pattern}") from exc
 
 
+_FEATURE_TERMS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("profile-and-social", ("profile", "gamertag", "gamer", "gamerscore", "friend", "message")),
+    ("achievement-and-score", ("achievement", "score", "challenge", "medal")),
+    ("device-and-storage", ("device", "fatx", "usb", "drive", "storage", "content", "package")),
+    ("save-and-serialization", ("save", "load", "read", "write", "serialize", "deserialize", "compress", "decompress")),
+    ("editor-and-ui", ("editor", "form", "dialog", "control", "menu", "thumb", "image", "resource")),
+    ("runtime-and-security", ("runtime", "check", "guard", "crypto", "encrypt", "decrypt", "sign", "verify")),
+)
+
+
+def managed_feature_surface_report_from_bundle(
+    bundle: dict[str, Any], pattern: str | None = None
+) -> dict[str, Any]:
+    """Classify observed managed names into evidence-only feature buckets.
+
+    This is a prioritization aid for reconstruction.  A bucket means that a
+    literal term occurred in an authenticated type or method name; it does
+    not establish registration, runtime reachability, or file-format behavior.
+    """
+
+    record = _member_record(bundle)
+    result = record.get("normalized_result") or {}
+    types = [item for item in result.get("types") or [] if isinstance(item, dict)]
+    methods = [item for item in result.get("methods") or [] if isinstance(item, dict)]
+    try:
+        matcher = re.compile(pattern, re.IGNORECASE) if pattern else None
+    except re.error as exc:
+        raise ValueError(f"invalid managed-feature regex: {pattern}") from exc
+
+    selected_types = [
+        item for item in types
+        if matcher is None or matcher.search(str(item.get("full_name") or ""))
+    ]
+    selected_names = {str(item.get("full_name") or "") for item in selected_types}
+    selected_methods = [
+        item for item in methods
+        if item.get("declaring_type") in selected_names
+        and (matcher is None or matcher.search(str(item.get("name") or "")) or matcher.search(str(item.get("declaring_type") or "")))
+    ]
+
+    buckets: list[dict[str, Any]] = []
+    for bucket, terms in _FEATURE_TERMS:
+        type_hits: dict[str, set[str]] = {}
+        method_hits: dict[str, set[str]] = {}
+        for item in selected_types:
+            name = str(item.get("full_name") or "")
+            lowered = name.casefold()
+            for term in terms:
+                if term in lowered:
+                    type_hits.setdefault(term, set()).add(name)
+        for item in selected_methods:
+            declaring = str(item.get("declaring_type") or "")
+            name = str(item.get("name") or "")
+            lowered = f"{declaring}.{name}".casefold()
+            for term in terms:
+                if term in lowered:
+                    method_hits.setdefault(term, set()).add(f"{declaring}.{name}")
+        if type_hits or method_hits:
+            buckets.append({
+                "feature": bucket,
+                "terms": sorted(set(type_hits) | set(method_hits)),
+                "type_count": len({name for names in type_hits.values() for name in names}),
+                "method_count": len({name for names in method_hits.values() for name in names}),
+                "sample_types": sorted({name for names in type_hits.values() for name in names})[:12],
+                "sample_methods": sorted({name for names in method_hits.values() for name in names})[:16],
+            })
+    return {
+        "status": "observed-only",
+        "authority": "shipped-artifact",
+        "evidence_id": record.get("evidence_id"),
+        "pattern": pattern,
+        "counts": {
+            "selected_types": len(selected_types),
+            "selected_methods": len(selected_methods),
+            "feature_buckets": len(buckets),
+        },
+        "features": buckets,
+        "limitations": [
+            "Buckets are literal-name classifications over authenticated managed metadata.",
+            "Names do not establish runtime reachability, UI ownership, serialization, or mutation behavior.",
+            "The report does not load, execute, patch, or bypass the target assembly.",
+        ],
+    }
+
+
+def managed_feature_surface_report(bundle_path: str | Path, pattern: str | None = None) -> dict[str, Any]:
+    """Return evidence-only feature buckets from a retained REA bundle."""
+
+    path = Path(bundle_path)
+    try:
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unable to read managed-feature bundle: {path}") from exc
+    return managed_feature_surface_report_from_bundle(bundle, pattern)
+
+
 def managed_guarded_methods_report_from_bundle(
     bundle: dict[str, Any], pattern: str | None = None
 ) -> dict[str, Any]:
