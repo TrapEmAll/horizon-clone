@@ -48,6 +48,7 @@ from .horizon_clone import (
     editor_inspect_report,
     extract_managed_resource_payloads,
     anti_analysis_report,
+    native_anti_analysis_report,
     sign_detached_bytes,
     device_inventory_report,
     device_ioctl_report,
@@ -109,6 +110,7 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Replace profile tile", command=self.replace_profile_tile).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="FATX path", command=self.show_fatx_path).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Anti-analysis evidence", command=self.show_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Native anti-analysis", command=self.show_native_anti_analysis).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed feature surface", command=self.show_managed_feature_surface).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed property contracts", command=self.show_managed_property_contracts).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Managed I/O contracts", command=self.show_managed_io_contracts).pack(side=tk.LEFT, padx=(8, 0))
@@ -595,6 +597,22 @@ class HorizonApp(tk.Tk):
             self._set_details(report)
         except (OSError, ValueError, TypeError) as exc:
             messagebox.showerror("Anti-analysis report failed", str(exc))
+
+    def show_native_anti_analysis(self) -> None:
+        """Display native import-level anti-analysis evidence without loading a DLL."""
+
+        path = filedialog.askopenfilename(
+            title="Choose native Horizon image",
+            filetypes=(("PE images", "*.dll;*.exe"), ("All files", "*.*")),
+        )
+        if not path:
+            return
+        try:
+            report = native_anti_analysis_report(Path(path))
+            self.status.configure(text="Displayed native anti-analysis evidence")
+            self._set_details(report)
+        except (OSError, ValueError, TypeError) as exc:
+            messagebox.showerror("Native anti-analysis report failed", str(exc))
 
     def show_profile_assets(self) -> None:
         """Display recognized profile asset entries from the loaded STFS."""
