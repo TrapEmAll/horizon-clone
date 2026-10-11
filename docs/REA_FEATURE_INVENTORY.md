@@ -74,6 +74,12 @@ Additional global Constant rows are now exposed for `GeneralContentTypes`,
 `XOnlinePassCodeTypes`. They are authenticated enum metadata only; duplicate
 title rows, package offsets, and mutation behavior remain unresolved.
 
+The clone also exposes the complete 233-catalog `managed-constants.json`
+projection through `--catalog rea` and `rea:<namespace>:<type>` metadata
+envelopes. This preserves authenticated integer rows for obfuscated and title
+types while explicitly leaving registration, offsets, and serializers
+unresolved.
+
 The retained member evidence identifies the six `Horizon.ProfileData` fields
 (`FromDevice`, `XUID`, `Gamertag`, `Gamerpicture`, `ProfileId`, and `Favorite`)
 and their managed types. The clone exposes that contract as metadata while
