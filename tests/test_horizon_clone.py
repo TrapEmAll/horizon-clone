@@ -217,6 +217,7 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(provider.operations[0][0], "decrypt")
         edited = mutate_historical_account_with_key_provider(path.read_bytes(), provider, {"gamertag": "Vault User"})
         self.assertEqual(verify_stfs_hashes(edited, header=parse_stfs_header(edited))["failures"], [])
+        self.assertEqual([operation for operation, _digest in provider.operations[-2:]], ["decrypt", "encrypt"])
 
     def test_historical_account_mutation_rehashes_container(self):
         path = supplied_fixture()
