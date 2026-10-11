@@ -92,14 +92,22 @@ class AccountCodec:
         return self.encrypt(plaintext, key, output_capacity, output_length)
 
     def decrypt(self, payload: bytes, key: bytes, output_capacity: int) -> bytes:
+        """Return decrypted bytes while preserving the existing convenience API."""
+
+        _status, output = self.decrypt_raw(payload, key, output_capacity)
+        return output
+
+    def decrypt_raw(self, payload: bytes, key: bytes, output_capacity: int) -> tuple[int, bytes]:
+        """Return the native decrypt status and caller-sized output bytes."""
+
         _validate_payload(payload)
         _validate_capacity(output_capacity)
         output = bytearray(output_capacity)
         length = UInt32Ref(output_capacity)
-        self.binding.decrypt(payload, length, output, len(payload), key)
+        status = self.binding.decrypt(payload, length, output, len(payload), key)
         if length.value > len(output):
             raise ValueError("save provider returned a length beyond the output buffer")
-        return bytes(output[: length.value])
+        return status, bytes(output[: length.value])
 
     def encrypt(self, plaintext: bytes, key: bytes, output_capacity: int, output_length: int | None = None) -> bytes:
         """Return encrypted bytes when the caller supplies their known length.
