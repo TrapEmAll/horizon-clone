@@ -1865,6 +1865,9 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(surface["observed_module_ref_count"], 14)
         self.assertEqual(surface["observed_pinvoke_count"], 54)
         self.assertEqual(surface["unique_import_count"], len(observed_native_imports()))
+        probes = {(item["operation"], tuple(item["arguments"])) for item in surface["controlled_runtime_probes"]}
+        self.assertIn(("CheckRuntime", ()), probes)
+        self.assertIn(("GetUserString", (1, 0, 0)), probes)
         imports = {(item.module, item.import_name) for item in observed_native_imports()}
         self.assertIn(("class3.dll", "RtsSaveEncrypt"), imports)
         self.assertIn(("class3.dll", "RtsSaveDecrypt"), imports)
