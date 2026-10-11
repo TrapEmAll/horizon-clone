@@ -53,6 +53,59 @@ def anti_analysis_report_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         for item in methods
         if isinstance(item, dict) and marker_pattern.search(str(item.get("declaring_type") or ""))
     ]
+    debugger_api_names = {
+        "IsDebuggerPresent",
+        "CheckRemoteDebuggerPresent",
+        "NtQueryInformationProcess",
+        "OutputDebugString",
+    }
+    observed_call_targets = sorted({
+        str(anchor.get("operand"))
+        for item in guarded_methods
+        for anchor in (item.get("body") or {}).get("anchors", [])
+        if isinstance(anchor, dict) and anchor.get("opcode") == "call" and anchor.get("operand")
+    })
+    debugger_api_calls = [
+        target for target in observed_call_targets
+        if any(name.casefold() in target.casefold() for name in debugger_api_names)
+    ]
+    guard_dispatch_stubs = []
+    for item in guarded_methods:
+        body = item.get("body") or {}
+        counts = body.get("opcode_counts") or {}
+        anchors = body.get("anchors") or []
+        call_targets = [
+            anchor.get("operand")
+            for anchor in anchors
+            if anchor.get("opcode") == "call" and anchor.get("operand")
+        ]
+        constants = [
+            anchor.get("operand")
+            for anchor in anchors
+            if anchor.get("operand_kind") == "constant"
+        ]
+        # This is deliberately a structural classification.  It records the
+        # repeated guard-dispatch shape without interpreting the constants or
+        # attempting to neutralize the call target.
+        if (
+            "Guard" in str(item.get("declaring_type") or "")
+            and counts.get("call") == 1
+            and counts.get("ret") == 1
+            and len(constants) >= 2
+            and call_targets
+        ):
+            guard_dispatch_stubs.append(
+                {
+                    "declaring_type": item.get("declaring_type"),
+                    "name": item.get("name"),
+                    "token": item.get("token"),
+                    "rva": item.get("rva"),
+                    "call_target": call_targets[0],
+                    "constant_operands": constants,
+                    "il_sha256": body.get("il_sha256"),
+                    "classification": "guard-dispatch-stub",
+                }
+            )
     marker_counts: dict[str, int] = {}
     for item in attribute_markers:
         type_name = str(item.get("type_name") or "unknown")
@@ -69,8 +122,18 @@ def anti_analysis_report_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         "guarded_method_count": len(guarded_methods),
         "guarded_method_names": guarded_method_names,
         "guarded_methods": guarded_methods,
+        "guard_dispatch_stub_count": len(guard_dispatch_stubs),
+        "guard_dispatch_stubs": guard_dispatch_stubs,
+        "debugger_api_calls": debugger_api_calls,
+        "debugger_api_presence": "observed" if debugger_api_calls else "not-observed-in-retained-call-edges",
+        "analysis_workaround": {
+            "mode": "static-and-controlled-runtime-only",
+            "target_execution": "not-executed",
+            "protection_patching": "not-performed",
+        },
         "limitations": [
             "Static metadata does not establish runtime anti-debug behavior or intent.",
+            "Absence of a debugger API in retained call edges is not proof that no indirect or native check exists.",
             "This report does not disable, patch, execute, or bypass any protection.",
         ],
     }
