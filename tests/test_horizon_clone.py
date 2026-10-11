@@ -215,6 +215,23 @@ class ContainerInspectionTests(unittest.TestCase):
         self.assertEqual(record.online_country_code, 0x10)
         self.assertFalse(record.xbox_live_enabled)
 
+    def test_historical_account_mutates_named_flag_fields(self):
+        path = supplied_fixture()
+        if path is None or not path.exists():
+            self.skipTest("supplied STFS profile fixture is not available")
+        key = historical_account_key(self)
+        edited = mutate_historical_account(
+            path.read_bytes(),
+            key,
+            {"membership_name": "silver", "online_country_name": "CA", "online_language_name": "fr"},
+        )
+        header = parse_stfs_header(edited)
+        entry = next(item for item in list_stfs_entries(edited, header) if item.path == "Account")
+        record = AccountRecord.from_bytes(unobfuscate_account(read_stfs_entry(edited, entry, header), key))
+        self.assertEqual(record.membership_name, "silver")
+        self.assertEqual(record.online_country_name, "CA")
+        self.assertEqual(record.online_language_name, "fr")
+
     fixture_dir = Path(__file__).parent / ".tmp"
 
     def test_desktop_atomic_writes_replace_and_clean_temporary_files(self):
