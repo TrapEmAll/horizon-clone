@@ -935,6 +935,14 @@ def managed_io_contract_report_from_bundle(
             readiness = str(contract["implementation_readiness"])
             readiness_counts_for_family = family_counts[family].setdefault("implementation_readiness", {})
             readiness_counts_for_family[readiness] = readiness_counts_for_family.get(readiness, 0) + 1
+    for family_data in family_counts.values():
+        readiness = family_data.get("implementation_readiness", {})
+        if readiness.get("observed-body", 0):
+            family_data["serializer_status"] = "observed-body-present"
+        elif readiness.get("throw-only-stub", 0):
+            family_data["serializer_status"] = "throw-only-stub-only"
+        else:
+            family_data["serializer_status"] = "body-unavailable"
     return {
         "status": "observed-only",
         "authority": "shipped-artifact",
