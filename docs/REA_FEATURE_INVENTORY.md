@@ -190,10 +190,12 @@ REA-observed `CheckRuntime`/`DNG_Runtime` boundary and returned `true`. This is
 provider-specific controlled runtime evidence for that call only; it does not
 establish the meanings of `RunHVM`, `GetUserString`, or any native handles.
 
-The same controlled probe returned raw `RunHVM()` value `0` and raw
-`GetUserString(0,0,0)` value `161456824`. These values are retained as
-provider observations only; the clone does not label them as a decoded string,
-handle, or success status.
+The same controlled probe returned raw `RunHVM()` value `0`. Bounded
+`GetUserString` selector probes also completed: `(0,1,0)` and `(0,0,1)`
+returned nonzero raw values, while `(1,0,0)` returned zero. The pointer-like
+integers are process-dependent and are retained only as a stable zero/nonzero
+observation; the clone does not label them as a decoded string, handle, or
+success status.
 
 `NativeSaveBinding` now models the recovered `RtsSaveDecrypt` and
 `RtsSaveEncrypt` buffer shapes, including the `u4&` output-length argument.
