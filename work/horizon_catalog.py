@@ -20,6 +20,33 @@ class ObservedCatalog:
 
 _CATALOGS: Mapping[str, tuple[str, ...]] = {
     "ProfileLoadout": ("All_Loadouts",),
+    "SignOption": (
+        "Ep1_68th_Annual_Deerfest",
+        "Ep2_Have_You_Seen_This_Main",
+        "Ep2_Skeleton_of_Columbian_Mammoth",
+        "Ep2_Moonshine_Cave",
+        "Ep2_The_Great_Old_One",
+        "Ep2_Tree_Dates_From_1846",
+        "Ep3_Bright_Falls_Coal_Mine_Mountain",
+        "Ep3_Gray_Peak_Gorge",
+        "Ep3_Cauldron_Lake",
+        "Ep4_Sundial",
+        "Ep4_The_Creators_Dilemma",
+        "Ep4_Welcome_To_Cauldron_Lake_Lodge",
+        "Ep4_Statue_Suspended",
+        "Ep4_Gods_of_Asgard",
+        "Ep5_Hubert_and_Amos_Statue",
+        "Ep5_Fan_Note",
+        "Ep5_Church_Events",
+        "Ep5_Randall_Memorial_Bridge",
+        "Ep5_Power_Plant_Warning",
+        "Ep5_Flood_Gate_Warning",
+        "Ep5_Dam_Notice",
+        "Ep6_Majestic_Motel_Outside",
+        "Ep6_Majestic_Motel_Inside",
+        "Ep6_Larsens_Trespass_Warning",
+        "Ep6_Junk_Pile_Sign",
+    ),
     "SaveEntryCategory": (
         "Audio",
         "Graphics",
@@ -36,6 +63,40 @@ _CATALOGS: Mapping[str, tuple[str, ...]] = {
 }
 
 _CONSTANT_VALUES: Mapping[str, Mapping[str, int]] = {
+    "ProfileLoadout": {"All_Loadouts": 455},
+    "SignOption": {
+        name: value
+        for value, name in enumerate(
+            (
+                "Ep1_68th_Annual_Deerfest",
+                "Ep2_Have_You_Seen_This_Main",
+                "Ep2_Skeleton_of_Columbian_Mammoth",
+                "Ep2_Moonshine_Cave",
+                "Ep2_The_Great_Old_One",
+                "Ep2_Tree_Dates_From_1846",
+                "Ep3_Bright_Falls_Coal_Mine_Mountain",
+                "Ep3_Gray_Peak_Gorge",
+                "Ep3_Cauldron_Lake",
+                "Ep4_Sundial",
+                "Ep4_The_Creators_Dilemma",
+                "Ep4_Welcome_To_Cauldron_Lake_Lodge",
+                "Ep4_Statue_Suspended",
+                "Ep4_Gods_of_Asgard",
+                "Ep5_Hubert_and_Amos_Statue",
+                "Ep5_Fan_Note",
+                "Ep5_Church_Events",
+                "Ep5_Randall_Memorial_Bridge",
+                "Ep5_Power_Plant_Warning",
+                "Ep5_Flood_Gate_Warning",
+                "Ep5_Dam_Notice",
+                "Ep6_Majestic_Motel_Outside",
+                "Ep6_Majestic_Motel_Inside",
+                "Ep6_Larsens_Trespass_Warning",
+                "Ep6_Junk_Pile_Sign",
+            ),
+            start=1,
+        )
+    },
     "SaveEntryCategory": {
         "Audio": 0,
         "Graphics": 1,
