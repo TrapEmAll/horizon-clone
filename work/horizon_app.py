@@ -50,6 +50,8 @@ from .horizon_clone import (
     device_ioctl_report,
     decrypt_account_entry,
     encrypt_account_payload,
+    historical_account_report,
+    mutate_historical_account,
     native_runtime_operation_report,
     native_lzo_operation_report,
     native_installation_report,
@@ -106,6 +108,8 @@ class HorizonApp(tk.Tk):
         ttk.Button(toolbar, text="Native installation", command=self.show_native_installation).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Decrypt Account", command=self.decrypt_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Encrypt Account", command=self.encrypt_account).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Inspect Account fields", command=self.inspect_historical_account).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(toolbar, text="Edit Account fields", command=self.edit_historical_account).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign loaded bytes", command=self.sign_loaded_bytes).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign CON package", command=self.sign_con_package).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(toolbar, text="Sign CON via key vault", command=self.sign_con_package_with_key_vault).pack(side=tk.LEFT, padx=(8, 0))
@@ -760,6 +764,89 @@ class HorizonApp(tk.Tk):
             self._set_details(result)
         except (OSError, ValueError, RuntimeError) as exc:
             messagebox.showerror("Account encryption failed", str(exc))
+
+    def _account_reference_key(self) -> bytes | None:
+        text = simpledialog.askstring(
+            "Historical Account key",
+            "Exactly 16-byte historical-reference key as hexadecimal:",
+            parent=self,
+            show="*",
+        )
+        if text is None:
+            return None
+        try:
+            key = bytes.fromhex(text.strip())
+        except ValueError as exc:
+            messagebox.showerror("Account key", f"Key must be hexadecimal: {exc}")
+            return None
+        if len(key) != 16:
+            messagebox.showerror("Account key", "Key must be exactly 16 bytes.")
+            return None
+        return key
+
+    def inspect_historical_account(self) -> None:
+        """Inspect the historical Account body using an explicit caller key."""
+
+        container = filedialog.askopenfilename(
+            title="Choose STFS container with Account entry",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not container:
+            return
+        key = self._account_reference_key()
+        if key is None:
+            return
+        try:
+            report = historical_account_report(Path(container), key)
+            self.status.configure(text="Inspected historical Account fields")
+            self._set_details(report)
+        except (OSError, TypeError, ValueError) as exc:
+            messagebox.showerror("Account inspection failed", str(exc))
+
+    def edit_historical_account(self) -> None:
+        """Edit historical Account fields and save a separate STFS artifact."""
+
+        container = filedialog.askopenfilename(
+            title="Choose STFS container with Account entry",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not container:
+            return
+        key = self._account_reference_key()
+        if key is None:
+            return
+        updates_path = filedialog.askopenfilename(
+            title="Choose Account field updates JSON",
+            filetypes=(("JSON files", "*.json"), ("All files", "*.*")),
+        )
+        if not updates_path:
+            return
+        target = filedialog.asksaveasfilename(
+            title="Save edited Account container",
+            defaultextension=".con",
+            filetypes=(("Xbox content", "*.con"), ("All files", "*.*")),
+        )
+        if not target:
+            return
+        try:
+            updates = json.loads(Path(updates_path).read_text(encoding="utf-8"))
+            if not isinstance(updates, dict):
+                raise ValueError("Account updates JSON must be an object")
+            source = Path(container)
+            edited = mutate_historical_account(source.read_bytes(), key, updates)
+            _atomic_write_bytes(Path(target), edited)
+            result = {
+                "input": container,
+                "output": target,
+                "bytes": len(edited),
+                "operation": "historical-account-edit",
+                "signature_checked": False,
+                "reference": "historical-public-codec",
+            }
+            self.status.configure(text="Wrote historical Account edit")
+            self._set_details(result)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            messagebox.showerror("Account edit failed", str(exc))
 
     def show_selected(self, _event=None) -> None:
         if not self._data or not self._report:
