@@ -2,7 +2,9 @@
 
 These are managed property declarations recovered from Horizon's metadata.
 They identify UI/device concepts but do not establish USB enumeration,
-filesystem, IOCTL, or thumbnail serialization behavior.
+filesystem, IOCTL, or thumbnail serialization behavior. The explicit transport
+adapter supports caller-selected read-only or read/write handles, while FATX
+commands remain unresolved.
 """
 
 from __future__ import annotations
